@@ -1,15 +1,65 @@
+# ─── Yarn Berry ────────────────────────────────────────────────────────────────
 .yarn/*
 !.yarn/patches
 !.yarn/plugins
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
-
-node_modules
-
-# Swap the comments on the following lines if you wish to use zero-installs
-# In that case, don't forget to run `yarn config set enableGlobalCache false`!
-# Documentation here: https://yarnpkg.com/features/caching#zero-installs
-
-#!.yarn/cache
+# Uncomment the line below if using zero-installs
+# !.yarn/cache
 .pnp.*
+
+# ─── Dependencies (all levels) ────────────────────────────────────────────────
+node_modules/
+
+# ─── Expo / React Native ──────────────────────────────────────────────────────
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Android
+apps/**/android/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# iOS
+apps/**/ios/
+*.hmap
+
+# Metro bundler cache
+.metro-health-check*
+**/.metro-cache/
+
+# ─── Build outputs ────────────────────────────────────────────────────────────
+build/
+out/
+**/.turbo/
+
+# ─── Environment & secrets ────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ─── OS & editor noise ────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+
+# ─── Eval output ──────────────────────────────────────────────────────────────
+eval/results/*.json
+eval/results/*.log
+
+# ─── Logs & temp ──────────────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.tmp
+*.temp
