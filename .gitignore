@@ -63,3 +63,7 @@ yarn-debug.log*
 yarn-error.log*
 *.tmp
 *.temp
+
+# lnai-generated
+.ai/.lnai-manifest.json
+# end lnai-generated
