@@ -40,6 +40,10 @@ export default function HomeScreen() {
         </ThemedView>
 
         <ThemedText type="code" style={styles.code}>
+          POC Screen
+        </ThemedText>
+
+        <ThemedText type="code" style={styles.code}>
           get started
         </ThemedText>
 
