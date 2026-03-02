@@ -4,13 +4,7 @@ paths:
   - "**/*.{ts,tsx,js,jsx}"
 ---
 
-# Your Coding Standards
-- Use TypeScript interfaces instead of types.
-- Use functional components for React Native.
-- No 'any' allowed.
-
-
-    # CaseScriptAI Code Standards
+# CaseScriptAI Code Standards
 
 ## File Size
 - Max 150 lines per file
@@ -69,11 +63,6 @@ export const stopRecording = async (): Promise<string> => {
   // Max 30 lines
 };
 
-// If class needed:
-export class AudioRecorder {
-  async start(): Promise<void> { }
-  async stop(): Promise<string> { }
-}
 Folder Structure Rules
 text
 src/
@@ -132,7 +121,8 @@ export const loadAudio = async (): Promise<Result<AudioMetadata>> => {
     // ...
     return { success: true, data };
   } catch (err) {
-    return { success: false, error: err.message };
+    const message = err instanceof Error ? err.message : 'Unknown error';
+  return { success: false, error: message };
   }
 };
 Comments
