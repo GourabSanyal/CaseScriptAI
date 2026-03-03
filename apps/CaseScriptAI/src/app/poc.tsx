@@ -13,11 +13,12 @@ export default function PoCTestScreen() {
     // Placeholder for actual implementatio
   };
 
-  const TestButton = ({ title, action }: { title: string; action: string }) => (
+  const TestButton = ({ title, action, disabled }: { title: string; action: string, disabled?: boolean }) => (
     <TouchableOpacity
       style={styles.button}
       onPress={() => handlePress(action)}
       activeOpacity={0.7}
+      disabled={disabled}
     >
       <Text style={styles.buttonText}>{title}</Text>
     </TouchableOpacity>
@@ -29,7 +30,7 @@ export default function PoCTestScreen() {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Audio Input</Text>
-        <TestButton title="[Record Audio]" action="Record Audio" />
+        <TestButton disabled={true} title="[Record Audio]" action="Record Audio" />
         <TestButton title="[Load Local Audio]" action="Load Local Audio" />
       </View>
 
