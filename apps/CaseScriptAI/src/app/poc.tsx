@@ -7,20 +7,30 @@ import {
   View,
 } from "react-native";
 
-export default function PoCTestScreen() {
+export const PoCTestScreen = (): React.JSX.Element => {
   const handlePress = (action: string) => {
     console.log(`${action} pressed`);
     // Placeholder for actual implementatio
   };
 
-  const TestButton = ({ title, action, disabled }: { title: string; action: string, disabled?: boolean }) => (
+  const TestButton = ({
+    title,
+    action,
+    disabled,
+  }: {
+    title: string;
+    action: string;
+    disabled?: boolean;
+  }) => (
     <TouchableOpacity
-      style={styles.button}
+      style={[styles.button, disabled && styles.buttonDisabled]}
       onPress={() => handlePress(action)}
       activeOpacity={0.7}
       disabled={disabled}
     >
-      <Text style={styles.buttonText}>{title}</Text>
+      <Text style={[styles.buttonText, disabled && styles.buttonTextDisabled]}>
+        {title}
+      </Text>
     </TouchableOpacity>
   );
 
@@ -30,7 +40,11 @@ export default function PoCTestScreen() {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Audio Input</Text>
-        <TestButton disabled={true} title="[Record Audio]" action="Record Audio" />
+        <TestButton
+          disabled={true}
+          title="[Record Audio]"
+          action="Record Audio"
+        />
         <TestButton title="[Load Local Audio]" action="Load Local Audio" />
       </View>
 
@@ -72,7 +86,7 @@ export default function PoCTestScreen() {
       </View>
     </ScrollView>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -134,4 +148,12 @@ const styles = StyleSheet.create({
   pauseButton: {
     backgroundColor: "#FF3B30",
   },
+  buttonDisabled: {
+    backgroundColor: "#E0E0E0",
+  },
+  buttonTextDisabled: {
+    color: "#A0A0A0",
+  },
 });
+
+export default PoCTestScreen;
