@@ -3169,11 +3169,13 @@ __metadata:
     "@react-navigation/native": "npm:^7.1.8"
     "@types/react": "npm:~19.1.10"
     expo: "npm:~54.0.0"
+    expo-audio: "npm:~1.1.1"
     expo-av: "npm:~16.0.8"
     expo-build-properties: "npm:~1.0.10"
     expo-constants: "npm:~18.0.13"
     expo-dev-client: "npm:~6.0.20"
     expo-device: "npm:~8.0.10"
+    expo-document-picker: "npm:~14.0.8"
     expo-font: "npm:~14.0.11"
     expo-glass-effect: "npm:~0.1.9"
     expo-image: "npm:~3.0.11"
@@ -3732,6 +3734,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+"expo-audio@npm:~1.1.1":
+  version: 1.1.1
+  resolution: "expo-audio@npm:1.1.1"
+  peerDependencies:
+    expo: "*"
+    expo-asset: "*"
+    react: "*"
+    react-native: "*"
+  checksum: 10c0/3ec687ca239b816097336808c9bd69995149166faf8dd74cb5fe732878843436178cbd1d901642779148df397562ffd36d207d217c801f16c300ab7df24d2208
+  languageName: node
+  linkType: hard
+
 "expo-av@npm:~16.0.8":
   version: 16.0.8
   resolution: "expo-av@npm:16.0.8"
@@ -3828,6 +3842,15 @@ __metadata:
   peerDependencies:
     expo: "*"
   checksum: 10c0/5e18593cd5589687fb26dab37bcad03bbbd76c3cbd54a0c7f894736530b8802ffe5492731d9356a5204aea18a802f7ccf1f0fa6e17b613b4869ded0fc9fa2262
+  languageName: node
+  linkType: hard
+
+"expo-document-picker@npm:~14.0.8":
+  version: 14.0.8
+  resolution: "expo-document-picker@npm:14.0.8"
+  peerDependencies:
+    expo: "*"
+  checksum: 10c0/1ef6aa129397e09269f5f47d6dbe338dc071ca51a24b98ed8bf21c3042c8a9ff806d31e14a9033bbc459ec4953aeb049f0648a083a71db43948255b6c1942e3e
   languageName: node
   linkType: hard
 
