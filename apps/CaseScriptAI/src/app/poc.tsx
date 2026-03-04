@@ -6,25 +6,33 @@ import {
   Text,
   View,
 } from "react-native";
+import { useAudio } from "@/hooks/audio/use-audio";
 
 export const PoCTestScreen = (): React.JSX.Element => {
-  const handlePress = (action: string) => {
-    console.log(`${action} pressed`);
+  const handlePress = (type: string) => {
+    console.log(`${type} pressed`);
     // Placeholder for actual implementatio
   };
+
+  const { handleAudioImport } = useAudio();
 
   const TestButton = ({
     title,
     action,
     disabled,
+    type,
   }: {
     title: string;
-    action: string;
+    action?: () => void | Promise<void>;
     disabled?: boolean;
+    type?: string;
   }) => (
     <TouchableOpacity
       style={[styles.button, disabled && styles.buttonDisabled]}
-      onPress={() => handlePress(action)}
+      onPress={() => {
+        if (type) handlePress(type);
+        action?.();
+      }}
       activeOpacity={0.7}
       disabled={disabled}
     >
@@ -41,11 +49,15 @@ export const PoCTestScreen = (): React.JSX.Element => {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Audio Input</Text>
         <TestButton
+          type="[Record Audio]"
           disabled={true}
           title="[Record Audio]"
-          action="Record Audio"
         />
-        <TestButton title="[Load Local Audio]" action="Load Local Audio" />
+        <TestButton
+          title="[Load Local Audio]"
+          action={handleAudioImport}
+          type="[Load Local Audio]"
+        />
       </View>
 
       <View style={styles.section}>
@@ -71,17 +83,34 @@ export const PoCTestScreen = (): React.JSX.Element => {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>AI Pipeline</Text>
-        <TestButton title="[Convert to WAV]" action="Convert to WAV" />
-        <TestButton title="[Run Whisper]" action="Run Whisper" />
-        <TestButton title="[Run LLM]" action="Run LLM" />
+        <TestButton
+          title="[Convert to WAV]"
+          action={() => handlePress("Convert to WAV")}
+          type="[Convert to WAV]"
+        />
+        <TestButton
+          title="[Run Whisper]"
+          action={() => handlePress("Run Whisper")}
+          type="[Run Whisper]"
+        />
+        <TestButton
+          title="[Run LLM]"
+          action={() => handlePress("Run LLM")}
+          type="[Run LLM]"
+        />
       </View>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Outputs & Security</Text>
-        <TestButton title="[Generate PDF]" action="Generate PDF" />
+        <TestButton
+          title="[Generate PDF]"
+          action={() => handlePress("Generate PDF")}
+          type="[Generate PDF]"
+        />
         <TestButton
           title="[View Encrypted File]"
-          action="View Encrypted File"
+          action={() => handlePress("View Encrypted File")}
+          type="[View Encrypted File]"
         />
       </View>
     </ScrollView>
