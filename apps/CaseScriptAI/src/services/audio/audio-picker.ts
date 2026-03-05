@@ -1,9 +1,9 @@
 import * as DocumentPicker from 'expo-document-picker';
 
 export const pickAudioFile = async () => {
-    try{
+    try {
         const result = await DocumentPicker.getDocumentAsync({
-            type: 'audio/*',
+            type: ['audio/*', 'audio/mpeg', 'video/mpeg', 'audio/wav', 'audio/mp3', 'audio/ogg'],
             copyToCacheDirectory: true
         })
         if (result.canceled) {
