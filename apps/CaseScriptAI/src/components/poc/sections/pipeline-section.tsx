@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from "react-native";
 import { TestButton } from "@/components/common/test-button";
 
 import type { PipelineSectionProps } from "@/types/poc";
+import { convertAudioToWav } from "@/services/audio/converter";
 
 export const PipelineSection = ({
   audios,
@@ -13,7 +14,7 @@ export const PipelineSection = ({
       <Text style={styles.sectionTitle}>AI Pipeline</Text>
       <TestButton
         title="⚙️ Convert to WAV"
-        onPress={() => handlePress("Convert to WAV")}
+        onPress={() => convertAudioToWav(audios)}
         disabled={audios.length === 0}
       />
       <TestButton
