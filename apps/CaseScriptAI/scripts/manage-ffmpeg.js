@@ -115,18 +115,18 @@ Pod::Spec.new do |s|
   s.platform         = :ios, '12.1'
   s.static_framework = true
 
-  # Use local, pre-extracted frameworks under ios/libs.
-  s.source = { :path => './libs/ffmpeg-kit-ios-full-gpl-latest' }
+  # Use local zip file via file:// URL.
+  s.source = { :http => "file://#{__dir__}/libs/#{IOS_ZIP_NAME}" }
 
   s.vendored_frameworks = [
-    'libs/ffmpeg-kit-ios-full-gpl-latest/ffmpeg-kit-ios-full-gpl/6.0-80adc/libswscale.xcframework',
-    'libs/ffmpeg-kit-ios-full-gpl-latest/ffmpeg-kit-ios-full-gpl/6.0-80adc/libswresample.xcframework',
-    'libs/ffmpeg-kit-ios-full-gpl-latest/ffmpeg-kit-ios-full-gpl/6.0-80adc/libavutil.xcframework',
-    'libs/ffmpeg-kit-ios-full-gpl-latest/ffmpeg-kit-ios-full-gpl/6.0-80adc/libavformat.xcframework',
-    'libs/ffmpeg-kit-ios-full-gpl-latest/ffmpeg-kit-ios-full-gpl/6.0-80adc/libavfilter.xcframework',
-    'libs/ffmpeg-kit-ios-full-gpl-latest/ffmpeg-kit-ios-full-gpl/6.0-80adc/libavdevice.xcframework',
-    'libs/ffmpeg-kit-ios-full-gpl-latest/ffmpeg-kit-ios-full-gpl/6.0-80adc/libavcodec.xcframework',
-    'libs/ffmpeg-kit-ios-full-gpl-latest/ffmpeg-kit-ios-full-gpl/6.0-80adc/ffmpegkit.xcframework'
+    'ffmpeg-kit-ios-full-gpl/6.0-80adc/libswscale.xcframework',
+    'ffmpeg-kit-ios-full-gpl/6.0-80adc/libswresample.xcframework',
+    'ffmpeg-kit-ios-full-gpl/6.0-80adc/libavutil.xcframework',
+    'ffmpeg-kit-ios-full-gpl/6.0-80adc/libavformat.xcframework',
+    'ffmpeg-kit-ios-full-gpl/6.0-80adc/libavfilter.xcframework',
+    'ffmpeg-kit-ios-full-gpl/6.0-80adc/libavdevice.xcframework',
+    'ffmpeg-kit-ios-full-gpl/6.0-80adc/libavcodec.xcframework',
+    'ffmpeg-kit-ios-full-gpl/6.0-80adc/ffmpegkit.xcframework'
   ]
 end
 `;

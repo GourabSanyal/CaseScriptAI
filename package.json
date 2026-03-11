@@ -3,8 +3,11 @@
   "private": true,
   "version": "0.0.1",
   "packageManager": "yarn@4.5.3",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ]
+    "workspaces": [
+      "apps/*",
+      "packages/*"
+    ],
+    "scripts": {
+      "postinstall": "yarn workspace casescriptai run postinstall"
+    }
 }

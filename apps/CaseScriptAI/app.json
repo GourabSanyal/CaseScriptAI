@@ -60,8 +60,7 @@
         }
       ],
       "expo-font",
-      "expo-web-browser",
-      "./plugins/with-ffmpeg-mirror"
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
