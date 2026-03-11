@@ -4,7 +4,7 @@ import type { Result } from "@/types/result";
 export const ensureCaseDirectory = async (caseId: string): Promise<void> => {
   const dir = new File(`${Paths.document.uri}cases/${caseId}`);
   if (!dir.exists) {
-    await dir.create();
+    await dir.create({ intermediates: true });
   }
 };
 

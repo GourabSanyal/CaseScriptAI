@@ -116,39 +116,32 @@ Pod::Spec.new do |s|
   s.static_framework = true
 
   # Use local zip file via file:// URL.
-  s.source = { :http => "file://#{__dir__}/libs/#{IOS_ZIP_NAME}" }
+  s.source = { :http => "file://#{__dir__}/libs/${IOS_ZIP_NAME}" }
 
+  # Corrected paths: zip has double-nested ffmpeg-kit-ios-full-gpl-latest folder.
   s.vendored_frameworks = [
-    'ffmpeg-kit-ios-full-gpl/6.0-80adc/libswscale.xcframework',
-    'ffmpeg-kit-ios-full-gpl/6.0-80adc/libswresample.xcframework',
-    'ffmpeg-kit-ios-full-gpl/6.0-80adc/libavutil.xcframework',
-    'ffmpeg-kit-ios-full-gpl/6.0-80adc/libavformat.xcframework',
-    'ffmpeg-kit-ios-full-gpl/6.0-80adc/libavfilter.xcframework',
-    'ffmpeg-kit-ios-full-gpl/6.0-80adc/libavdevice.xcframework',
-    'ffmpeg-kit-ios-full-gpl/6.0-80adc/libavcodec.xcframework',
-    'ffmpeg-kit-ios-full-gpl/6.0-80adc/ffmpegkit.xcframework'
+    'ffmpeg-kit-ios-full-gpl-latest/ffmpeg-kit-ios-full-gpl/6.0-80adc/libswscale.xcframework',
+    'ffmpeg-kit-ios-full-gpl-latest/ffmpeg-kit-ios-full-gpl/6.0-80adc/libswresample.xcframework',
+    'ffmpeg-kit-ios-full-gpl-latest/ffmpeg-kit-ios-full-gpl/6.0-80adc/libavutil.xcframework',
+    'ffmpeg-kit-ios-full-gpl-latest/ffmpeg-kit-ios-full-gpl/6.0-80adc/libavformat.xcframework',
+    'ffmpeg-kit-ios-full-gpl-latest/ffmpeg-kit-ios-full-gpl/6.0-80adc/libavfilter.xcframework',
+    'ffmpeg-kit-ios-full-gpl-latest/ffmpeg-kit-ios-full-gpl/6.0-80adc/libavdevice.xcframework',
+    'ffmpeg-kit-ios-full-gpl-latest/ffmpeg-kit-ios-full-gpl/6.0-80adc/libavcodec.xcframework',
+    'ffmpeg-kit-ios-full-gpl-latest/ffmpeg-kit-ios-full-gpl/6.0-80adc/ffmpegkit.xcframework'
   ]
+
+  # Export header search paths so consumers (like ffmpeg-kit-react-native) can find <ffmpegkit/...>
+  s.pod_target_xcconfig = {
+    'HEADER_SEARCH_PATHS' => '$(inherited) "\${PODS_ROOT}/ffmpeg-kit-ios-full-gpl/ffmpeg-kit-ios-full-gpl-latest/ffmpeg-kit-ios-full-gpl/6.0-80adc/ffmpegkit.xcframework/ios-arm64_x86_64-simulator/ffmpegkit.framework/Headers"',
+  }
+  s.user_target_xcconfig = {
+    'HEADER_SEARCH_PATHS' => '$(inherited) "\${PODS_ROOT}/ffmpeg-kit-ios-full-gpl/ffmpeg-kit-ios-full-gpl-latest/ffmpeg-kit-ios-full-gpl/6.0-80adc/ffmpegkit.xcframework/ios-arm64_x86_64-simulator/ffmpegkit.framework/Headers"',
+  }
 end
 `;
 
-  let shouldWrite = true;
-  if (fs.existsSync(podspecPath)) {
-    const existing = fs.readFileSync(podspecPath, "utf8");
-    if (
-      existing.includes(
-        "ffmpeg-kit-ios-full-gpl-latest/ffmpeg-kit-ios-full-gpl",
-      )
-    ) {
-      shouldWrite = false;
-    }
-  }
-
-  if (shouldWrite) {
-    fs.writeFileSync(podspecPath, podspecContent);
-    console.log(`✅ Wrote iOS podspec: ${podspecPath}`);
-  } else {
-    console.log("ℹ️ iOS podspec already configured. Skipping.");
-  }
+  fs.writeFileSync(podspecPath, podspecContent);
+  console.log(`✅ Wrote iOS podspec: ${podspecPath}`);
 };
 
 const ensureIosPodfile = () => {
