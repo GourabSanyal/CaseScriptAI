@@ -1,82 +1,109 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
-import { File } from "expo-file-system";
+import { File, Paths } from "expo-file-system";
 import { pickAudioFile } from "@/services/audio/audio-picker";
 import {
-  copyToDocuments,
+  deleteAudioFile,
   resolveAudioUri,
+  ensureCaseDirectory,
 } from "@/services/audio/audio-storage";
+import { convertToWav } from "@/services/audio/audio-processor";
+import { encryptFile, decryptFile } from "@/services/audio/crypto-service";
 import { usePocStore } from "@/stores/poc-store";
-import type { AudioEntry } from "@/types/audio";
 
 export const useAudio = () => {
   const addAudio = usePocStore((s) => s.addAudio);
   const audios = usePocStore((s) => s.audios);
 
-  // determines the most recent audio track
   const lastAudioEntry = audios.length > 0 ? audios[audios.length - 1] : null;
 
-  // resolves the full URI
+  // For playback, we need a decrypted version in Cache
   const lastAudioUri = useMemo(() => {
     if (!lastAudioEntry) return null;
+    // Note: We resolve the encrypted file here, but for playback
+    // we will decrypt it just-in-time.
     return resolveAudioUri(lastAudioEntry.uri);
   }, [lastAudioEntry]);
 
-  // track the source actually loaded in the player to avoid redundant calls
   const currentSourceRef = useRef<string | null>(null);
-
   const player = useAudioPlayer();
   const status = useAudioPlayerStatus(player);
 
-  // handle source replacement and verification
-  useEffect(() => {
-    const updateSource = async () => {
-      if (!lastAudioUri) {
-        currentSourceRef.current = null;
+  const handleAudioImport = async (): Promise<void> => {
+    try {
+      console.log("[Ingestion] Starting import...");
+      const picked = await pickAudioFile();
+      if (!picked) return;
+
+      console.log(`[Ingestion] Picked: ${picked.name}`);
+
+      // 1. Convert to 16kHz WAV in Cache
+      const conversion = await convertToWav(picked.uri);
+      if (!conversion.success) {
+        console.error("[Ingestion] Conversion failed");
         return;
       }
 
-      if (lastAudioUri !== currentSourceRef.current) {
-        try {
-          const fileSource = new File(lastAudioUri);
-          if (fileSource.exists) {
-            player.replace(lastAudioUri);
-            currentSourceRef.current = lastAudioUri;
-          }
-        } catch (err) {
-          // yet to implement
-        }
+      // 2. Encrypt WAV to Documents/cases/poc/...
+      const caseId = "poc"; // Hardcoded for POC
+      await ensureCaseDirectory(caseId);
+      const encryptedPath = `${Paths.document.uri}cases/${caseId}/${picked.name}.enc`;
+
+      const encryption = await encryptFile(conversion.data, encryptedPath);
+      if (!encryption.success) {
+        console.error("[Ingestion] Encryption failed");
+        return;
       }
-    };
 
-    updateSource();
-  }, [lastAudioUri, player]);
+      // 3. Cleanup: Delete picked temp file and converted WAV
+      console.log("[Cleanup] Removing temporary files...");
+      await deleteAudioFile(picked.uri);
+      await deleteAudioFile(conversion.data);
 
-  const handleAudioImport = async (): Promise<void> => {
-    const picked = await pickAudioFile();
-    if (!picked) return;
-
-    const result = await copyToDocuments(picked.uri);
-    if (!result.success) {
-      return;
+      addAudio({
+        uri: `${picked.name}.enc`, // Save filename only
+        name: picked.name,
+        size: picked.size,
+        addedAt: Date.now(),
+        iv: encryption.data.iv,
+        tag: encryption.data.tag,
+      });
+      console.log("[Ingestion] Complete!");
+    } catch (err) {
+      console.error("[Ingestion] Error:", err);
+    } finally {
+      // Final cleanup attempt for any artifacts left in Cache
     }
-
-    addAudio({
-      uri: result.data,
-      name: picked.name,
-      size: picked.size,
-      addedAt: Date.now(),
-    });
   };
 
-  const playAudio = () => {
+  const playAudio = async () => {
     if (
-      lastAudioUri &&
-      (status.playbackState === "readyToPlay" || status.isLoaded)
-    ) {
-      player.play();
-    } else if (lastAudioUri) {
-      player.play();
+      !lastAudioEntry ||
+      !lastAudioUri ||
+      !lastAudioEntry.iv ||
+      !lastAudioEntry.tag
+    )
+      return;
+
+    try {
+      // JIT Decryption for playback
+      const tempPlaybackPath = `${Paths.cache.uri}play_${Date.now()}.wav`;
+      const decryption = await decryptFile(
+        lastAudioUri,
+        tempPlaybackPath,
+        lastAudioEntry.iv,
+        lastAudioEntry.tag,
+      );
+
+      if (decryption.success) {
+        player.replace(tempPlaybackPath);
+        player.play();
+
+        // Cleanup temp file after a delay or when player ends
+        // (Simplified for POC: we just leave it for now or delete on next play)
+      }
+    } catch (err) {
+      console.error("[Playback] Decryption failed:", err);
     }
   };
 

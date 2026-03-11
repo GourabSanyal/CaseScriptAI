@@ -3,7 +3,6 @@ import { View, Text, StyleSheet } from "react-native";
 import { TestButton } from "@/components/common/test-button";
 
 import type { PipelineSectionProps } from "@/types/poc";
-import { convertAudioToWav } from "@/services/audio/converter";
 
 export const PipelineSection = ({
   audios,
@@ -13,14 +12,17 @@ export const PipelineSection = ({
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>AI Pipeline</Text>
       <TestButton
-        title="⚙️ Convert to WAV"
-        onPress={() => convertAudioToWav(audios)}
+        title="✅ Audio Processed & Encrypted"
+        onPress={() =>
+          console.log("Audio is already converted to 16kHz WAV and encrypted.")
+        }
         disabled={audios.length === 0}
+        style={{ backgroundColor: audios.length > 0 ? "#34C759" : "#ccc" }}
       />
       <TestButton
-        title="🧠 Run Whisper"
+        title="🧠 Run Whisper (Ready)"
         onPress={() => handlePress("Run Whisper")}
-        disabled={true}
+        disabled={audios.length === 0}
       />
       <TestButton
         title="📝 Run LLM"
