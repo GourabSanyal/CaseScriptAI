@@ -181,6 +181,33 @@ const ensureIosPodfile = () => {
   console.log("✅ Patched Podfile for FFmpegKit (iOS).");
 };
 
+const ensureIosPodsUpdated = () => {
+  if (process.platform !== "darwin") {
+    return;
+  }
+
+  const iosDir = path.join(appRoot, "ios");
+  if (!fs.existsSync(iosDir)) {
+    return;
+  }
+
+  console.log("🔍 Running pod install to sync FFmpeg changes...");
+  try {
+    // We attempt a standard pod install first.
+    // If it fails, we advise the user to run with --repo-update.
+    execSync("pod install", {
+      cwd: iosDir,
+      stdio: "inherit",
+      env: { ...process.env, NO_FLIPPER: "1" }, // Performance optimization if applicable
+    });
+    console.log("✅ iOS Pods synced successfully.");
+  } catch (err) {
+    console.error(
+      "❌ Pod install failed automatically. Please navigate to 'apps/CaseScriptAI/ios' and run 'pod install --repo-update' manually.",
+    );
+  }
+};
+
 const ensureAndroidAppGradle = () => {
   const appGradlePath = path.join(appRoot, "android", "app", "build.gradle");
   if (!fs.existsSync(appGradlePath)) {
@@ -299,6 +326,7 @@ const setup = () => {
   ensureAndroidAppGradle();
   ensureAndroidRootGradle();
   ensureFfmpegKitLibraryGradle();
+  ensureIosPodsUpdated();
 };
 
 const verify = () => {
