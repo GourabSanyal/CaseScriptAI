@@ -140,6 +140,12 @@ Pod::Spec.new do |s|
 end
 `;
 
+  const stalePodspecPath = path.join(iosDir, "libs", "ffmpeg-kit-ios-https.podspec");
+  if (fs.existsSync(stalePodspecPath)) {
+    console.log(`🧹 Removing stale podspec: ${stalePodspecPath}`);
+    fs.unlinkSync(stalePodspecPath);
+  }
+
   fs.writeFileSync(podspecPath, podspecContent);
   console.log(`✅ Wrote iOS podspec: ${podspecPath}`);
 };
@@ -157,7 +163,7 @@ const ensureIosPodfile = () => {
     return;
   }
 
-  content = content.replace(/^\s*pod\s+'ffmpeg-kit-ios-https'.*$/m, "");
+  content = content.replace(/^\s*pod\s+'ffmpeg-kit-ios-https'.*$/gm, "");
 
   const insertLine =
     "  pod 'ffmpeg-kit-ios-full-gpl', :podspec => './ffmpeg-kit-ios-full-gpl.podspec'\n" +
