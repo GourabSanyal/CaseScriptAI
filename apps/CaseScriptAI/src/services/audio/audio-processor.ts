@@ -13,6 +13,8 @@ export const convertToWav = async (
       "",
     );
     const formattedInput = inputPath.replace("file://", "");
+    console.log(`[FFmpeg] Formatted Input Path: ${formattedInput}`);
+    console.log(`[FFmpeg] Formatted Output Path: ${outputPath}`);
 
     // Command: -i input -acodec pcm_s16le -ac 1 -ar 16000 output.wav
     const command = `-i "${formattedInput}" -acodec pcm_s16le -ac 1 -ar 16000 "${outputPath}"`;

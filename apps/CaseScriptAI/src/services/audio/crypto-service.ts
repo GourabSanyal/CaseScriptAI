@@ -15,11 +15,15 @@ export const encryptFile = async (
   outputPath: string,
 ): Promise<Result<EncryptionResult>> => {
   try {
-    console.log(`[Crypto] Encrypting: ${inputPath}`);
+    const formattedInput = inputPath.replace("file://", "");
+    const formattedOutput = outputPath.replace("file://", "");
+    console.log(`[Crypto] Formatted Input Path: ${formattedInput}`);
+    console.log(`[Crypto] Formatted Output Path: ${formattedOutput}`);
+
     // Signature: encryptFile(inputFilePath, outputFilePath, key)
     const { iv, tag } = await AesGcmCrypto.encryptFile(
-      inputPath.replace("file://", ""),
-      outputPath.replace("file://", ""),
+      formattedInput,
+      formattedOutput,
       KEY,
     );
     console.log(`[Crypto] Encrypted. IV: ${iv}, Tag: ${tag}`);
@@ -38,11 +42,15 @@ export const decryptFile = async (
   tag: string,
 ): Promise<Result<string>> => {
   try {
-    console.log(`[Crypto] Decrypting: ${inputPath}`);
+    const formattedInput = inputPath.replace("file://", "");
+    const formattedOutput = outputPath.replace("file://", "");
+    console.log(`[Crypto] Formatted Input Path: ${formattedInput}`);
+    console.log(`[Crypto] Formatted Output Path: ${formattedOutput}`);
+
     // Signature: decryptFile(inputFilePath, outputFilePath, key, iv, tag)
     await AesGcmCrypto.decryptFile(
-      inputPath.replace("file://", ""),
-      outputPath.replace("file://", ""),
+      formattedInput,
+      formattedOutput,
       KEY,
       iv,
       tag,
