@@ -4,9 +4,7 @@ import type { Result } from "@/types/result";
 
 export const ensureCaseDirectory = async (caseId: string): Promise<void> => {
   const path = `${Paths.document.uri}cases/${caseId}`;
-  // #region agent log
-  globalThis.fetch?.('http://127.0.0.1:7371/ingest/2857af09-21c5-4024-a0ea-45a2e9d0878e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9d9a11'},body:JSON.stringify({sessionId:'9d9a11',runId:'pre-fix',hypothesisId:'B',location:'audio-storage.ts:7',message:'ensureCaseDirectory path',data:{caseId,path,docUri:Paths.document.uri,hasFetch:typeof globalThis.fetch === 'function'},timestamp:Date.now()})})?.catch(()=>{});
-  // #endregion agent log
+
   const info = await FileSystem.getInfoAsync(path);
   
   if (!info.exists) {
@@ -27,25 +25,19 @@ export const copyAudioToCase = async (
     const srcPath = sourceUri.replace("file://", "");
     const destPath = resolveAudioUri(fileName, caseId).replace("file://", "");
 
-    // #region agent log
-    globalThis.fetch?.('http://127.0.0.1:7371/ingest/2857af09-21c5-4024-a0ea-45a2e9d0878e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9d9a11'},body:JSON.stringify({sessionId:'9d9a11',runId:'pre-fix',hypothesisId:'A',location:'audio-storage.ts:26',message:'copyAudioToCase entry',data:{sourceUri,fileName,caseId,docUri:Paths.document.uri,cacheUri:Paths.cache.uri,srcPath,destPath,hasFetch:typeof globalThis.fetch === 'function'},timestamp:Date.now()})})?.catch(()=>{});
-    // #endregion agent log
+
     await ensureCaseDirectory(caseId);
     
     console.log(`[Storage] Source exists check. Path: ${srcPath}`);
     const srcInfo = await FileSystem.getInfoAsync(srcPath);
-    // #region agent log
-    globalThis.fetch?.('http://127.0.0.1:7371/ingest/2857af09-21c5-4024-a0ea-45a2e9d0878e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9d9a11'},body:JSON.stringify({sessionId:'9d9a11',runId:'pre-fix',hypothesisId:'A',location:'audio-storage.ts:35',message:'srcInfo',data:{sourceUri,exists:srcInfo.exists,isDirectory:srcInfo.isDirectory,md5:srcInfo.md5 ?? null,size:srcInfo.size ?? null,modificationTime:srcInfo.modificationTime ?? null,uri:srcInfo.uri ?? null},timestamp:Date.now()})})?.catch(()=>{});
-    // #endregion agent log
+
     if (!srcInfo.exists) {
         return { success: false, error: `Source file does not exist (Legacy API check): ${sourceUri}` };
     }
 
     console.log(`[Storage] Destination state check. Path: ${destPath}`);
     const destInfo = await FileSystem.getInfoAsync(destPath);
-    // #region agent log
-    globalThis.fetch?.('http://127.0.0.1:7371/ingest/2857af09-21c5-4024-a0ea-45a2e9d0878e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9d9a11'},body:JSON.stringify({sessionId:'9d9a11',runId:'pre-fix',hypothesisId:'C',location:'audio-storage.ts:43',message:'destInfo before copy',data:{destPath,exists:destInfo.exists,isDirectory:destInfo.isDirectory,md5:destInfo.md5 ?? null,size:destInfo.size ?? null,modificationTime:destInfo.modificationTime ?? null,uri:destInfo.uri ?? null},timestamp:Date.now()})})?.catch(()=>{});
-    // #endregion agent log
+
     if (destInfo.exists) {
         console.log(`[Storage] Overwriting existing file at: ${destPath}`);
     }
@@ -58,9 +50,7 @@ export const copyAudioToCase = async (
     
     // Final verification
     const verifyInfo = await FileSystem.getInfoAsync(destPath);
-    // #region agent log
-    globalThis.fetch?.('http://127.0.0.1:7371/ingest/2857af09-21c5-4024-a0ea-45a2e9d0878e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9d9a11'},body:JSON.stringify({sessionId:'9d9a11',runId:'pre-fix',hypothesisId:'D',location:'audio-storage.ts:60',message:'verifyInfo after copy',data:{destPath,exists:verifyInfo.exists,isDirectory:verifyInfo.isDirectory,size:verifyInfo.size ?? null,uri:verifyInfo.uri ?? null},timestamp:Date.now()})})?.catch(()=>{});
-    // #endregion agent log
+
     if (verifyInfo.exists) {
         console.log(`[Storage] Copy verified. Size: ${verifyInfo.size} bytes`);
         return { success: true, data: fileName };
@@ -69,9 +59,7 @@ export const copyAudioToCase = async (
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Copy failed";
-    // #region agent log
-    globalThis.fetch?.('http://127.0.0.1:7371/ingest/2857af09-21c5-4024-a0ea-45a2e9d0878e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9d9a11'},body:JSON.stringify({sessionId:'9d9a11',runId:'pre-fix',hypothesisId:'E',location:'audio-storage.ts:70',message:'copyAudioToCase error',data:{message,name:(err instanceof Error ? err.name : null),hasFetch:typeof globalThis.fetch === 'function'},timestamp:Date.now()})})?.catch(()=>{});
-    // #endregion agent log
+
     console.error(`[Storage] Copy error (Legacy API): ${message}`);
     return { success: false, error: message };
   }

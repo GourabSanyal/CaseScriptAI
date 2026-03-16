@@ -39,11 +39,7 @@ export const useAudio = () => {
 
   const lastAudioEntry = audios.length > 0 ? audios[audios.length - 1] : null;
 
-  useEffect(() => {
-    // #region agent log
-    globalThis.fetch?.('http://127.0.0.1:7371/ingest/2857af09-21c5-4024-a0ea-45a2e9d0878e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9d9a11'},body:JSON.stringify({sessionId:'9d9a11',runId:'pre-fix',hypothesisId:'Z',location:'use-audio.ts:23',message:'useAudio mounted',data:{audiosCount:audios.length,lastAudioEntryUri:lastAudioEntry?.uri ?? null,hasFetch:typeof globalThis.fetch === 'function'},timestamp:Date.now()})})?.catch(()=>{});
-    // #endregion agent log
-  }, []);
+
 
   // For playback, we need a decrypted version in Cache
   const lastAudioUri = useMemo(() => {
@@ -59,17 +55,11 @@ export const useAudio = () => {
   const handleAudioImport = async (): Promise<void> => {
     try {
       console.log("[Ingestion] Starting import...");
-      // #region agent log
-      globalThis.fetch?.('http://127.0.0.1:7371/ingest/2857af09-21c5-4024-a0ea-45a2e9d0878e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9d9a11'},body:JSON.stringify({sessionId:'9d9a11',runId:'pre-fix',hypothesisId:'A',location:'use-audio.ts:38',message:'handleAudioImport start',data:{audiosCount:audios.length,lastAudioEntryUri:lastAudioEntry?.uri ?? null,hasFetch:typeof globalThis.fetch === 'function'},timestamp:Date.now()})})?.catch(()=>{});
-      // #endregion agent log
       const picked = await pickAudioFile();
       if (!picked) return;
 
       console.log(`[Ingestion] Picked Assets:`, picked);
       console.log(`[Ingestion] Picked URI: ${picked.uri}`);
-      // #region agent log
-      globalThis.fetch?.('http://127.0.0.1:7371/ingest/2857af09-21c5-4024-a0ea-45a2e9d0878e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9d9a11'},body:JSON.stringify({sessionId:'9d9a11',runId:'pre-fix',hypothesisId:'A',location:'use-audio.ts:48',message:'picked asset',data:{pickedUri:picked.uri,pickedName:picked.name,pickedSize:picked.size ?? null},timestamp:Date.now()})})?.catch(()=>{});
-      // #endregion agent log
 
       // 1. Convert to 16kHz WAV in Cache
       console.log(`[Ingestion] Step 1: Converting to 16kHz WAV...`);
@@ -79,9 +69,7 @@ export const useAudio = () => {
         return;
       }
       console.log(`[Ingestion] Conversion Success. WAV URI: ${conversion.data}`);
-      // #region agent log
-      globalThis.fetch?.('http://127.0.0.1:7371/ingest/2857af09-21c5-4024-a0ea-45a2e9d0878e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9d9a11'},body:JSON.stringify({sessionId:'9d9a11',runId:'pre-fix',hypothesisId:'A',location:'use-audio.ts:62',message:'conversion success',data:{convertedUri:conversion.data},timestamp:Date.now()})})?.catch(()=>{});
-      // #endregion agent log
+
 
       // 2. Cleanup: delete picked original, keep converted WAV in Cache for playback
       console.log("[Ingestion] Step 2: Cleaning up picked file...");
@@ -96,9 +84,7 @@ export const useAudio = () => {
         addedAt: Date.now(),
       });
       console.log("[Ingestion] COMPLETE! Audio added to store.");
-      // #region agent log
-      globalThis.fetch?.('http://127.0.0.1:7371/ingest/2857af09-21c5-4024-a0ea-45a2e9d0878e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9d9a11'},body:JSON.stringify({sessionId:'9d9a11',runId:'pre-fix',hypothesisId:'D',location:'use-audio.ts:104',message:'store updated',data:{storedUri:conversion.data,resolvedUri:resolveAudioUri(conversion.data,'poc')},timestamp:Date.now()})})?.catch(()=>{});
-      // #endregion agent log
+
     } catch (err) {
       console.error("[Ingestion] Error:", err);
     } finally {
@@ -111,9 +97,7 @@ export const useAudio = () => {
 
     try {
       console.log(`[Playback] Playing: ${lastAudioUri}`);
-      // #region agent log
-      globalThis.fetch?.('http://127.0.0.1:7371/ingest/2857af09-21c5-4024-a0ea-45a2e9d0878e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9d9a11'},body:JSON.stringify({sessionId:'9d9a11',runId:'pre-fix',hypothesisId:'F',location:'use-audio.ts:118',message:'playAudio called',data:{lastAudioEntry:lastAudioEntry ? {uri:lastAudioEntry.uri,name:lastAudioEntry.name,size:lastAudioEntry.size ?? null,addedAt:lastAudioEntry.addedAt ?? null} : null,lastAudioUri,status:{playing:status.playing,currentTime:status.currentTime,duration:status.duration ?? null,playbackState:status.playbackState ?? null}},timestamp:Date.now()})})?.catch(()=>{});
-      // #endregion agent log
+
       player.replace(lastAudioUri);
       player.play();
     } catch (err) {
