@@ -6,45 +6,19 @@ import {
   deleteAudioFile,
   resolveAudioUri,
   ensureCaseDirectory,
-  copyAudioToCase,
+  copyToDocuments,
 } from "@/services/audio/audio-storage";
-import { convertToWav } from "@/services/audio/audio-processor";
-import { encryptFile, decryptFile } from "@/services/audio/crypto-service";
 import { usePocStore } from "@/stores/poc-store";
-import { Audio } from "expo-av";
 
 export const useAudio = () => {
   const addAudio = usePocStore((s) => s.addAudio);
   const audios = usePocStore((s) => s.audios);
 
-  useEffect(() => {
-    const setupAudio = async () => {
-      try {
-        await Audio.setAudioModeAsync({
-          playsInSilentModeIOS: true,
-          allowsRecordingIOS: false,
-          staysActiveInBackground: true,
-          interruptionModeIOS: 1, // InterruptionModeIOS.DoNotMix
-          shouldDuckAndroid: true,
-          interruptionModeAndroid: 1, // InterruptionModeAndroid.DoNotMix
-          playThroughEarpieceAndroid: false,
-        });
-        console.log("[Audio] Global session configured.");
-      } catch (err) {
-        console.error("[Audio] Failed to set audio mode:", err);
-      }
-    };
-    setupAudio();
-  }, []);
-
   const lastAudioEntry = audios.length > 0 ? audios[audios.length - 1] : null;
 
-
-
-  // For playback, we need a decrypted version in Cache
   const lastAudioUri = useMemo(() => {
     if (!lastAudioEntry) return null;
-    // Note: We resolve the file in the specific case directory
+    // POC stores audio under Documents/cases/poc/
     return resolveAudioUri(lastAudioEntry.uri, "poc");
   }, [lastAudioEntry]);
 
@@ -58,33 +32,28 @@ export const useAudio = () => {
       const picked = await pickAudioFile();
       if (!picked) return;
 
-      console.log(`[Ingestion] Picked Assets:`, picked);
-      console.log(`[Ingestion] Picked URI: ${picked.uri}`);
+      console.log(`[Ingestion] Picked: ${picked.name}`);
 
-      // 1. Convert to 16kHz WAV in Cache
-      console.log(`[Ingestion] Step 1: Converting to 16kHz WAV...`);
-      const conversion = await convertToWav(picked.uri);
-      if (!conversion.success) {
-        console.error(`[Ingestion] Conversion failed: ${conversion.error}`);
+      const caseId = "poc"; // Hardcoded for POC
+      await ensureCaseDirectory(caseId);
+
+      const copied = await copyToDocuments(picked.uri, caseId);
+      if (!copied.success) {
+        console.error("[Ingestion] Copy failed:", copied.error);
         return;
       }
-      console.log(`[Ingestion] Conversion Success. WAV URI: ${conversion.data}`);
 
-
-      // 2. Cleanup: delete picked original, keep converted WAV in Cache for playback
-      console.log("[Ingestion] Step 2: Cleaning up picked file...");
-      console.log(`[Cleanup] Deleting picked file: ${picked.uri}`);
+      // Cleanup: Delete picked temp file
+      console.log("[Cleanup] Removing temporary files...");
       await deleteAudioFile(picked.uri);
 
-      console.log(`[Ingestion] Step 4: Updating store...`);
       addAudio({
-        uri: conversion.data, // store full wav URI in cache
+        uri: copied.data, // Save filename only (stored unencrypted)
         name: picked.name,
         size: picked.size,
         addedAt: Date.now(),
       });
-      console.log("[Ingestion] COMPLETE! Audio added to store.");
-
+      console.log("[Ingestion] Complete!");
     } catch (err) {
       console.error("[Ingestion] Error:", err);
     } finally {
@@ -96,12 +65,15 @@ export const useAudio = () => {
     if (!lastAudioEntry || !lastAudioUri) return;
 
     try {
-      console.log(`[Playback] Playing: ${lastAudioUri}`);
-
+      const info = Paths.info(lastAudioUri);
+      if (!info.exists || info.isDirectory) {
+        console.error("[Playback] Missing audio file:", lastAudioUri);
+        return;
+      }
       player.replace(lastAudioUri);
       player.play();
     } catch (err) {
-      console.error("[Playback] Error:", err);
+      console.error("[Playback] Failed:", err);
     }
   };
 
@@ -126,4 +98,4 @@ export const useAudio = () => {
     duration: status.duration || 0,
     playbackState: status.playbackState || "unknown",
   };
-};
+}
