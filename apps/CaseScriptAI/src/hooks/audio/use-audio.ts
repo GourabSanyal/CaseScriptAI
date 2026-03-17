@@ -74,6 +74,7 @@ export const useAudio = () => {
       // 1. Convert to 16kHz WAV in Cache
       console.log(`[Ingestion] Step 1: Converting to 16kHz WAV...`);
       const conversion = await convertToWav(picked.uri);
+      
       if (!conversion.success) {
         console.error(`[Ingestion] Conversion failed: ${conversion.error}`);
         return;

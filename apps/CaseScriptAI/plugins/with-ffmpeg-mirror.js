@@ -4,7 +4,7 @@ const path = require("path");
 
 /**
  * Expo Config Plugin to override FFmpegKit pod with a mirror URL
- * to fix the 404 error caused by FFmpegKit retirement.
+ * to fix the 404 error caused by FFmpegKit retirement, and handle Android AAR.
  */
 module.exports = (config) => {
   return withDangerousMod(config, [
@@ -19,7 +19,7 @@ module.exports = (config) => {
       const srcDir = path.join(config.modRequest.projectRoot, "src");
       let podfileContent = fs.readFileSync(podfilePath, "utf8");
 
-      const zipFilename = "ffmpeg-kit-https-6.0-ios-xcframework.zip";
+      const zipFilename = "ffmpeg-kit-ios-full-gpl-latest.zip";
       const sourceFile = path.join(srcDir, zipFilename);
       const targetFile = path.join(libsDir, zipFilename);
       const podspecFile = path.join(libsDir, "ffmpeg-kit-ios-https.podspec");
@@ -83,6 +83,74 @@ end
       }
 
       fs.writeFileSync(podfilePath, podfileContent);
+
+      return config;
+    },
+    "android",
+    async (config) => {
+      const androidLibsDir = path.join(
+        config.modRequest.projectRoot,
+        "android",
+        "libs",
+      );
+      const srcAar = path.join(
+        config.modRequest.projectRoot,
+        "..",
+        "..",
+        "ffmpeg-kit-full-gpl.aar",
+      );
+      const targetAar = path.join(androidLibsDir, "ffmpeg-kit-full-gpl.aar");
+
+      // Ensure libs directory exists
+      if (!fs.existsSync(androidLibsDir)) {
+        console.log("[withFFmpegMirror] Creating android/libs directory");
+        fs.mkdirSync(androidLibsDir, { recursive: true });
+      }
+
+      // Copy the AAR if it's missing
+      if (fs.existsSync(srcAar) && !fs.existsSync(targetAar)) {
+        console.log(`[withFFmpegMirror] Copying AAR from ${srcAar} to ${targetAar}`);
+        fs.copyFileSync(srcAar, targetAar);
+      } else if (!fs.existsSync(srcAar)) {
+        console.error(`[withFFmpegMirror] Source AAR not found at ${srcAar}`);
+      }
+
+      // Modify android/app/build.gradle to include the AAR
+      const appGradlePath = path.join(
+        config.modRequest.projectRoot,
+        "android",
+        "app",
+        "build.gradle",
+      );
+      if (fs.existsSync(appGradlePath)) {
+        let gradleContent = fs.readFileSync(appGradlePath, "utf8");
+
+        // Add flatDir repository if not present
+        if (!gradleContent.includes('dirs "$rootDir/libs"')) {
+          gradleContent = gradleContent.replace(
+            /android\s*{([^}]*)}/s,
+            (match) => {
+              return match.replace(
+                /}/,
+                '    repositories {\n        flatDir {\n            dirs "$rootDir/libs"\n        }\n    }\n}',
+              );
+            },
+          );
+        }
+
+        // Add the AAR dependency if not present
+        if (!gradleContent.includes("implementation(name: 'ffmpeg-kit-full-gpl', ext: 'aar')")) {
+          gradleContent = gradleContent.replace(
+            /dependencies\s*{([\s\S]*?)}/m,
+            (match, body) => {
+              return `dependencies {\n    implementation(name: 'ffmpeg-kit-full-gpl', ext: 'aar')\n${body}}`;
+            },
+          );
+        }
+
+        fs.writeFileSync(appGradlePath, gradleContent);
+        console.log("[withFFmpegMirror] Updated android/app/build.gradle");
+      }
 
       return config;
     },
