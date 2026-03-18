@@ -1,10 +1,27 @@
-import { File, Paths } from "expo-file-system";
+import { Directory, File, Paths } from "expo-file-system";
 import type { Result } from "@/types/result";
 
 export const ensureCaseDirectory = async (caseId: string): Promise<void> => {
-  const dir = new File(`${Paths.document.uri}cases/${caseId}`);
-  if (!dir.exists) {
-    await dir.create({ intermediates: true });
+  const casesUri = new Directory(Paths.document, "cases").uri;
+  const casesInfo = Paths.info(casesUri);
+  if (casesInfo.exists && casesInfo.isDirectory === false) {
+    new File(casesUri).delete();
+  }
+
+  const casesDir = new Directory(Paths.document, "cases");
+  if (!casesDir.exists) {
+    casesDir.create({ intermediates: true, idempotent: true });
+  }
+
+  const caseUri = new Directory(casesDir, caseId).uri;
+  const caseInfo = Paths.info(caseUri);
+  if (caseInfo.exists && caseInfo.isDirectory === false) {
+    new File(caseUri).delete();
+  }
+
+  const caseDir = new Directory(casesDir, caseId);
+  if (!caseDir.exists) {
+    caseDir.create({ intermediates: true, idempotent: true });
   }
 };
 
