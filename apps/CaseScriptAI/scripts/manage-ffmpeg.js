@@ -278,13 +278,61 @@ const ensureFfmpegKitLibraryGradle = () => {
     "",
   );
 
-  if (
-    !content.includes("implementation(name: 'ffmpeg-kit-full-gpl', ext: 'aar')")
-  ) {
+  // Older versions of this script used a broad `/dependencies { ... }/` regex
+  // that could accidentally patch `buildscript.dependencies` (where `implementation`
+  // is not valid). Ensure we never leave `implementation(name: 'ffmpeg-kit-full-gpl', ...)`
+  // inside the `buildscript { ... }` block.
+  const applyPluginNeedle = "apply plugin: 'com.android.library'";
+  const applyPluginIdx = content.indexOf(applyPluginNeedle);
+  if (applyPluginIdx !== -1) {
+    const before = content.slice(0, applyPluginIdx);
+    const after = content.slice(applyPluginIdx);
+    const cleanedBefore = before.replace(
+      /^\s*implementation\(name:\s*'ffmpeg-kit-full-gpl',\s*ext:\s*'aar'\)\s*\n/m,
+      "",
+    );
+    content = cleanedBefore + after;
+  } else {
+    // Conservative fallback: remove any misplaced `implementation(name: ...aar)` before our
+    // dependency block replacement below.
     content = content.replace(
-      /dependencies\s*{([\s\S]*?)}/m,
-      (match, body) =>
-        `dependencies {\n    implementation(name: 'ffmpeg-kit-full-gpl', ext: 'aar')\n${body}}`,
+      /^buildscript\s*{[\s\S]*?^\s*implementation\(name:\s*'ffmpeg-kit-full-gpl',\s*ext:\s*'aar'\)\s*\n/m,
+      (match) => match.replace(
+        /^\s*implementation\(name:\s*'ffmpeg-kit-full-gpl',\s*ext:\s*'aar'\)\s*\n/m,
+        "",
+      ),
+    );
+  }
+
+  // Ensure the *project* dependency is wired to the local AAR.
+  // Target the final `dependencies { ... }` block in the library gradle.
+  const localAarDep = "  implementation(name: 'ffmpeg-kit-full-gpl', ext: 'aar')";
+  const depsBlockRegex =
+    /dependencies\s*{\s*api\s+'com\.facebook\.react:react-native:\+'\s*\n[\s\S]*?\n}\s*$/m;
+  if (depsBlockRegex.test(content)) {
+    content = content.replace(
+      depsBlockRegex,
+      "dependencies {\n  api 'com.facebook.react:react-native:+'\n" +
+        localAarDep +
+        "\n}\n",
+    );
+  } else if (!content.includes("implementation(name: 'ffmpeg-kit-full-gpl', ext: 'aar')")) {
+    // Minimal fallback: append the local AAR dependency next to React Native.
+    content = content.replace(
+      /dependencies\s*{\s*api\s+'com\.facebook\.react:react-native:\+'\s*\n/m,
+      (m) => m + localAarDep + "\n",
+    );
+  }
+
+  // Ensure the library can actually *resolve* the local AAR.
+  // `ffmpeg-kit-react-native/android/build.gradle` declares its own `repositories {}`,
+  // so root-level `flatDir` may not be visible. Add flatDir to that block as well.
+  if (!content.includes("flatDir")) {
+    content = content.replace(
+      /repositories\s*{\s*\n\s*mavenCentral\(\)\s*\n\s*google\(\)/m,
+      (m) =>
+        m +
+        "\n\n  flatDir {\n    dirs \"$rootDir/libs\"\n  }",
     );
   }
 
