@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { File, Paths } from "expo-file-system";
 import { pickAudioFile } from "@/services/audio/audio-picker";
+import { convertToWav } from "@/services/audio/audio-processor";
 import {
   deleteAudioFile,
   resolveAudioUri,
@@ -37,15 +38,30 @@ export const useAudio = () => {
       const caseId = "poc"; // Hardcoded for POC
       await ensureCaseDirectory(caseId);
 
-      const copied = await copyToDocuments(picked.uri, caseId);
+      // Convert picked media to Whisper-compatible WAV before persisting.
+      const wavResult = await convertToWav(picked.uri);
+      if (!wavResult.success) {
+        console.error(
+          `[FFmpeg] WAV conversion failed: ${wavResult.error}`,
+        );
+        // Best-effort cleanup of any temp artifacts.
+        await deleteAudioFile(picked.uri);
+        return;
+      }
+      console.log(`[FFmpeg] WAV conversion success: ${wavResult.data}`);
+
+      const copied = await copyToDocuments(wavResult.data, caseId);
       if (!copied.success) {
         console.error("[Ingestion] Copy failed:", copied.error);
+        await deleteAudioFile(picked.uri);
+        await deleteAudioFile(wavResult.data);
         return;
       }
 
       // Cleanup: Delete picked temp file
       console.log("[Cleanup] Removing temporary files...");
       await deleteAudioFile(picked.uri);
+      await deleteAudioFile(wavResult.data);
 
       addAudio({
         uri: copied.data, // Save filename only (stored unencrypted)
