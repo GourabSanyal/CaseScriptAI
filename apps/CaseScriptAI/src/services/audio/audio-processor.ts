@@ -1,4 +1,4 @@
-import { NativeModules } from "react-native";
+import { NativeModules, Platform } from "react-native";
 import { Paths } from "expo-file-system";
 import type { Result } from "@/types/result";
 
@@ -9,14 +9,19 @@ export const convertToWav = async (
     const ffmpegNativeModule = (NativeModules as any)
       ?.FFmpegKitReactNativeModule;
     if (!ffmpegNativeModule) {
-      console.error(
-        "[FFmpeg] Native module FFmpegKitReactNativeModule not available. NativeModules keys:",
-        Object.keys(NativeModules ?? {}),
-      );
+      const message =
+        "FFmpeg native module not available (native linking missing or runtime bridge unavailable).";
+      if (Platform.OS === "android") {
+        console.warn(`[FFmpeg] ${message}`);
+      } else {
+        console.error(
+          "[FFmpeg] Native module FFmpegKitReactNativeModule not available. NativeModules keys:",
+          Object.keys(NativeModules ?? {}),
+        );
+      }
       return {
         success: false,
-        error:
-          "FFmpeg native module not available (native linking missing or running Expo Go).",
+        error: message,
       };
     }
 
@@ -51,7 +56,11 @@ export const convertToWav = async (
       return { success: false, error: "FFmpeg conversion failed" };
     }
   } catch (err) {
-    console.error("[FFmpeg] Import/execute threw:", err);
+    if (Platform.OS === "android") {
+      console.warn("[FFmpeg] Import/execute failed on Android:", err);
+    } else {
+      console.error("[FFmpeg] Import/execute threw:", err);
+    }
     const message =
       err instanceof Error
         ? err.message
