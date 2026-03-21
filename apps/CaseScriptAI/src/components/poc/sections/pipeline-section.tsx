@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet } from "react-native";
-import { Directory, File, Paths } from "expo-file-system";
 import { TestButton } from "@/components/common/test-button";
+import { downloadWhisper } from "@/services/ai/whisper";
 
 import type { PipelineSectionProps } from "@/types/poc";
 
@@ -20,54 +20,35 @@ export const PipelineSection = ({
   const [whisperDownloaded, setWhisperDownloaded] = useState(false);
   const [whisperRan, setWhisperRan] = useState(false);
   const [downloadStatus, setDownloadStatus] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     setIsDownloadingWhisper(false);
     setWhisperDownloaded(false);
     setWhisperRan(false);
     setDownloadStatus(null);
+    setProgress(0);
   }, [audioKey]);
 
   const downloadWhisperModel = async (): Promise<void> => {
     if (!audioReady || isDownloadingWhisper || whisperDownloaded) return;
 
-    const url =
-      process.env.WHISPER_DOWNLOAD_LINK ??
-      process.env.EXPO_PUBLIC_WHISPER_DOWNLOAD_LINK;
-    if (!url) {
-      setDownloadStatus(
-        "Missing env var: WHISPER_DOWNLOAD_LINK (or EXPO_PUBLIC_WHISPER_DOWNLOAD_LINK)",
-      );
-      return;
-    }
-
     setIsDownloadingWhisper(true);
-    setDownloadStatus("Downloading...");
-    try {
-      const modelsDir = new Directory(Paths.document, "models");
-      if (!modelsDir.exists) {
-        await modelsDir.create({ intermediates: true, idempotent: true });
-      }
+    setDownloadStatus("Starting download...");
+    setProgress(0);
 
-      const whisperDir = new Directory(modelsDir, "whisper");
-      if (!whisperDir.exists) {
-        await whisperDir.create({ intermediates: true, idempotent: true });
-      }
+    const result = await downloadWhisper((p) => {
+      setProgress(Math.round(p * 100));
+      setDownloadStatus(`Downloading: ${Math.round(p * 100)}%`);
+    });
 
-      const output = await File.downloadFileAsync(url, whisperDir);
-      const info = Paths.info(output.uri);
-      if (!info.exists || info.isDirectory) {
-        throw new Error("Download finished but file missing");
-      }
-
+    if (result.success) {
       setWhisperDownloaded(true);
-      setDownloadStatus("Whisper downloaded successfully");
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Download failed";
-      setDownloadStatus(message);
-    } finally {
-      setIsDownloadingWhisper(false);
+      setDownloadStatus("Whisper downloaded");
+    } else {
+      setDownloadStatus(result.error || "Download failed");
     }
+    setIsDownloadingWhisper(false);
   };
 
   const runWhisper = async (): Promise<void> => {
@@ -86,9 +67,9 @@ export const PipelineSection = ({
   const step3Enabled = audioReady && whisperRan;
 
   const step1Title = whisperDownloaded
-    ? "✅ Whisper downloaded successfully"
+    ? "✅ Whisper downloaded"
     : isDownloadingWhisper
-      ? "⬇️ Downloading local models..."
+      ? `⬇️ Downloading... ${progress}%`
       : "1. Audio Processed, Download local Models";
 
   return (
@@ -97,8 +78,10 @@ export const PipelineSection = ({
       <TestButton
         title={step1Title}
         onPress={downloadWhisperModel}
-        disabled={!step1Enabled}
-        style={{ backgroundColor: step1Enabled ? "#0A84FF" : "#ccc" }}
+        disabled={!step1Enabled || isDownloadingWhisper}
+        style={{
+          backgroundColor: step1Enabled ? "#0A84FF" : isDownloadingWhisper ? "#0056b3" : "#ccc"
+        }}
       />
       {downloadStatus ? (
         <Text style={styles.statusText}>{downloadStatus}</Text>
@@ -106,18 +89,19 @@ export const PipelineSection = ({
       <TestButton
         title="2. Run Whisper"
         onPress={runWhisper}
-        disabled={!step2Enabled}
-        style={{ backgroundColor: step2Enabled ? "#34C759" : "#ccc" }}
+        disabled={!step2Enabled || isDownloadingWhisper}
+        style={{ backgroundColor: step2Enabled && !isDownloadingWhisper ? "#34C759" : "#ccc" }}
       />
       <TestButton
         title="3. Run LLM"
         onPress={runLlm}
-        disabled={!step3Enabled}
-        style={{ backgroundColor: step3Enabled ? "#FF9500" : "#ccc" }}
+        disabled={!step3Enabled || isDownloadingWhisper}
+        style={{ backgroundColor: step3Enabled && !isDownloadingWhisper ? "#FF9500" : "#ccc" }}
       />
     </View>
   );
 };
+
 
 const styles = StyleSheet.create({
   section: {
