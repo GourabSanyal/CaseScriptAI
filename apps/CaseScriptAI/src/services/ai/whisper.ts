@@ -1,4 +1,5 @@
 import { Directory, File, Paths } from "expo-file-system";
+import { checkModelExists, MODEL_PATHS } from "./model-utils";
 import * as FileSystemLegacy from 'expo-file-system/legacy';
 
 export type DownloadProgressCallback = (progress: number) => void;
@@ -18,12 +19,12 @@ export const downloadWhisper = async (
       await modelsDir.create({ intermediates: true, idempotent: true });
     }
 
-    const whisperDir = new Directory(modelsDir, "whisper");
+    const whisperDir = new Directory(modelsDir, MODEL_PATHS.whisper.dir);
     if (!whisperDir.exists) {
       await whisperDir.create({ intermediates: true, idempotent: true });
     }
 
-    const destFile = new File(whisperDir, "ggml-tiny.bin");
+    const destFile = new File(whisperDir, MODEL_PATHS.whisper.file);
     const destPath = destFile.uri;
     
     const downloadResumable = FileSystemLegacy.createDownloadResumable(
@@ -59,3 +60,5 @@ export const downloadWhisper = async (
     return { success: false, error: message };
   }
 };
+
+export const checkWhisperExists = (): boolean => checkModelExists('whisper');
