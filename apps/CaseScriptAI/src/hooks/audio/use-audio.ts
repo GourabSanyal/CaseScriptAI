@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef } from "react";
+import { Platform } from "react-native";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { File, Paths } from "expo-file-system";
 import { pickAudioFile } from "@/services/audio/audio-picker";
+import { convertToWav } from "@/services/audio/audio-processor";
 import {
   deleteAudioFile,
   resolveAudioUri,
@@ -37,15 +39,50 @@ export const useAudio = () => {
       const caseId = "poc"; // Hardcoded for POC
       await ensureCaseDirectory(caseId);
 
-      const copied = await copyToDocuments(picked.uri, caseId);
+      // Convert picked media to Whisper-compatible WAV before persisting.
+      // On Android, continue with the original picked file if FFmpeg bridge
+      // is unavailable at runtime to avoid blocking local import.
+      const wavResult = await convertToWav(picked.uri);
+      let sourceUriForCopy = picked.uri;
+      let convertedTempUri: string | null = null;
+      if (!wavResult.success) {
+        if (Platform.OS === "android") {
+          console.warn(
+            `[FFmpeg] WAV conversion failed on Android, falling back to original file: ${wavResult.error}`,
+          );
+        } else {
+          console.error(
+            `[FFmpeg] WAV conversion failed: ${wavResult.error}`,
+          );
+          // Best-effort cleanup of any temp artifacts.
+          await deleteAudioFile(picked.uri);
+          return;
+        }
+      } else {
+        sourceUriForCopy = wavResult.data;
+        convertedTempUri = wavResult.data;
+        console.log(`[FFmpeg] WAV conversion success: ${wavResult.data}`);
+      }
+
+      const copied = await copyToDocuments(sourceUriForCopy, caseId);
       if (!copied.success) {
-        console.error("[Ingestion] Copy failed:", copied.error);
+        console.error(
+          "[Ingestion] Copy failed:",
+          copied.error,
+        );
+        await deleteAudioFile(picked.uri);
+        if (convertedTempUri) {
+          await deleteAudioFile(convertedTempUri);
+        }
         return;
       }
 
       // Cleanup: Delete picked temp file
       console.log("[Cleanup] Removing temporary files...");
       await deleteAudioFile(picked.uri);
+      if (convertedTempUri) {
+        await deleteAudioFile(convertedTempUri);
+      }
 
       addAudio({
         uri: copied.data, // Save filename only (stored unencrypted)

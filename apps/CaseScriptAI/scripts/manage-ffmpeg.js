@@ -278,13 +278,61 @@ const ensureFfmpegKitLibraryGradle = () => {
     "",
   );
 
-  if (
-    !content.includes("implementation(name: 'ffmpeg-kit-full-gpl', ext: 'aar')")
-  ) {
+  // Older versions of this script used a broad `/dependencies { ... }/` regex
+  // that could accidentally patch `buildscript.dependencies` (where `implementation`
+  // is not valid). Ensure we never leave `implementation(name: 'ffmpeg-kit-full-gpl', ...)`
+  // inside the `buildscript { ... }` block.
+  const applyPluginNeedle = "apply plugin: 'com.android.library'";
+  const applyPluginIdx = content.indexOf(applyPluginNeedle);
+  if (applyPluginIdx !== -1) {
+    const before = content.slice(0, applyPluginIdx);
+    const after = content.slice(applyPluginIdx);
+    const cleanedBefore = before.replace(
+      /^\s*implementation\(name:\s*'ffmpeg-kit-full-gpl',\s*ext:\s*'aar'\)\s*\n/m,
+      "",
+    );
+    content = cleanedBefore + after;
+  } else {
+    // Conservative fallback: remove any misplaced `implementation(name: ...aar)` before our
+    // dependency block replacement below.
     content = content.replace(
-      /dependencies\s*{([\s\S]*?)}/m,
-      (match, body) =>
-        `dependencies {\n    implementation(name: 'ffmpeg-kit-full-gpl', ext: 'aar')\n${body}}`,
+      /^buildscript\s*{[\s\S]*?^\s*implementation\(name:\s*'ffmpeg-kit-full-gpl',\s*ext:\s*'aar'\)\s*\n/m,
+      (match) => match.replace(
+        /^\s*implementation\(name:\s*'ffmpeg-kit-full-gpl',\s*ext:\s*'aar'\)\s*\n/m,
+        "",
+      ),
+    );
+  }
+
+  // Ensure the *project* dependency is wired to the local AAR.
+  // Target the final `dependencies { ... }` block in the library gradle.
+  const localAarDep = "  implementation(name: 'ffmpeg-kit-full-gpl', ext: 'aar')";
+  const depsBlockRegex =
+    /dependencies\s*{\s*api\s+'com\.facebook\.react:react-native:\+'\s*\n[\s\S]*?\n}\s*$/m;
+  if (depsBlockRegex.test(content)) {
+    content = content.replace(
+      depsBlockRegex,
+      "dependencies {\n  api 'com.facebook.react:react-native:+'\n" +
+        localAarDep +
+        "\n}\n",
+    );
+  } else if (!content.includes("implementation(name: 'ffmpeg-kit-full-gpl', ext: 'aar')")) {
+    // Minimal fallback: append the local AAR dependency next to React Native.
+    content = content.replace(
+      /dependencies\s*{\s*api\s+'com\.facebook\.react:react-native:\+'\s*\n/m,
+      (m) => m + localAarDep + "\n",
+    );
+  }
+
+  // Ensure the library can actually *resolve* the local AAR.
+  // `ffmpeg-kit-react-native/android/build.gradle` declares its own `repositories {}`,
+  // so root-level `flatDir` may not be visible. Add flatDir to that block as well.
+  if (!content.includes("flatDir")) {
+    content = content.replace(
+      /repositories\s*{\s*\n\s*mavenCentral\(\)\s*\n\s*google\(\)/m,
+      (m) =>
+        m +
+        "\n\n  flatDir {\n    dirs \"$rootDir/libs\"\n  }",
     );
   }
 
@@ -325,11 +373,84 @@ const verify = () => {
   console.log("✅ FFmpeg binaries found in ios/libs and android/libs.");
 };
 
+/**
+ * Ensures `pod install` has been run and that the Podfile.lock includes the
+ * ffmpeg-kit pods. This closes the gap where manage-ffmpeg patches the Podfile
+ * but nothing ever runs `pod install` before the native build starts.
+ *
+ * Called automatically by the `ios` npm script so developers never need to
+ * remember to run `pod install` manually after merges or branch switches.
+ */
+const ensurePods = () => {
+  const iosDir = path.join(appRoot, "ios");
+  const podfilePath = path.join(iosDir, "Podfile");
+  const podfileLockPath = path.join(iosDir, "Podfile.lock");
+
+  if (!fs.existsSync(podfilePath)) {
+    console.log("ℹ️  No ios/Podfile found — skipping pod sync (prebuild may not have run yet).");
+    return;
+  }
+
+  // Quick check: does Podfile.lock exist and contain our ffmpeg pods?
+  let needsPodInstall = false;
+
+  if (!fs.existsSync(podfileLockPath)) {
+    console.log("⚠️  ios/Podfile.lock missing — pod install required.");
+    needsPodInstall = true;
+  } else {
+    const lockContent = fs.readFileSync(podfileLockPath, "utf8");
+    const requiredPods = [
+      "ffmpeg-kit-ios-full-gpl",
+      "ffmpeg-kit-react-native",
+    ];
+    const missingPods = requiredPods.filter(
+      (pod) => !lockContent.includes(pod),
+    );
+    if (missingPods.length > 0) {
+      console.log(
+        `⚠️  Podfile.lock is missing pods: ${missingPods.join(", ")} — pod install required.`,
+      );
+      needsPodInstall = true;
+    }
+  }
+
+  if (!needsPodInstall) {
+    console.log("✅ Podfile.lock is in sync with FFmpeg pods. No pod install needed.");
+    return;
+  }
+
+  console.log("🔄 Running pod install...");
+  try {
+    execSync("pod install", {
+      cwd: iosDir,
+      stdio: "inherit",
+    });
+    console.log("✅ pod install completed successfully.");
+  } catch (err) {
+    console.error(
+      `❌ pod install failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    console.error(
+      "💡 Try running manually: cd apps/CaseScriptAI/ios && pod install",
+    );
+    process.exit(1);
+  }
+};
+
 const args = process.argv.slice(2);
 if (args.includes("--setup")) {
   setup();
+  // When --ensure-pods is also passed (e.g. from the ios script), sync pods
+  // after the binary/podfile setup is complete.
+  if (args.includes("--ensure-pods")) {
+    ensurePods();
+  }
+} else if (args.includes("--ensure-pods")) {
+  ensurePods();
 } else if (args.includes("--verify")) {
   verify();
 } else {
-  console.log("Usage: node scripts/manage-ffmpeg.js [--setup | --verify]");
+  console.log(
+    "Usage: node scripts/manage-ffmpeg.js [--setup | --verify | --ensure-pods]",
+  );
 }

@@ -26,7 +26,7 @@ export type AudioInputSectionProps = {
 
 export type PipelineSectionProps = {
   audios: AudioEntry[];
-  handlePress: (type: string) => void;
+  handlePress: (type: string) => void | Promise<void>;
 };
 
 export type OutputsSectionProps = {

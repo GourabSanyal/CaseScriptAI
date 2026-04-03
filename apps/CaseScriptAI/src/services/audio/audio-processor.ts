@@ -1,4 +1,4 @@
-import { FFmpegKit, ReturnCode } from "ffmpeg-kit-react-native";
+import { NativeModules, Platform } from "react-native";
 import { Paths } from "expo-file-system";
 import type { Result } from "@/types/result";
 
@@ -6,6 +6,32 @@ export const convertToWav = async (
   inputPath: string,
 ): Promise<Result<string>> => {
   try {
+    const ffmpegNativeModule = (NativeModules as any)
+      ?.FFmpegKitReactNativeModule;
+    if (!ffmpegNativeModule) {
+      const message =
+        "FFmpeg native module not available (native linking missing or runtime bridge unavailable).";
+      if (Platform.OS === "android") {
+        console.warn(`[FFmpeg] ${message}`);
+      } else {
+        console.error(
+          "[FFmpeg] Native module FFmpegKitReactNativeModule not available. NativeModules keys:",
+          Object.keys(NativeModules ?? {}),
+        );
+      }
+      return {
+        success: false,
+        error: message,
+      };
+    }
+
+    // Lazy import so the app doesn't crash at startup if ffmpeg-kit native
+    // module isn't linked/available (e.g., running in Expo Go).
+    const { FFmpegKit, ReturnCode } = await import(
+      "ffmpeg-kit-react-native"
+    );
+    console.log("[FFmpeg] ffmpeg-kit-react-native module loaded");
+
     console.log(`[FFmpeg] Starting conversion for: ${inputPath}`);
     const timestamp = Date.now();
     const outputPath = `${Paths.cache.uri}temp_${timestamp}.wav`.replace(
@@ -30,7 +56,17 @@ export const convertToWav = async (
       return { success: false, error: "FFmpeg conversion failed" };
     }
   } catch (err) {
-    const message = err instanceof Error ? err.message : "FFmpeg error";
+    if (Platform.OS === "android") {
+      console.warn("[FFmpeg] Import/execute failed on Android:", err);
+    } else {
+      console.error("[FFmpeg] Import/execute threw:", err);
+    }
+    const message =
+      err instanceof Error
+        ? err.message
+        : typeof err === "string"
+          ? err
+          : "FFmpeg import/execute failed";
     return { success: false, error: message };
   }
 };
