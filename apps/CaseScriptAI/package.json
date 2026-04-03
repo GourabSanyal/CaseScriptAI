@@ -6,7 +6,7 @@
     "start": "npx expo start",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "node scripts/manage-ffmpeg.js --setup && npx expo run:android",
-    "ios": "node scripts/manage-ffmpeg.js --setup && npx expo run:ios",
+    "ios": "node scripts/manage-ffmpeg.js --setup --ensure-pods && npx expo run:ios",
     "web": "npx expo start --web",
     "lint": "expo lint",
     "prebuild": "node scripts/manage-ffmpeg.js --setup && npx expo prebuild --clean",

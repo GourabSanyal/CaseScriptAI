@@ -373,11 +373,84 @@ const verify = () => {
   console.log("✅ FFmpeg binaries found in ios/libs and android/libs.");
 };
 
+/**
+ * Ensures `pod install` has been run and that the Podfile.lock includes the
+ * ffmpeg-kit pods. This closes the gap where manage-ffmpeg patches the Podfile
+ * but nothing ever runs `pod install` before the native build starts.
+ *
+ * Called automatically by the `ios` npm script so developers never need to
+ * remember to run `pod install` manually after merges or branch switches.
+ */
+const ensurePods = () => {
+  const iosDir = path.join(appRoot, "ios");
+  const podfilePath = path.join(iosDir, "Podfile");
+  const podfileLockPath = path.join(iosDir, "Podfile.lock");
+
+  if (!fs.existsSync(podfilePath)) {
+    console.log("ℹ️  No ios/Podfile found — skipping pod sync (prebuild may not have run yet).");
+    return;
+  }
+
+  // Quick check: does Podfile.lock exist and contain our ffmpeg pods?
+  let needsPodInstall = false;
+
+  if (!fs.existsSync(podfileLockPath)) {
+    console.log("⚠️  ios/Podfile.lock missing — pod install required.");
+    needsPodInstall = true;
+  } else {
+    const lockContent = fs.readFileSync(podfileLockPath, "utf8");
+    const requiredPods = [
+      "ffmpeg-kit-ios-full-gpl",
+      "ffmpeg-kit-react-native",
+    ];
+    const missingPods = requiredPods.filter(
+      (pod) => !lockContent.includes(pod),
+    );
+    if (missingPods.length > 0) {
+      console.log(
+        `⚠️  Podfile.lock is missing pods: ${missingPods.join(", ")} — pod install required.`,
+      );
+      needsPodInstall = true;
+    }
+  }
+
+  if (!needsPodInstall) {
+    console.log("✅ Podfile.lock is in sync with FFmpeg pods. No pod install needed.");
+    return;
+  }
+
+  console.log("🔄 Running pod install...");
+  try {
+    execSync("pod install", {
+      cwd: iosDir,
+      stdio: "inherit",
+    });
+    console.log("✅ pod install completed successfully.");
+  } catch (err) {
+    console.error(
+      `❌ pod install failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    console.error(
+      "💡 Try running manually: cd apps/CaseScriptAI/ios && pod install",
+    );
+    process.exit(1);
+  }
+};
+
 const args = process.argv.slice(2);
 if (args.includes("--setup")) {
   setup();
+  // When --ensure-pods is also passed (e.g. from the ios script), sync pods
+  // after the binary/podfile setup is complete.
+  if (args.includes("--ensure-pods")) {
+    ensurePods();
+  }
+} else if (args.includes("--ensure-pods")) {
+  ensurePods();
 } else if (args.includes("--verify")) {
   verify();
 } else {
-  console.log("Usage: node scripts/manage-ffmpeg.js [--setup | --verify]");
+  console.log(
+    "Usage: node scripts/manage-ffmpeg.js [--setup | --verify | --ensure-pods]",
+  );
 }
