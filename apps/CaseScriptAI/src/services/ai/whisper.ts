@@ -47,6 +47,14 @@ export const downloadWhisper = async (
       throw new Error("Download finished with no destination uri");
     }
 
+    // Validate file size for Whisper
+    const fileSize = destFile.size;
+    console.log("[Whisper Download] Downloaded file size:", fileSize, "bytes");
+    
+    if (fileSize < 67108864) { // Less than 64MB = error response or incomplete
+      throw new Error(`Downloaded file too small (${fileSize} bytes). Expected ~140MB. Check download URL or authentication.`);
+    }
+
     // Verify it exists in the new API
     if (!destFile.exists) {
        throw new Error("File missing after download");
@@ -56,7 +64,21 @@ export const downloadWhisper = async (
 
   } catch (err) {
     const message = err instanceof Error ? err.message : "Download failed";
-    console.error("[Whisper Service] Download Error:", err);
+    console.error("[Whisper Download] Download Error:", err);
+    
+    // Clean up invalid file on error to prevent false "download successful" on next load
+    try {
+      const modelsDir = new Directory(Paths.document, "models");
+      const whisperDir = new Directory(modelsDir, MODEL_PATHS.whisper.dir);
+      const destFile = new File(whisperDir, MODEL_PATHS.whisper.file);
+      if (destFile.exists) {
+        await destFile.delete();
+        console.log("[Whisper Download] Cleaned up invalid model file");
+      }
+    } catch (cleanupErr) {
+      console.error("[Whisper Download] Failed to clean up invalid file:", cleanupErr);
+    }
+    
     return { success: false, error: message };
   }
 };
