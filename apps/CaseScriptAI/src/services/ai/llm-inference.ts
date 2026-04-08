@@ -1,7 +1,5 @@
 import { useLLM, initExecutorch, Message } from "react-native-executorch";
 import { ExpoResourceFetcher } from "react-native-executorch-expo-resource-fetcher";
-import { Directory, File, Paths } from "expo-file-system";
-import { checkModelExists, MODEL_PATHS, getModelPath } from "./model-utils";
 import { SOAP_NOTE_PROMPT } from "./prompts";
 import type { Result } from "@/types/result";
 
@@ -25,7 +23,7 @@ export const initializeExecutorch = async (): Promise<Result<void>> => {
   } catch (err) {
     const message =
       err instanceof Error ? err.message : "ExecuTorch initialization failed";
-    console.error("[ExecuTorch] Init error:", message);
+    console.error("[ExecuTorch] Init error:", message, err);
     return { success: false, error: message };
   }
 };
@@ -49,14 +47,6 @@ export const createLLMService = (llm: ReturnType<typeof useLLM>) => {
         return { success: false, error: execResult.error };
       }
 
-      // Check model exists
-      if (!checkModelExists("phi")) {
-        return {
-          success: false,
-          error: "Phi model not found. Please download it first.",
-        };
-      }
-
       const chat: Message[] = [
         { role: "system", content: "You are a medical documentation assistant." },
         { role: "user", content: prompt },
@@ -67,14 +57,12 @@ export const createLLMService = (llm: ReturnType<typeof useLLM>) => {
       }
 
       if (!llm.isReady) {
-        return { success: false, error: "LLM model is still loading or prevented from loading" };
+        return { success: false, error: "LLM model is still loading" };
       }
 
-      // Generate output
-      await llm.generate(chat);
-
-      const result = llm.response || "";
-      return { success: true, data: result };
+      // generate() returns the complete response as its resolved value
+      const response = await llm.generate(chat);
+      return { success: true, data: response || "" };
 
     } catch (err) {
       const message =
