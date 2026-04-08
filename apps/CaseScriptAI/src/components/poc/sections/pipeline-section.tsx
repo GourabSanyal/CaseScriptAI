@@ -1,12 +1,14 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
-import { View, Text, StyleSheet, ScrollView } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Alert, Linking, Share } from "react-native";
+import * as FileSystem from "expo-file-system/legacy";
+import * as Sharing from "expo-sharing";
 import { TestButton } from "@/components/common/test-button";
 import { downloadWhisper, checkWhisperExists } from "@/services/ai/whisper";
-import { downloadPhi, checkPhiExists } from "@/services/ai/llm";
 import { useWhisperInference } from "@/hooks/ai/use-whisper-inference";
 import { useLLMInference } from "@/hooks/ai/use-llm-inference";
 import { usePocStore } from "@/stores/poc-store";
 import { resolveAudioUri } from "@/services/audio/audio-storage";
+import { generatePDF } from "@/services/pdf/generator";
 
 import type { PipelineSectionProps } from "@/types/poc";
 
@@ -35,128 +37,42 @@ export const PipelineSection = ({
   const [isConvertingToPdf, setIsConvertingToPdf] = useState(false);
   const [conversionProgress, setConversionProgress] = useState(0);
   const [conversionComplete, setConversionComplete] = useState(false);
-  const [pendingTranscript, setPendingTranscript] = useState<string | null>(null);
-  const isConversionStartedRef = useRef(false);
+  const [transcriptionProgress, setTranscriptionProgress] = useState(0);
+  const [pdfUri, setPdfUri] = useState<string | null>(null);
 
   const {
     transcribe: runWhisperTranscribe,
     isTranscribing,
-    transcript,
     error: whisperError,
   } = useWhisperInference();
 
   const {
+    loadModel,
     generateSOAPNote,
     isGenerating: isGeneratingSoap,
     response: soapNote,
     error: soapError,
     isLLMReady,
+    downloadProgress: llmDownloadProgress,
   } = useLLMInference();
 
   useEffect(() => {
     setIsDownloadingWhisper(false);
     setWhisperDownloaded(checkWhisperExists());
     setIsDownloadingPhi(false);
-    setPhiDownloaded(checkPhiExists());
+    setPhiDownloaded(isLLMReady);
     setDownloadStatus(null);
     setProgress(0);
     setPhiProgress(0);
     setIsConvertingToPdf(false);
     setConversionProgress(0);
     setConversionComplete(false);
+    setTranscriptionProgress(0);
+    setPdfUri(null);
     clearPipelineResult();
-  }, [audioKey, clearPipelineResult]);
+  }, [audioKey, clearPipelineResult, isLLMReady]);
 
-  useEffect(() => {
-    if (transcript && !whisperError && !pendingTranscript && !conversionComplete) {
-      setIsConvertingToPdf(true);
-      setConversionProgress(0);
-      setConversionComplete(false);
-      setDownloadStatus("Converting to PDF...");
-      setPendingTranscript(transcript);
-    }
-  }, [transcript, whisperError, pendingTranscript, conversionComplete]);
-
-  useEffect(() => {
-    if (!pendingTranscript || isConversionStartedRef.current) {
-      return;
-    }
-
-    isConversionStartedRef.current = true;
-    setIsConvertingToPdf(true);
-
-    const progressInterval = setInterval(() => {
-      setConversionProgress(prev => {
-        if (prev < 90) return prev + 10;
-        return prev;
-      });
-    }, 500);
-
-    const finishWithResult = (result: { success: boolean; data?: string; error?: string }) => {
-      clearInterval(progressInterval);
-      if (result.success) {
-        setDownloadStatus("Audio converted to PDF");
-        setConversionProgress(100);
-        setConversionComplete(true);
-        setPipelineResult({
-          transcript: "",
-          soapNote: result.data || "",
-          transcriptError: null,
-          soapNoteError: null,
-          isTranscribing: false,
-          isGeneratingSoap: false,
-        });
-      } else {
-        setDownloadStatus("Conversion failed");
-        setIsConvertingToPdf(false);
-        setConversionProgress(0);
-        setConversionComplete(false);
-        setPipelineResult({
-          transcript: "",
-          soapNote: "",
-          transcriptError: null,
-          soapNoteError: result.error ?? null,
-          isTranscribing: false,
-          isGeneratingSoap: false,
-        });
-      }
-      setPendingTranscript(null);
-      isConversionStartedRef.current = false;
-    };
-
-    const runGeneration = async (retryCount = 0): Promise<void> => {
-      const result = await generateSOAPNote(pendingTranscript);
-
-      if (result.success) {
-        finishWithResult(result);
-        return;
-      }
-
-      if (result.error?.includes("still loading") && retryCount < 10) {
-        setTimeout(() => runGeneration(retryCount + 1), 1000);
-        return;
-      }
-
-      finishWithResult(result);
-    };
-
-    runGeneration();
-
-    return () => clearInterval(progressInterval);
-  }, [pendingTranscript, generateSOAPNote, setPipelineResult]);
-
-  useEffect(() => {
-    if (isTranscribing || isGeneratingSoap) {
-      setPipelineResult({
-        transcript: "",
-        soapNote: "",
-        transcriptError: null,
-        soapNoteError: null,
-        isTranscribing,
-        isGeneratingSoap,
-      });
-    }
-  }, [isTranscribing, isGeneratingSoap, setPipelineResult]);
+  // State monitoring useEffect removed - pipeline state is now managed directly in runFullPipeline
 
   const downloadWhisperModel = async (): Promise<void> => {
     if (checkWhisperExists()) {
@@ -189,33 +105,27 @@ export const PipelineSection = ({
     setIsDownloadingWhisper(false);
   };
 
+
   const downloadPhiModel = async (): Promise<void> => {
-    if (checkPhiExists()) {
-      setPhiDownloaded(true);
-      return;
-    }
-    if (!whisperDownloaded || isDownloadingPhi || phiDownloaded) return;
+    if (phiDownloaded) return;
+    if (!whisperDownloaded || isDownloadingPhi) return;
 
     setIsDownloadingPhi(true);
     setDownloadStatus("Starting LLM download...");
     setPhiProgress(0);
 
-    const result = await downloadPhi((p) => {
-      setPhiProgress(Math.round(p * 100));
-      setDownloadStatus(`Downloading LLM: ${Math.round(p * 100)}%`);
-    });
+    // Trigger library-managed download + load via useLLM hook
+    const result = await loadModel();
 
     if (result.success) {
       setPhiDownloaded(true);
-      setDownloadStatus("LLM downloaded");
+      setPhiProgress(100);
+      setDownloadStatus("LLM ready");
     } else {
-      // Show error and reset button state
       setDownloadStatus(null);
       setPhiProgress(0);
       setPhiDownloaded(false);
-      setIsDownloadingPhi(false);
-      alert("Model not downloaded, try again");
-      return;
+      alert(`LLM load failed: ${result.error}`);
     }
     setIsDownloadingPhi(false);
   };
@@ -224,26 +134,220 @@ export const PipelineSection = ({
     if (!audioReady || !whisperDownloaded || !phiDownloaded) return;
     if (isTranscribing || isConvertingToPdf) return;
 
-    // Reset conversion states
-    setIsConvertingToPdf(false);
-    setConversionProgress(0);
-    setConversionComplete(false);
-
     await Promise.resolve(handlePress("Run Pipeline"));
 
     const lastAudio = audios[audios.length - 1];
     const audioUri = resolveAudioUri(lastAudio.uri, "poc");
 
-    const result = await runWhisperTranscribe(audioUri);
+    // Update UI to show transcribing state
+    setPipelineResult({
+      transcript: "",
+      soapNote: "",
+      transcriptError: null,
+      soapNoteError: null,
+      isTranscribing: true,
+      isGeneratingSoap: false,
+    });
 
-    if (result.success) {
-      console.log("[Pipeline] Whisper complete, starting conversion...");
+    // Start transcription progress
+    setTranscriptionProgress(0);
+    const transcriptionProgressInterval = setInterval(() => {
+      setTranscriptionProgress(prev => {
+        if (prev < 50) return prev + 5;
+        return prev;
+      });
+    }, 200);
+
+    // Step 1: Transcribe audio
+    const transcribeResult = await runWhisperTranscribe(audioUri);
+
+    // Stop transcription progress
+    clearInterval(transcriptionProgressInterval);
+    setTranscriptionProgress(50);
+
+    // Start phi progress
+    const phiProgressInterval = setInterval(() => {
+      setTranscriptionProgress(prev => {
+        if (prev < 100) return prev + 10;
+        return prev;
+      });
+    }, 200);
+
+    if (!transcribeResult.success) {
+      // Transcription failed - update store with error
+      clearInterval(phiProgressInterval);
+      setPipelineResult({
+        transcript: "",
+        soapNote: "",
+        transcriptError: transcribeResult.error,
+        soapNoteError: null,
+        isTranscribing: false,
+        isGeneratingSoap: false,
+      });
+      return;
+    }
+
+    // Initialize LLM before starting SOAP generation
+    console.log("[Pipeline] Initializing LLM for SOAP generation...");
+    const loadResult = await loadModel();
+    if (!loadResult.success) {
+      console.error("[Pipeline] Failed to load LLM:", loadResult.error);
+      clearInterval(phiProgressInterval);
+      setPipelineResult({
+        transcript: transcribeResult.data,
+        soapNote: "",
+        transcriptError: null,
+        soapNoteError: loadResult.error,
+        isTranscribing: false,
+        isGeneratingSoap: false,
+      });
+      return;
+    }
+
+    // Step 2: Start conversion with the transcript
+    setIsConvertingToPdf(true);
+    setConversionProgress(0);
+    setDownloadStatus("Converting to PDF...");
+
+    // Start progress animation
+    const progressInterval = setInterval(() => {
+      setConversionProgress(prev => {
+        if (prev < 90) return prev + 10;
+        return prev;
+      });
+    }, 500);
+
+    // Step 3: Generate SOAP note (with retry logic for loading edge cases)
+    const generateWithRetry = async (transcript: string, retryCount = 0): Promise<{ success: boolean; data?: string; error?: string }> => {
+      const result = await generateSOAPNote(transcript);
+
+      if (result.success) {
+        return result;
+      }
+
+      // Retry if model is still loading (up to 30 seconds)
+      if (result.error?.includes("still loading") && retryCount < 60) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        return generateWithRetry(transcript, retryCount + 1);
+      }
+
+      return result;
+    };
+
+    // Update UI to show generating state
+    setPipelineResult({
+      transcript: "",
+      soapNote: "",
+      transcriptError: null,
+      soapNoteError: null,
+      isTranscribing: false,
+      isGeneratingSoap: true,
+    });
+
+    const soapResult = await generateWithRetry(transcribeResult.data);
+
+    console.log("SOAP Result:", soapResult);
+
+    // Cleanup progress animation
+    clearInterval(progressInterval);
+
+    // Step 4: Handle result
+    if (soapResult.success) {
+      clearInterval(phiProgressInterval);
+      setTranscriptionProgress(100);
+      
+      const targetPath = FileSystem.documentDirectory + "pdf/output.pdf";
+      console.log("[Pipeline] Generating real PDF at:", targetPath);
+      
+      const pdfResult = await generatePDF(
+        transcribeResult.data,
+        soapResult.data || "",
+        targetPath
+      );
+
+      if (pdfResult.success) {
+        console.log("The transcribing and PDF generation is complete");
+        Alert.alert("Success", "The transcribing and PDF generation is complete");
+        setDownloadStatus("Audio converted to PDF");
+        setConversionProgress(100);
+        setConversionComplete(true);
+        setPdfUri(targetPath);
+      } else {
+        console.error("PDF generation failed:", pdfResult.error);
+        Alert.alert("Error", "Transcription finished but PDF generation failed.");
+        setDownloadStatus("PDF generation failed");
+        setConversionProgress(0);
+        setConversionComplete(false);
+      }
+
+      setPipelineResult({
+        transcript: transcribeResult.data,
+        soapNote: soapResult.data || "",
+        transcriptError: null,
+        soapNoteError: null,
+        isTranscribing: false,
+        isGeneratingSoap: false,
+      });
+    } else {
+      clearInterval(phiProgressInterval);
+      setTranscriptionProgress(100);
+      setDownloadStatus("Conversion failed");
+      setIsConvertingToPdf(false);
+      setConversionProgress(0);
+      setConversionComplete(false);
+      setPipelineResult({
+        transcript: transcribeResult.data,
+        soapNote: "",
+        transcriptError: null,
+        soapNoteError: soapResult.error ?? null,
+        isTranscribing: false,
+        isGeneratingSoap: false,
+      });
+    }
+  };
+
+  const openPDF = async () => {
+    if (!pdfUri) return;
+
+    try {
+      console.log("[Pipeline] Checking PDF at:", pdfUri);
+      
+      // Ensure the directory exists
+      const pdfDir = pdfUri.substring(0, pdfUri.lastIndexOf('/'));
+      const dirInfo = await FileSystem.getInfoAsync(pdfDir);
+      if (!dirInfo.exists) {
+        await FileSystem.makeDirectoryAsync(pdfDir, { intermediates: true });
+      }
+
+      // Check if file exists
+      const fileInfo = await FileSystem.getInfoAsync(pdfUri);
+      
+      if (!fileInfo.exists) {
+        console.error("[Pipeline] PDF file is missing on disk");
+        Alert.alert("Error", "The PDF report could not be found. Please run the pipeline again.");
+        return;
+      }
+
+      if (!(await Sharing.isAvailableAsync())) {
+        Alert.alert("Error", "Sharing is not available on this device");
+        return;
+      }
+
+      await Sharing.shareAsync(pdfUri, {
+        mimeType: 'application/pdf',
+        dialogTitle: 'CaseScriptAI Report',
+        UTI: 'com.adobe.pdf',
+      });
+      
+    } catch (error) {
+      console.error("[Pipeline] Share error:", error);
+      Alert.alert("Error", "Could not share the PDF: " + (error instanceof Error ? error.message : "Unknown error"));
     }
   };
 
   const step1Enabled = audioReady && !isDownloadingWhisper && !whisperDownloaded;
   const phiDownloadEnabled = audioReady && whisperDownloaded && !isDownloadingPhi && !phiDownloaded;
-  const runEnabled = audioReady && whisperDownloaded && phiDownloaded && !isTranscribing && !isConvertingToPdf && !conversionComplete;
+  const runEnabled = audioReady && whisperDownloaded && phiDownloaded && !isTranscribing && !isConvertingToPdf;
 
   const step1Title = whisperDownloaded
     ? "✅ Whisper downloaded"
@@ -254,15 +358,15 @@ export const PipelineSection = ({
   const phiTitle = phiDownloaded
     ? "LLM downloaded ✅"
     : isDownloadingPhi
-      ? `⬇️ Downloading... ${phiProgress}%`
+      ? `⬇️ Downloading... ${Math.round(llmDownloadProgress * 100)}%`
       : "2. Download Phi Model";
 
-  const runTitle = isTranscribing
-    ? "🎙️ Transcribing..."
-    : isConvertingToPdf
-      ? `📄 Converting to PDF... ${conversionProgress}%`
-      : conversionComplete
-        ? "✅ Audio converted to PDF"
+  const runTitle = conversionComplete
+    ? "PDF Generated"
+    : isTranscribing
+      ? `🎙️ Transcribing... ${transcriptionProgress}%`
+      : isConvertingToPdf
+        ? `📄 Converting to PDF... ${conversionProgress}%`
         : "3. Run Full Pipeline";
 
   return (
@@ -289,8 +393,8 @@ export const PipelineSection = ({
       ) : null}
       <TestButton
         title={runTitle}
-        onPress={runFullPipeline}
-        disabled={!runEnabled}
+        onPress={conversionComplete ? openPDF : runFullPipeline}
+        disabled={!runEnabled && !conversionComplete}
         style={{
           backgroundColor: runEnabled 
             ? "#34C759" 
@@ -309,10 +413,10 @@ export const PipelineSection = ({
           {pipelineResult.soapNoteError && (
             <Text style={styles.errorText}>LLM Error: {pipelineResult.soapNoteError}</Text>
           )}
-          {pipelineResult.soapNote && !pipelineResult.soapNoteError && (
+          {pipelineResult.transcript && !pipelineResult.transcriptError && (
             <>
-              <Text style={styles.resultLabel}>SOAP Note:</Text>
-              <Text style={styles.resultText}>{pipelineResult.soapNote}</Text>
+              <Text style={styles.resultLabel}>Transcript:</Text>
+              <Text style={styles.resultText}>{pipelineResult.transcript}</Text>
             </>
           )}
         </ScrollView>
