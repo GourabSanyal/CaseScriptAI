@@ -1,5 +1,7 @@
 import { useLLM, initExecutorch, Message } from "react-native-executorch";
 import { ExpoResourceFetcher } from "react-native-executorch-expo-resource-fetcher";
+import { Directory, File, Paths } from "expo-file-system";
+import { checkModelExists, MODEL_PATHS, getModelPath } from "./model-utils";
 import { SOAP_NOTE_PROMPT } from "./prompts";
 import type { Result } from "@/types/result";
 
@@ -45,6 +47,14 @@ export const createLLMService = (llm: ReturnType<typeof useLLM>) => {
       const execResult = await initializeExecutorch();
       if (!execResult.success) {
         return { success: false, error: execResult.error };
+      }
+
+      // Check model exists
+      if (!checkModelExists("phi")) {
+        return {
+          success: false,
+          error: "Phi model not found. Please download it first.",
+        };
       }
 
       const chat: Message[] = [
