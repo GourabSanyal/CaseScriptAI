@@ -1,14 +1,13 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { View, Text, StyleSheet, ScrollView, Alert, Linking, Share } from "react-native";
-import * as FileSystem from "expo-file-system/legacy";
-import * as Sharing from "expo-sharing";
+import { Paths } from "expo-file-system";
 import { TestButton } from "@/components/common/test-button";
 import { downloadWhisper, checkWhisperExists } from "@/services/ai/whisper";
+import { downloadPhi, checkPhiExists } from "@/services/ai/llm";
 import { useWhisperInference } from "@/hooks/ai/use-whisper-inference";
 import { useLLMInference } from "@/hooks/ai/use-llm-inference";
 import { usePocStore } from "@/stores/poc-store";
 import { resolveAudioUri } from "@/services/audio/audio-storage";
-import { generatePDF } from "@/services/pdf/generator";
 
 import type { PipelineSectionProps } from "@/types/poc";
 
@@ -53,14 +52,13 @@ export const PipelineSection = ({
     response: soapNote,
     error: soapError,
     isLLMReady,
-    downloadProgress: llmDownloadProgress,
   } = useLLMInference();
 
   useEffect(() => {
     setIsDownloadingWhisper(false);
     setWhisperDownloaded(checkWhisperExists());
     setIsDownloadingPhi(false);
-    setPhiDownloaded(isLLMReady);
+    setPhiDownloaded(checkPhiExists());
     setDownloadStatus(null);
     setProgress(0);
     setPhiProgress(0);
@@ -70,7 +68,7 @@ export const PipelineSection = ({
     setTranscriptionProgress(0);
     setPdfUri(null);
     clearPipelineResult();
-  }, [audioKey, clearPipelineResult, isLLMReady]);
+  }, [audioKey, clearPipelineResult]);
 
   // State monitoring useEffect removed - pipeline state is now managed directly in runFullPipeline
 
@@ -105,27 +103,33 @@ export const PipelineSection = ({
     setIsDownloadingWhisper(false);
   };
 
-
   const downloadPhiModel = async (): Promise<void> => {
-    if (phiDownloaded) return;
-    if (!whisperDownloaded || isDownloadingPhi) return;
+    if (checkPhiExists()) {
+      setPhiDownloaded(true);
+      return;
+    }
+    if (!whisperDownloaded || isDownloadingPhi || phiDownloaded) return;
 
     setIsDownloadingPhi(true);
     setDownloadStatus("Starting LLM download...");
     setPhiProgress(0);
 
-    // Trigger library-managed download + load via useLLM hook
-    const result = await loadModel();
+    const result = await downloadPhi((p) => {
+      setPhiProgress(Math.round(p * 100));
+      setDownloadStatus(`Downloading LLM: ${Math.round(p * 100)}%`);
+    });
 
     if (result.success) {
       setPhiDownloaded(true);
-      setPhiProgress(100);
-      setDownloadStatus("LLM ready");
+      setDownloadStatus("LLM downloaded");
     } else {
+      // Show error and reset button state
       setDownloadStatus(null);
       setPhiProgress(0);
       setPhiDownloaded(false);
-      alert(`LLM load failed: ${result.error}`);
+      setIsDownloadingPhi(false);
+      alert("Model not downloaded, try again");
+      return;
     }
     setIsDownloadingPhi(false);
   };
@@ -255,34 +259,15 @@ export const PipelineSection = ({
     if (soapResult.success) {
       clearInterval(phiProgressInterval);
       setTranscriptionProgress(100);
-      
-      const targetPath = FileSystem.documentDirectory + "pdf/output.pdf";
-      console.log("[Pipeline] Generating real PDF at:", targetPath);
-      
-      const pdfResult = await generatePDF(
-        transcribeResult.data,
-        soapResult.data || "",
-        targetPath
-      );
-
-      if (pdfResult.success) {
-        console.log("The transcribing and PDF generation is complete");
-        Alert.alert("Success", "The transcribing and PDF generation is complete");
-        setDownloadStatus("Audio converted to PDF");
-        setConversionProgress(100);
-        setConversionComplete(true);
-        setPdfUri(targetPath);
-      } else {
-        console.error("PDF generation failed:", pdfResult.error);
-        Alert.alert("Error", "Transcription finished but PDF generation failed.");
-        setDownloadStatus("PDF generation failed");
-        setConversionProgress(0);
-        setConversionComplete(false);
-      }
-
+      console.log("The transcribing is complete");
+      Alert.alert("Success", "The transcribing is complete");
+      setDownloadStatus("Audio converted to PDF");
+      setConversionProgress(100);
+      setConversionComplete(true);
+      setPdfUri(Paths.document + "/pdf/output.pdf");
       setPipelineResult({
         transcript: transcribeResult.data,
-        soapNote: soapResult.data || "",
+        soapNote: "",
         transcriptError: null,
         soapNoteError: null,
         isTranscribing: false,
@@ -306,42 +291,9 @@ export const PipelineSection = ({
     }
   };
 
-  const openPDF = async () => {
-    if (!pdfUri) return;
-
-    try {
-      console.log("[Pipeline] Checking PDF at:", pdfUri);
-      
-      // Ensure the directory exists
-      const pdfDir = pdfUri.substring(0, pdfUri.lastIndexOf('/'));
-      const dirInfo = await FileSystem.getInfoAsync(pdfDir);
-      if (!dirInfo.exists) {
-        await FileSystem.makeDirectoryAsync(pdfDir, { intermediates: true });
-      }
-
-      // Check if file exists
-      const fileInfo = await FileSystem.getInfoAsync(pdfUri);
-      
-      if (!fileInfo.exists) {
-        console.error("[Pipeline] PDF file is missing on disk");
-        Alert.alert("Error", "The PDF report could not be found. Please run the pipeline again.");
-        return;
-      }
-
-      if (!(await Sharing.isAvailableAsync())) {
-        Alert.alert("Error", "Sharing is not available on this device");
-        return;
-      }
-
-      await Sharing.shareAsync(pdfUri, {
-        mimeType: 'application/pdf',
-        dialogTitle: 'CaseScriptAI Report',
-        UTI: 'com.adobe.pdf',
-      });
-      
-    } catch (error) {
-      console.error("[Pipeline] Share error:", error);
-      Alert.alert("Error", "Could not share the PDF: " + (error instanceof Error ? error.message : "Unknown error"));
+  const openPDF = () => {
+    if (pdfUri) {
+      Share.share({ url: `file://${pdfUri}` });
     }
   };
 
@@ -358,7 +310,7 @@ export const PipelineSection = ({
   const phiTitle = phiDownloaded
     ? "LLM downloaded ✅"
     : isDownloadingPhi
-      ? `⬇️ Downloading... ${Math.round(llmDownloadProgress * 100)}%`
+      ? `⬇️ Downloading... ${phiProgress}%`
       : "2. Download Phi Model";
 
   const runTitle = conversionComplete
