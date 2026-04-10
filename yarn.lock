@@ -3213,6 +3213,7 @@ __metadata:
     react-dom: "npm:19.1.0"
     react-native: "npm:0.81.5"
     react-native-aes-gcm-crypto: "npm:^0.2.2"
+    react-native-audio-api: "npm:^0.3.0"
     react-native-executorch: "npm:^0.8.1"
     react-native-executorch-expo-resource-fetcher: "npm:^0.8.0"
     react-native-gesture-handler: "npm:~2.28.0"
@@ -6505,6 +6506,16 @@ __metadata:
     react: "*"
     react-native: "*"
   checksum: 10c0/c636c9b6bf7c385f124f7eba9cc5e5eb29ab96f39f16f1e0f5a9c54fb79dfa93f7ecf470e06692af01199a2a48c9765819c57eb21cac82c7eb4dc8953fb8e91d
+  languageName: node
+  linkType: hard
+
+"react-native-audio-api@npm:^0.3.0":
+  version: 0.3.2
+  resolution: "react-native-audio-api@npm:0.3.2"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  checksum: 10c0/7aafa28d87bd410b704b2a891e2f0a7567499eeef6a57cdea03aca9cdbc86d49ea1eddd9ba89b2fe8030701b47c5fe9f0fc050c02bc2e853d8ab17d4f0b909c6
   languageName: node
   linkType: hard
 
