@@ -7,7 +7,7 @@ export const MODEL_PATHS = {
   },
   phi: {
     dir: "llm",
-    file: "phi-4-mini_8da4w.pte",
+    file: "phi-2.Q2_K.gguf",
   },
 } as const;
 
@@ -44,7 +44,7 @@ export const checkModelExists = (type: ModelType): boolean => {
     const fileSize = modelFile.size;
     const minSizeBytes = {
       whisper: 67108864, // 64MB minimum for ggml-tiny.bin
-      phi: 150000000,   // 150MB minimum for phi-4-mini_8da4w.pte
+      phi: 500000000,   // 500MB minimum for phi-2.Q2_K.gguf (2-bit quantized, ~1.2GB)
     };
     
     const minSize = minSizeBytes[type] || 0;
