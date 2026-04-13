@@ -1,8 +1,8 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
-import { useLLM } from "react-native-executorch";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { useLLM, PHI_4_MINI_4B } from "react-native-executorch";
 import { createLLMService } from "@/services/ai/llm-inference";
 import { initializeExecutorch } from "@/services/ai/llm-inference";
-import { checkModelExists, getModelPath } from "@/services/ai/model-utils";
+import { waitForCondition } from "@/utils/async-utils";
 import type { Result } from "@/types/result";
 
 export const useLLMInference = () => {
@@ -14,31 +14,26 @@ export const useLLMInference = () => {
   // Lazy loading: model stays prevented until explicitly requested
   const [shouldLoadModel, setShouldLoadModel] = useState(false);
 
-  const modelExists = checkModelExists("phi");
-  const modelPath = getModelPath("phi");
+  console.log("[LLM] Using PHI-4 Mini 4B model");
 
-  console.log("[LLM] Model exists:", modelExists, "Path:", modelPath);
-
-  // For .pte models, the tokenizer might be embedded in the model file
-  // Try pointing all sources to the same file, or use empty paths if that fails
+  // Use the predefined PHI-4 Mini model from react-native-executorch
   const llmConfig = useMemo(
     () => ({
-      model: {
-        modelName: "phi-2" as unknown as Parameters<typeof useLLM>[0]["model"]["modelName"],
-        // For GGUF format, ExecuTorch expects filesystem path without file:// scheme
-        modelSource: { uri: modelPath },
-        // GGUF includes tokenizer; if not, we'll get an error we can catch
-        tokenizerSource: { uri: modelPath },
-        tokenizerConfigSource: { uri: modelPath },
-      },
+      model: PHI_4_MINI_4B,
       // Only load when user explicitly triggered loading
       preventLoad: !shouldLoadModel,
     }),
-    [modelPath, shouldLoadModel],
+    [shouldLoadModel],
   );
 
   const llm = useLLM(llmConfig);
+  const llmRef = useRef<ReturnType<typeof useLLM> | null>(null);
   const service = createLLMService(llm);
+
+  // Keep the latest llm instance available for async polling
+  useEffect(() => {
+    llmRef.current = llm;
+  }, [llm]);
 
   // Monitor LLM readiness
   useEffect(() => {
@@ -57,13 +52,9 @@ export const useLLMInference = () => {
    * Safe to call multiple times — idempotent once initialized.
    */
   const loadModel = useCallback(async (): Promise<Result<void>> => {
-    if (isInitialized && shouldLoadModel && isLLMReady) {
+    if (isInitialized && shouldLoadModel && llmRef.current?.isReady) {
       console.log("[LLM] Model already loaded");
       return { success: true, data: undefined };
-    }
-
-    if (!checkModelExists("phi")) {
-      return { success: false, error: "Phi model not downloaded" };
     }
 
     // Step 1: Initialize ExecuTorch runtime
@@ -80,28 +71,31 @@ export const useLLMInference = () => {
     console.log("[LLM] Triggering model load...");
     setShouldLoadModel(true);
 
-    // Step 3: Wait for the model to actually be ready
-    // Poll isReady with exponential backoff (max 5 minutes)
-    console.log("[LLM] Waiting for model to be ready...");
-    let attempts = 0;
-    let delay = 100; // Start with 100ms
-    while (!isLLMReady && attempts < 300) {
-      if (attempts % 10 === 0) {
-        console.log("[LLM] Still loading... attempt", attempts, "isReady:", isLLMReady);
-      }
-      await new Promise(resolve => setTimeout(resolve, delay));
-      delay = Math.min(delay * 1.5, 1000); // Cap at 1s, grow exponentially
-      attempts++;
-    }
+    // Give React a chance to re-render and start the hook load process.
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
-    if (!isLLMReady) {
-      console.error("[LLM] Model load timeout after", attempts, "attempts");
+    // Step 3: Wait for the model to actually be ready
+    console.log("[LLM] Waiting for model to be ready...");
+    
+    const isReady = await waitForCondition(
+      () => !!llmRef.current?.isReady,
+      {
+        onAttempt: (attempt) => {
+          if (attempt % 50 === 0) {
+            console.log("[LLM] Still loading... attempt", attempt);
+          }
+        }
+      }
+    );
+
+    if (!isReady) {
+      console.error("[LLM] Model load timeout");
       return { success: false, error: "Model failed to load within timeout (5m)" };
     }
 
-    console.log("[LLM] Model loaded successfully after", attempts, "attempts");
+    console.log("[LLM] Model loaded successfully");
     return { success: true, data: undefined };
-  }, [isInitialized, shouldLoadModel, isLLMReady]);
+  }, [isInitialized, shouldLoadModel]);
 
   const generate = useCallback(
     async (prompt: string): Promise<Result<string>> => {
@@ -109,13 +103,6 @@ export const useLLMInference = () => {
       
       if (!isInitialized || !shouldLoadModel) {
         const errorMsg = "ExecuTorch not initialized. Call loadModel() first.";
-        setError(errorMsg);
-        setIsGenerating(false);
-        return { success: false, error: errorMsg };
-      }
-
-      if (!checkModelExists("phi")) {
-        const errorMsg = "Phi model not downloaded";
         setError(errorMsg);
         setIsGenerating(false);
         return { success: false, error: errorMsg };
@@ -157,13 +144,6 @@ export const useLLMInference = () => {
       
       if (!isInitialized || !shouldLoadModel) {
         const errorMsg = "ExecuTorch not initialized. Call loadModel() first.";
-        setError(errorMsg);
-        setIsGenerating(false);
-        return { success: false, error: errorMsg };
-      }
-
-      if (!checkModelExists("phi")) {
-        const errorMsg = "Phi model not downloaded";
         setError(errorMsg);
         setIsGenerating(false);
         return { success: false, error: errorMsg };
