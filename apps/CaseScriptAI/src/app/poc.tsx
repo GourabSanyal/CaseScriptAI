@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { ScrollView, StyleSheet, Text } from "react-native";
 import { useAudio } from "@/hooks/audio/use-audio";
 import { usePocStore } from "@/stores/poc-store";
