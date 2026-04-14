@@ -1,34 +1,162 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useSpeechToText, WHISPER_TINY } from "react-native-executorch";
 import { File } from "expo-file-system";
-import { parseWavData } from "@/services/audio/wav-parser";
 import type { Result } from "../../types/result";
+
+// Simple WAV file parser for 16-bit PCM data
+const parseWavData = (wavBytes: Uint8Array): Float32Array => {
+  // Check WAV header (simplified check)
+  if (wavBytes.length < 44) {
+    throw new Error("Invalid WAV file: too short");
+  }
+
+  // Read sample rate from header (bytes 24-27, little-endian)
+  const sampleRate = wavBytes[24] | (wavBytes[25] << 8) | (wavBytes[26] << 16) | (wavBytes[27] << 24);
+
+  // Read number of channels (bytes 22-23)
+  const numChannels = wavBytes[22] | (wavBytes[23] << 8);
+
+  // Read bits per sample (bytes 34-35)
+  const bitsPerSample = wavBytes[34] | (wavBytes[35] << 8);
+
+  if (bitsPerSample !== 16) {
+    throw new Error(`Unsupported bits per sample: ${bitsPerSample}, expected 16`);
+  }
+
+  // Find data chunk
+  let dataOffset = 44; // Skip header
+  // In a full implementation, we'd search for the "data" chunk, but for simplicity assume it's at offset 44
+
+  const dataSize = wavBytes.length - dataOffset;
+  const numSamples = dataSize / 2 / numChannels; // 2 bytes per sample, per channel
+
+  const audioBuffer = new Float32Array(numSamples);
+
+  // Convert 16-bit PCM to float32 (-1.0 to 1.0)
+  for (let i = 0; i < numSamples; i++) {
+    // Read 16-bit sample (little-endian)
+    const sampleOffset = dataOffset + (i * numChannels * 2);
+    const sample = wavBytes[sampleOffset] | (wavBytes[sampleOffset + 1] << 8);
+
+    // Convert to signed 16-bit
+    const signedSample = sample > 32767 ? sample - 65536 : sample;
+
+    // Convert to float
+    audioBuffer[i] = signedSample / 32768.0;
+  }
+
+  // Resample to 16kHz if necessary
+  if (sampleRate !== 16000) {
+    console.log(`[WAV Parser] Resampling from ${sampleRate}Hz to 16000Hz`);
+    const resampled = resampleAudio(audioBuffer, sampleRate, 16000);
+    return resampled;
+  }
+
+  return audioBuffer;
+};
+
+// Simple audio resampling (linear interpolation)
+const resampleAudio = (input: Float32Array, fromRate: number, toRate: number): Float32Array => {
+  const ratio = toRate / fromRate;
+  const outputLength = Math.floor(input.length * ratio);
+  const output = new Float32Array(outputLength);
+
+  for (let i = 0; i < outputLength; i++) {
+    const inputIndex = i / ratio;
+    const index = Math.floor(inputIndex);
+    const fraction = inputIndex - index;
+
+    if (index + 1 < input.length) {
+      output[i] = input[index] * (1 - fraction) + input[index + 1] * fraction;
+    } else {
+      output[i] = input[index];
+    }
+  }
+
+  return output;
+};
 
 export const useSpeechToTextInference = () => {
   const [isInitializing, setIsInitializing] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [shouldLoadModel, setShouldLoadModel] = useState(false);
+
+  const speechConfig = useMemo(
+    () => ({
+      model: WHISPER_TINY,
+      preventLoad: !shouldLoadModel,
+    }),
+    [shouldLoadModel],
+  );
 
   // Call useSpeechToText at the hook level, not inside callbacks
-  const model = useSpeechToText({
-    model: WHISPER_TINY,
-  });
+  const model = useSpeechToText(speechConfig);
+  const modelRef = useRef(model);
+  const shouldLoadModelRef = useRef(shouldLoadModel);
+
+  useEffect(() => {
+    modelRef.current = model;
+  }, [model]);
+
+  useEffect(() => {
+    shouldLoadModelRef.current = shouldLoadModel;
+  }, [shouldLoadModel]);
 
   const isReady = model.isReady;
   const downloadProgress = model.downloadProgress;
   const modelError = model.error ? model.error.message : null;
-  const isLoading = !isReady && !modelError;
+  const isLoading = shouldLoadModel && !isReady && !modelError;
 
-  // Initialize the speech-to-text model (model is already initialized via hook)
+  const getIsModelReady = useCallback(() => {
+    return Boolean(modelRef.current?.isReady);
+  }, []);
+
   const initModel = useCallback(async () => {
     setIsInitializing(true);
     setError(null);
 
     try {
-      console.log("[SpeechToText] Model already initialized via hook");
+      if (modelRef.current?.isReady) {
+        console.log("[SpeechToText] Whisper model already loaded");
+        setIsInitializing(false);
+        return { success: true, data: modelRef.current };
+      }
+
+      if (!shouldLoadModelRef.current) {
+        console.log("[SpeechToText] Triggering Whisper model load...");
+        setShouldLoadModel(true);
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+
+      let attempts = 0;
+      let delay = 100;
+      while (!modelRef.current?.isReady && attempts < 180) {
+        if (attempts % 20 === 0) {
+          console.log(
+            "[SpeechToText] Waiting for Whisper model... attempt",
+            attempts,
+            "ready:",
+            modelRef.current?.isReady,
+          );
+        }
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        delay = Math.min(delay * 1.5, 1000);
+        attempts++;
+      }
+
+      if (!modelRef.current?.isReady) {
+        const timeoutMessage = "Whisper model failed to become ready";
+        console.error("[SpeechToText] Init error:", timeoutMessage);
+        setError(timeoutMessage);
+        setIsInitializing(false);
+        return { success: false, error: timeoutMessage };
+      }
+
+      console.log("[SpeechToText] Whisper model is ready");
       setIsInitializing(false);
-      return { success: true, data: model };
+      return { success: true, data: modelRef.current };
     } catch (err) {
       const message = err instanceof Error ? err.message : "Speech-to-text initialization failed";
       console.error("[SpeechToText] Init error:", message);
@@ -36,7 +164,7 @@ export const useSpeechToTextInference = () => {
       setIsInitializing(false);
       return { success: false, error: message };
     }
-  }, [model]);
+  }, []);
 
   // Transcribe audio from file path
   const transcribe = useCallback(
@@ -80,7 +208,7 @@ export const useSpeechToTextInference = () => {
         }
 
         // Transcribe the audio
-        console.log("[SpeechToText] Starting transcription...");
+        console.log("[Pipeline] 🔊 Whisper starting transcription...");
 
         const transcriptionResult = await model.transcribe(audioBuffer, {
           language: "en",
@@ -92,13 +220,14 @@ export const useSpeechToTextInference = () => {
 
         const transcriptionText = transcriptionResult.text;
 
-        console.log("[SpeechToText] Transcription complete:", transcriptionText.substring(0, 100));
+        console.log("[Pipeline] ✅ Whisper transcription complete");
+        console.log("[Pipeline] Transcript:", transcriptionText.substring(0, 100) + (transcriptionText.length > 100 ? "..." : ""));
         setTranscript(transcriptionText);
         setIsTranscribing(false);
         return { success: true, data: transcriptionText };
       } catch (err) {
         const message = err instanceof Error ? err.message : "Transcription failed";
-        console.error("[SpeechToText] Transcribe error:", message);
+        console.error("[Pipeline] ❌ Whisper transcription error:", message);
         setError(message);
         setIsTranscribing(false);
         return { success: false, error: message };
@@ -133,6 +262,8 @@ export const useSpeechToTextInference = () => {
     transcript,
     error,
     isReady,
+    getIsModelReady,
+    hasStartedLoading: shouldLoadModel,
     downloadProgress,
     modelError,
   };

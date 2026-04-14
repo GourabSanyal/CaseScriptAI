@@ -2,14 +2,21 @@ import React, { useEffect, useMemo, useState, useCallback, useRef } from "react"
 import { View, Text, StyleSheet, ScrollView, Alert, Linking, Share } from "react-native";
 import { Paths } from "expo-file-system";
 import { TestButton } from "@/components/common/test-button";
-// Speech-to-text models are downloaded automatically by react-native-executorch
-import { downloadPhi, checkPhiExists } from "@/services/ai/llm";
 import { useSpeechToTextInference } from "@/hooks/ai/use-speech-to-text";
 import { useLLMInference } from "@/hooks/ai/use-llm-inference";
 import { usePocStore } from "@/stores/poc-store";
 import { resolveAudioUri } from "@/services/audio/audio-storage";
 
 import type { PipelineSectionProps } from "@/types/poc";
+
+// Helper function to clean and normalize transcript text for better LLM processing
+const cleanTranscript = (text: string): string => {
+  return text
+    .trim()
+    .replace(/\s+/g, ' ') // Replace multiple whitespace with single space
+    .replace(/[^\w\s.,!?-]/g, '') // Remove non-alphanumeric except basic punctuation
+    .substring(0, 5000); // Limit length to prevent overly long inputs
+};
 
 export const PipelineSection = ({
   audios,
@@ -27,11 +34,8 @@ export const PipelineSection = ({
   const pipelineResult = usePocStore((s) => s.pipelineResult);
 
   // Speech-to-text models are downloaded automatically by react-native-executorch
-  const [isDownloadingPhi, setIsDownloadingPhi] = useState(false);
-  const [phiDownloaded, setPhiDownloaded] = useState(false);
   const [downloadStatus, setDownloadStatus] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
-  const [phiProgress, setPhiProgress] = useState(0);
   const [isConvertingToPdf, setIsConvertingToPdf] = useState(false);
   const [conversionProgress, setConversionProgress] = useState(0);
   const [conversionComplete, setConversionComplete] = useState(false);
@@ -44,6 +48,7 @@ export const PipelineSection = ({
     isLoading: isSpeechModelLoading,
     isTranscribing,
     isReady: isSpeechModelReady,
+    hasStartedLoading: hasStartedWhisperLoad,
     downloadProgress: whisperDownloadProgress,
     error: speechToTextError,
     modelError: whisperModelError,
@@ -52,18 +57,15 @@ export const PipelineSection = ({
   const {
     loadModel,
     generateSOAPNote,
-    isGenerating: isGeneratingSoap,
+    isGenerating: isLLMGenerating,
     response: soapNote,
     error: soapError,
-    isLLMReady,
+    getIsLLMReady,
   } = useLLMInference();
 
   useEffect(() => {
-    // Speech-to-text models are downloaded automatically, no need to check existence
-    // PHI_4_MINI_4B is a built-in model, no download needed
-    setPhiDownloaded(true);
+    // All AI models are built-in to react-native-executorch, no download needed
     setDownloadStatus(null);
-    setPhiProgress(0);
     setIsConvertingToPdf(false);
     setConversionProgress(0);
     setConversionComplete(false);
@@ -73,55 +75,23 @@ export const PipelineSection = ({
 
   // State monitoring useEffect removed - pipeline state is now managed directly in runFullPipeline
 
-
-
-  const downloadPhiModel = async (): Promise<void> => {
-    if (checkPhiExists()) {
-      setPhiDownloaded(true);
-      return;
-    }
-    if (isDownloadingPhi || phiDownloaded) return;
-
-    setIsDownloadingPhi(true);
-    setDownloadStatus("Starting LLM download...");
-    setPhiProgress(0);
-
-    const result = await downloadPhi((p) => {
-      setPhiProgress(Math.round(p * 100));
-      setDownloadStatus(`Downloading LLM: ${Math.round(p * 100)}%`);
-    });
-
-    if (result.success) {
-      setPhiDownloaded(true);
-      setDownloadStatus("LLM downloaded");
-    } else {
-      // Show error and reset button state
-      setDownloadStatus(null);
-      setPhiProgress(0);
-      setPhiDownloaded(false);
-      setIsDownloadingPhi(false);
-      alert("Model not downloaded, try again");
-      return;
-    }
-    setIsDownloadingPhi(false);
-  };
-
   const runFullPipeline = async (): Promise<void> => {
-    if (!audioReady || !isSpeechModelReady) return;
+    if (!audioReady) return;
     if (pipelineStep !== 'idle') return;
 
-    await Promise.resolve(handlePress("Run Pipeline"));
+    console.log('[Pipeline] Starting full pipeline...');
+    await Promise.resolve(handlePress('Run Pipeline'));
 
     setPipelineStep('transcribing');
     setPipelineProgress(0);
 
     const lastAudio = audios[audios.length - 1];
-    const audioUri = resolveAudioUri(lastAudio.uri, "poc");
+    const audioUri = resolveAudioUri(lastAudio.uri, 'poc');
 
     // Update UI to show transcribing state
     setPipelineResult({
-      transcript: "",
-      soapNote: "",
+      transcript: '',
+      soapNote: '',
       transcriptError: null,
       soapNoteError: null,
       isTranscribing: true,
@@ -145,13 +115,14 @@ export const PipelineSection = ({
       setPipelineProgress(0);
       // Transcription failed - update store with error
       setPipelineResult({
-        transcript: "",
-        soapNote: "",
+        transcript: '',
+        soapNote: '',
         transcriptError: transcribeResult.error,
         soapNoteError: null,
         isTranscribing: false,
         isGeneratingSoap: false,
       });
+      console.error('[Pipeline][ERROR] Transcription failed:', transcribeResult.error);
       return;
     }
 
@@ -159,17 +130,73 @@ export const PipelineSection = ({
     setPipelineProgress(30);
 
     // Initialize LLM before starting SOAP generation
-    console.log("[Pipeline] Initializing LLM for SOAP generation...");
-    const loadResult = await loadModel();
-    if (!loadResult.success) {
+    console.log('[Pipeline] Initializing LLM for SOAP generation...');
+    let loadResult: any;
+    try {
+      console.log('[Pipeline][DEBUG] Calling loadModel()...');
+      loadResult = await loadModel();
+      console.log('[Pipeline][DEBUG] loadModel() result:', loadResult);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Unknown error during model load';
+      console.error('[Pipeline][ERROR] Exception during LLM load:', errorMsg);
       setPipelineStep('idle');
       setPipelineProgress(0);
-      console.error("[Pipeline] Failed to load LLM:", loadResult.error);
       setPipelineResult({
         transcript: transcribeResult.data,
-        soapNote: "",
+        soapNote: '',
         transcriptError: null,
-        soapNoteError: loadResult.error,
+        soapNoteError: errorMsg,
+        isTranscribing: false,
+        isGeneratingSoap: false,
+      });
+      return;
+    }
+
+    if (!loadResult || !loadResult.success) {
+      setPipelineStep('idle');
+      setPipelineProgress(0);
+      const errorMsg = loadResult?.error || 'Unknown error - loadModel returned invalid result';
+      console.error('[Pipeline][ERROR] Failed to load LLM:', errorMsg);
+      setPipelineResult({
+        transcript: transcribeResult.data,
+        soapNote: '',
+        transcriptError: null,
+        soapNoteError: errorMsg,
+        isTranscribing: false,
+        isGeneratingSoap: false,
+      });
+      return;
+    }
+
+    // Wait for isLLMReady to be true (max 30s)
+    let readyWait = 0;
+    let llmReadyObserved = getIsLLMReady();
+    while (!llmReadyObserved && readyWait < 60) {
+      console.log(
+        `[Pipeline][DEBUG] Waiting for isLLMReady... attempt ${readyWait}, isLLMReady:`,
+        llmReadyObserved,
+      );
+      await new Promise(resolve => setTimeout(resolve, 500));
+      llmReadyObserved = getIsLLMReady();
+      readyWait++;
+    }
+    if (!llmReadyObserved) {
+      setPipelineStep('idle');
+      setPipelineProgress(0);
+      const errorMsg = 'LLM model did not become ready after loadModel';
+      console.error(
+        '[Pipeline][ERROR] Failed to load LLM:',
+        errorMsg,
+        'isLLMReady:',
+        getIsLLMReady(),
+        'loadResult:',
+        loadResult,
+      );
+      setPipelineResult({
+        transcript: transcribeResult.data,
+        soapNote: '',
+        transcriptError: null,
+        soapNoteError: errorMsg,
         isTranscribing: false,
         isGeneratingSoap: false,
       });
@@ -179,45 +206,51 @@ export const PipelineSection = ({
     setPipelineStep('soap-generating');
     setPipelineProgress(50);
 
-    // Step 3: Generate SOAP note (with retry logic for loading edge cases)
-    const generateWithRetry = async (transcript: string, retryCount = 0): Promise<{ success: boolean; data?: string; error?: string }> => {
-      const result = await generateSOAPNote(transcript);
-
-      if (result.success) {
-        return result;
-      }
-
-      // Retry if model is still loading (up to 30 seconds)
-      if (result.error?.includes("still loading") && retryCount < 60) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        return generateWithRetry(transcript, retryCount + 1);
-      }
-
-      return result;
-    };
-
     // Update UI to show generating state
+    const cleanedTranscript = cleanTranscript(transcribeResult.data);
     setPipelineResult({
-      transcript: "",
-      soapNote: "",
+      transcript: cleanedTranscript,
+      soapNote: '',
       transcriptError: null,
       soapNoteError: null,
       isTranscribing: false,
       isGeneratingSoap: true,
     });
 
-    const soapResult = await generateWithRetry(transcribeResult.data);
+    // Step 3: Generate SOAP note (no retry needed)
+    let soapResult;
+    try {
+      console.log('[Pipeline][DEBUG] Calling generateSOAPNote()...');
+      soapResult = await generateSOAPNote(cleanedTranscript);
+      console.log('[Pipeline][DEBUG] generateSOAPNote() result:', soapResult);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Unknown error during SOAP note generation';
+      setPipelineStep('idle');
+      setPipelineProgress(0);
+      setDownloadStatus('Conversion failed');
+      setIsConvertingToPdf(false);
+      setConversionProgress(0);
+      setConversionComplete(false);
+      console.error('[Pipeline][ERROR] Exception during SOAP note generation:', errorMsg);
+      setPipelineResult({
+        transcript: transcribeResult.data,
+        soapNote: '',
+        transcriptError: null,
+        soapNoteError: errorMsg,
+        isTranscribing: false,
+        isGeneratingSoap: false,
+      });
+      return;
+    }
 
-    console.log("SOAP Result:", soapResult);
-
-    if (soapResult.success) {
+    if (soapResult && soapResult.success) {
       setPipelineStep('pdf-converting');
       setPipelineProgress(75);
 
       // Step 4: Convert to PDF
       setIsConvertingToPdf(true);
       setConversionProgress(0);
-      setDownloadStatus("Converting to PDF...");
+      setDownloadStatus('Converting to PDF...');
 
       // Start progress animation
       const progressInterval = setInterval(() => {
@@ -236,15 +269,15 @@ export const PipelineSection = ({
 
       setPipelineStep('complete');
       setPipelineProgress(100);
-      console.log("The transcribing is complete");
-      Alert.alert("Success", "The transcribing is complete");
-      setDownloadStatus("Audio converted to PDF");
+      console.log('[Pipeline] ✅ Pipeline complete - PDF generated');
+      Alert.alert('Success', 'The transcribing is complete');
+      setDownloadStatus('Audio converted to PDF');
       setConversionProgress(100);
       setConversionComplete(true);
-      setPdfUri(Paths.document + "/pdf/output.pdf");
+      setPdfUri(Paths.document + '/pdf/output.pdf');
       setPipelineResult({
         transcript: transcribeResult.data,
-        soapNote: soapResult.data || "",
+        soapNote: soapResult.data || '',
         transcriptError: null,
         soapNoteError: null,
         isTranscribing: false,
@@ -253,15 +286,16 @@ export const PipelineSection = ({
     } else {
       setPipelineStep('idle');
       setPipelineProgress(0);
-      setDownloadStatus("Conversion failed");
+      setDownloadStatus('Conversion failed');
       setIsConvertingToPdf(false);
       setConversionProgress(0);
       setConversionComplete(false);
+      console.error('[Pipeline][ERROR] SOAP generation failed:', soapResult?.error ?? null);
       setPipelineResult({
         transcript: transcribeResult.data,
-        soapNote: "",
+        soapNote: '',
         transcriptError: null,
-        soapNoteError: soapResult.error ?? null,
+        soapNoteError: soapResult?.error ?? null,
         isTranscribing: false,
         isGeneratingSoap: false,
       });
@@ -282,28 +316,29 @@ export const PipelineSection = ({
     ? "Whisper ready ✅"
     : isSpeechModelLoading
       ? `Initializing Whisper... ${whisperPercent}%`
-      : "Waiting for Whisper...";
+      : hasStartedWhisperLoad
+        ? "Preparing Whisper..."
+        : "Whisper will load when you run the pipeline";
 
-  const phiDownloadEnabled = false; // PHI_4_MINI_4B is built-in, no download needed
-  const runEnabled = audioReady && isSpeechModelReady && pipelineStep === 'idle';
+  const phiDownloadEnabled = false; // Qwen 2.5 1.5B is built-in, no download needed
+  const runEnabled = audioReady && pipelineStep === 'idle';
 
-  const phiTitle = "LLM ready ✅ (built-in PHI-4 Mini)";
+  const phiTitle = "LLM ready ✅ (built-in Qwen 2.5 1.5B Quantized)";
 
+  // Show more granular LLM (Qwen) state in the loader
   const runTitle = conversionComplete
     ? "PDF Generated"
     : pipelineStep === 'transcribing'
-      ? `🎙️ Transcribing... ${pipelineProgress}%`
+      ? `Transcribing... ${pipelineProgress}%`
       : pipelineStep === 'llm-loading'
-        ? `🧠 Loading LLM... ${pipelineProgress}%`
+        ? `Summarizing... ${pipelineProgress}%`
         : pipelineStep === 'soap-generating'
-          ? `📝 Generating SOAP... ${pipelineProgress}%`
+          ? `Summarizing... ${pipelineProgress}%`
           : pipelineStep === 'pdf-converting'
             ? `📄 Converting to PDF... ${pipelineProgress}%`
             : pipelineStep === 'complete'
               ? "Complete ✅"
-              : !isSpeechModelReady
-                ? `⏳ ${whisperStatus}`
-                : "Run Full Pipeline";
+              : "Run Full Pipeline";
 
   return (
     <View style={styles.section}>
@@ -344,6 +379,9 @@ export const PipelineSection = ({
           <View style={styles.progressBar}>
             <View style={[styles.progressFill, { width: `${pipelineProgress}%` }]} />
           </View>
+          {pipelineStep === 'soap-generating' && isLLMGenerating && (
+            <Text style={styles.statusText}>Qwen is actively summarizing the transcript...</Text>
+          )}
         </View>
       )}
       {(conversionComplete || pipelineResult?.transcriptError) && pipelineResult && (pipelineResult.soapNote || pipelineResult.soapNoteError || pipelineResult.transcriptError) && (

@@ -5,10 +5,6 @@ export const MODEL_PATHS = {
     dir: "whisper",
     file: "ggml-tiny.bin",
   },
-  phi: {
-    dir: "llm",
-    file: "phi-2.Q2_K.gguf",
-  },
 } as const;
 
 export type ModelType = keyof typeof MODEL_PATHS;
@@ -44,7 +40,6 @@ export const checkModelExists = (type: ModelType): boolean => {
     const fileSize = modelFile.size;
     const minSizeBytes = {
       whisper: 67108864, // 64MB minimum for ggml-tiny.bin
-      phi: 500000000,   // 500MB minimum for phi-2.Q2_K.gguf (2-bit quantized, ~1.2GB)
     };
     
     const minSize = minSizeBytes[type] || 0;

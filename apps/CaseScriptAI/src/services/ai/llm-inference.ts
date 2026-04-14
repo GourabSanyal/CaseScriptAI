@@ -1,7 +1,5 @@
 import { useLLM, initExecutorch, Message } from "react-native-executorch";
 import { ExpoResourceFetcher } from "react-native-executorch-expo-resource-fetcher";
-import { Directory, File, Paths } from "expo-file-system";
-import { checkModelExists, MODEL_PATHS, getModelPath } from "./model-utils";
 import { SOAP_NOTE_PROMPT } from "./prompts";
 import type { Result } from "@/types/result";
 
@@ -36,7 +34,9 @@ export interface LLMState {
   error: string | null;
 }
 
-export const createLLMService = (llm: ReturnType<typeof useLLM>) => {
+export const createLLMService = (
+  getLLM: () => ReturnType<typeof useLLM> | null,
+) => {
   const generate = async (prompt: string): Promise<Result<string>> => {
     if (!prompt) {
       return { success: false, error: "Prompt is empty" };
@@ -49,18 +49,13 @@ export const createLLMService = (llm: ReturnType<typeof useLLM>) => {
         return { success: false, error: execResult.error };
       }
 
-      // Check model exists
-      if (!checkModelExists("phi")) {
-        return {
-          success: false,
-          error: "Phi model not found. Please download it first.",
-        };
-      }
-
+      // Qwen model is built-in to react-native-executorch, no file check needed
       const chat: Message[] = [
         { role: "system", content: "You are a medical documentation assistant." },
         { role: "user", content: prompt },
       ];
+
+      const llm = getLLM();
 
       if (!llm) {
         return { success: false, error: "LLM instance not ready" };
