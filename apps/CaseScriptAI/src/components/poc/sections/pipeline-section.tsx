@@ -66,6 +66,8 @@ export const PipelineSection = ({
   useEffect(() => {
     // All AI models are built-in to react-native-executorch, no download needed
     setDownloadStatus(null);
+    setPipelineStep('idle');
+    setPipelineProgress(0);
     setIsConvertingToPdf(false);
     setConversionProgress(0);
     setConversionComplete(false);
