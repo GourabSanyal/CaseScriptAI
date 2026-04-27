@@ -9,6 +9,12 @@
     "ios": "node scripts/manage-ffmpeg.js --setup --ensure-pods && npx expo run:ios",
     "web": "npx expo start --web",
     "lint": "expo lint",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:unit": "jest tests/unit",
+    "test:integration": "jest tests/integration",
+    "test:e2e": "detox test --config-path ./.detoxrc.js --configuration ios.sim.debug",
     "prebuild": "node scripts/manage-ffmpeg.js --setup && npx expo prebuild --clean",
     "postinstall": "node scripts/manage-ffmpeg.js --setup"
   },
@@ -57,7 +63,15 @@
     "zustand": "^5.0.11"
   },
   "devDependencies": {
+    "@testing-library/jest-native": "^5.4.3",
+    "@testing-library/react-native": "^13.3.3",
+    "@types/jest": "^30.0.0",
     "@types/react": "~19.1.10",
+    "@types/react-test-renderer": "^19",
+    "detox": "^20.51.0",
+    "jest": "^30.3.0",
+    "jest-expo": "^55.0.16",
+    "react-test-renderer": "^19.2.5",
     "typescript": "~5.9.2"
   },
   "private": true
