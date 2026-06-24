@@ -31,6 +31,8 @@ export const PoCTestScreen = (): React.JSX.Element => {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.header}>Pipeline PoC</Text>
 
+      <PipelineSection audios={audios} handlePress={handlePress} />
+
       <AudioInputSection
         handleAudioImport={handleAudioImport}
         clearAudios={clearAudios}
@@ -46,8 +48,6 @@ export const PoCTestScreen = (): React.JSX.Element => {
         isPlaying={isPlaying}
         playbackState={playbackState}
       />
-
-      <PipelineSection audios={audios} handlePress={handlePress} />
 
       <OutputsSection handlePress={handlePress} />
     </ScrollView>
