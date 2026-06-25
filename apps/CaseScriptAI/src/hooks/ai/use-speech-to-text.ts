@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useSpeechToText, WHISPER_TINY } from "react-native-executorch";
 import { File } from "expo-file-system";
+import { initializeExecutorch } from "@/services/ai/llm-inference";
 import type { Result } from "../../types/result";
 
 // Simple WAV file parser for 16-bit PCM data
@@ -124,6 +125,13 @@ export const useSpeechToTextInference = () => {
         return { success: true, data: modelRef.current };
       }
 
+      const execResult = await initializeExecutorch();
+      if (!execResult.success) {
+        setError(execResult.error ?? "ExecuTorch initialization failed");
+        setIsInitializing(false);
+        return { success: false, error: execResult.error };
+      }
+
       if (!shouldLoadModelRef.current) {
         console.log("[SpeechToText] Triggering Whisper model load...");
         setShouldLoadModel(true);
@@ -132,13 +140,26 @@ export const useSpeechToTextInference = () => {
 
       let attempts = 0;
       let delay = 100;
-      while (!modelRef.current?.isReady && attempts < 180) {
+      while (!modelRef.current?.isReady && attempts < 600) {
+        const modelError = modelRef.current?.error;
+        if (modelError) {
+          const message = modelError.message ?? "Whisper model download failed";
+          console.error("[SpeechToText] Init error:", message);
+          setError(message);
+          setIsInitializing(false);
+          return { success: false, error: message };
+        }
+
         if (attempts % 20 === 0) {
+          const progress = modelRef.current?.downloadProgress ?? 0;
+          const progressPercent = progress <= 1 ? Math.round(progress * 100) : Math.round(progress);
           console.log(
             "[SpeechToText] Waiting for Whisper model... attempt",
             attempts,
             "ready:",
             modelRef.current?.isReady,
+            "progress:",
+            `${progressPercent}%`,
           );
         }
         await new Promise((resolve) => setTimeout(resolve, delay));
@@ -147,7 +168,12 @@ export const useSpeechToTextInference = () => {
       }
 
       if (!modelRef.current?.isReady) {
-        const timeoutMessage = "Whisper model failed to become ready";
+        const progress = modelRef.current?.downloadProgress ?? 0;
+        const progressPercent = progress <= 1 ? Math.round(progress * 100) : Math.round(progress);
+        const timeoutMessage =
+          progressPercent > 0 && progressPercent < 100
+            ? `Whisper model download still in progress (${progressPercent}%). Check your network and try again.`
+            : "Whisper model failed to become ready. Check your network connection.";
         console.error("[SpeechToText] Init error:", timeoutMessage);
         setError(timeoutMessage);
         setIsInitializing(false);

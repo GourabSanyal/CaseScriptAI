@@ -4,6 +4,21 @@ import { createLLMService } from "@/services/ai/llm-inference";
 import { initializeExecutorch } from "@/services/ai/llm-inference";
 import type { Result } from "@/types/result";
 
+const MAX_DOWNLOAD_RETRIES = 3;
+
+const isRetryableDownloadError = (message: string): boolean =>
+  /cancel|reset|timeout|network|interrupted|aborted|econn|failed to connect/i.test(message);
+
+const formatDownloadError = (message: string): string => {
+  if (isRetryableDownloadError(message)) {
+    return `${message}. Keep the app open on Wi-Fi and tap Retry.`;
+  }
+  return message;
+};
+
+const sleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
 export const useLLMInference = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [response, setResponse] = useState("");
@@ -47,6 +62,10 @@ export const useLLMInference = () => {
     llmRef.current = llm;
   }, [llm]);
 
+  const downloadProgress = llm.downloadProgress;
+  const modelError = llm.error ? llm.error.message : null;
+  const isLoading = shouldLoadModel && !llm.isReady && !modelError;
+
   // Monitor LLM readiness
   useEffect(() => {
     if (llm && llm.isReady) {
@@ -76,7 +95,6 @@ export const useLLMInference = () => {
         return { success: true, data: undefined };
       }
 
-      // Step 1: Initialize ExecuTorch runtime
       console.log("[LLM] Initializing ExecuTorch...");
       const execResult = await initializeExecutorch();
       if (!execResult.success) {
@@ -86,39 +104,80 @@ export const useLLMInference = () => {
       setIsInitialized(true);
       console.log("[LLM] ExecuTorch initialized");
 
-      // Step 2: Allow useLLM to load the model (triggers re-render with preventLoad: false)
-      console.log("[LLM] Triggering model load...");
-      setShouldLoadModel(true);
-
-      // Give React a chance to re-render and start the hook load process.
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      // Step 3: Wait for the model to actually be ready
-      // Poll the latest llm readiness directly from the ref.
-      console.log("[LLM] Waiting for model to be ready...");
-      let attempts = 0;
-      let delay = 100; // Start with 100ms
-      while (!(llmRef.current?.isReady) && attempts < 300) {
-        if (attempts % 50 === 0) { // Log less frequently
-          console.log("[LLM] Still loading... attempt", attempts, "llmReady:", llmRef.current?.isReady, "llm:", !!llmRef.current);
+      for (let retry = 0; retry <= MAX_DOWNLOAD_RETRIES; retry++) {
+        if (retry > 0) {
+          console.warn(`[LLM] Retrying download (${retry}/${MAX_DOWNLOAD_RETRIES})...`);
+          setShouldLoadModel(false);
+          await sleep(500 * retry);
         }
-        await new Promise((resolve) => setTimeout(resolve, delay));
-        delay = Math.min(delay * 1.5, 1000); // Cap at 1s, grow exponentially
-        attempts++;
-      }
 
-      if (!(llmRef.current?.isReady)) {
+        console.log("[LLM] Triggering model load...");
+        setShouldLoadModel(true);
+        await sleep(200);
+
+        console.log("[LLM] Waiting for model to be ready...");
+        let attempts = 0;
+        let delay = 100;
+        let retryableError: string | null = null;
+
+        while (!(llmRef.current?.isReady) && attempts < 1200) {
+          const llmError = llmRef.current?.error;
+          if (llmError) {
+            const message = llmError.message ?? "LLM model download failed";
+            if (isRetryableDownloadError(message) && retry < MAX_DOWNLOAD_RETRIES) {
+              retryableError = message;
+              break;
+            }
+            console.error("[LLM] Init error:", message);
+            return { success: false, error: formatDownloadError(message) };
+          }
+
+          if (attempts % 50 === 0) {
+            const progress = llmRef.current?.downloadProgress ?? 0;
+            const progressPercent = progress <= 1 ? Math.round(progress * 100) : Math.round(progress);
+            console.log(
+              "[LLM] Still loading... attempt",
+              attempts,
+              "llmReady:",
+              llmRef.current?.isReady,
+              "progress:",
+              `${progressPercent}%`,
+            );
+          }
+          await sleep(delay);
+          delay = Math.min(delay * 1.5, 1000);
+          attempts++;
+        }
+
+        if (llmRef.current?.isReady) {
+          setIsLLMReady(true);
+          console.log("[LLM] Model loaded successfully");
+          return { success: true, data: undefined };
+        }
+
+        if (retryableError && retry < MAX_DOWNLOAD_RETRIES) {
+          console.warn("[LLM] Download interrupted:", retryableError);
+          continue;
+        }
+
+        const progress = llmRef.current?.downloadProgress ?? 0;
+        const progressPercent = progress <= 1 ? Math.round(progress * 100) : Math.round(progress);
         console.error("[LLM] Model load timeout after", attempts, "attempts");
-        return { success: false, error: "Model failed to load within timeout (5m)" };
+        const timeoutMessage =
+          progressPercent > 0 && progressPercent < 100
+            ? `LLM download still in progress (${progressPercent}%). Qwen is ~1 GB — keep the app open on Wi-Fi.`
+            : "Model failed to load within timeout (~20 min). Check your network connection.";
+        return { success: false, error: formatDownloadError(timeoutMessage) };
       }
 
-      setIsLLMReady(true);
-      console.log("[LLM] Model loaded successfully after", attempts, "attempts");
-      return { success: true, data: undefined };
+      return {
+        success: false,
+        error: "LLM download failed after multiple retries. Keep the app open on Wi-Fi and try again.",
+      };
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error in loadModel";
       console.error("[LLM] Unexpected error in loadModel:", message);
-      return { success: false, error: message };
+      return { success: false, error: formatDownloadError(message) };
     }
   }, []);
 
@@ -203,8 +262,16 @@ export const useLLMInference = () => {
     setError(null);
   }, []);
 
+  const retryModelLoad = useCallback(async (): Promise<Result<void>> => {
+    setIsLLMReady(false);
+    setShouldLoadModel(false);
+    await sleep(300);
+    return loadModel();
+  }, [loadModel]);
+
   return {
     loadModel,
+    retryModelLoad,
     generate,
     generateSOAPNote,
     isGenerating,
@@ -213,5 +280,9 @@ export const useLLMInference = () => {
     clearResponse,
     isLLMReady,
     getIsLLMReady,
+    downloadProgress,
+    isLoading,
+    modelError,
+    hasStartedLoading: shouldLoadModel,
   };
 };
