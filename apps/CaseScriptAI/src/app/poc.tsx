@@ -49,7 +49,7 @@ export const PoCTestScreen = (): React.JSX.Element => {
         playbackState={playbackState}
       />
 
-      <OutputsSection handlePress={handlePress} />
+      <OutputsSection />
     </ScrollView>
   );
 };

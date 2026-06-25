@@ -41,6 +41,4 @@ export type PipelineSectionProps = {
   handlePress: (type: string) => void | Promise<void>;
 };
 
-export type OutputsSectionProps = {
-  handlePress: (type: string) => void;
-};
+export type OutputsSectionProps = Record<string, never>;
