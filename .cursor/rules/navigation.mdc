@@ -1,0 +1,41 @@
+---
+description: Expo Router groups, layouts, and paywall gating
+globs: "**/app/**"
+alwaysApply: false
+---
+
+# Navigation
+
+## Expo Router Only
+Use `router` from `expo-router` or `<Link />`. Do not use React Navigation APIs directly.
+
+## Route Groups
+| Group | Purpose |
+|-------|---------|
+| `(auth)` | Login, signup |
+| `(onboarding)` | Device check, model download |
+| `(app)` | Core app: record, processing, preview, export |
+
+New group folders need `_layout.tsx` when they share header or tab state.
+
+## Screen Structure
+Screens are thin. Root with `ThemedView` or `SafeAreaView`:
+
+```typescript
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { ThemedText } from '@/components/themed-text';
+
+export default function RecordScreen() {
+  return (
+    <SafeAreaView style={{ flex: 1 }}>
+      <ThemedText type="title">Record</ThemedText>
+    </SafeAreaView>
+  );
+}
+```
+
+## Paywall Gating
+Trial-gated screens/actions must call `router.push('/paywall')` before access. Navigation enforces the gate — not conditional rendering alone.
+
+## Deep Links
+Use Expo Router file paths. Test on both iOS and Android when adding new routes.

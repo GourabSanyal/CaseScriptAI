@@ -7,6 +7,7 @@ description: Use when modifying Whisper, LLM prompts, or the audio processing pi
 2. **Pipeline Contract**: If modifying `use-pipeline.ts`, ensure compatibility with `src/services/audio/chunker.ts`.
 3. **Tier Awareness**: Check `src/utils/device-tier.ts` to ensure the AI logic doesn't crash on lower-end devices.
 4. **Evaluation**: After any change to `llm.ts` or `whisper.ts`, the AI must suggest running a command from the `eval/` directory to verify accuracy against the `golden-dataset`.
+5. **Output Validation**: All LLM clinical output must pass `validateSOAPOutput()` in `output-validator.ts` before display.
 
 ## Model Loading Rule
 Never hardcode a model filename or path directly in `whisper.ts` or `llm.ts`.

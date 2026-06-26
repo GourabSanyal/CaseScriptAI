@@ -1,0 +1,65 @@
+---
+description: TypeScript naming, file size, functions, imports, and error handling
+globs: "**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# TypeScript Standards
+
+## File Size
+Aim for **115–150 lines**. Split when a file exceeds 150 or mixes unrelated concerns.
+
+## Naming
+- Files: `kebab-case` → `use-audio-picker.ts`
+- Functions/variables: `camelCase`
+- Components: `PascalCase`
+- Constants: `SCREAMING_SNAKE_CASE`
+- Types/interfaces: `PascalCase`
+
+## Function Style
+- **Components**: `function` declarations
+- **Hooks, services, utils**: arrow functions
+
+```typescript
+// Component
+function RecordButton({ onPress }: { onPress: () => void }) {
+  return <Pressable onPress={onPress} />;
+}
+
+// Service
+export const pickAudio = async (): Promise<Result<string>> => { ... };
+```
+
+## Imports
+Use `@/` alias only — no deep relative paths.
+
+```typescript
+import { View } from 'react-native';
+import * as DocumentPicker from 'expo-document-picker';
+import { pickAudio } from '@/services/audio/audio-picker';
+import type { Result } from '@/types/result';
+```
+
+Order: React/RN → external → `@/` internal → `import type`
+
+## Error Handling
+Services return `Result<T>` from `@/types/result` — never throw.
+
+```typescript
+export const loadAudio = async (): Promise<Result<AudioMetadata>> => {
+  try {
+    return { success: true, data };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return { success: false, error: message };
+  }
+};
+```
+
+## Hooks
+- Prefix with `use`
+- Return an object (not array, unless exactly 2 values)
+- Arrow functions
+
+## Comments
+Explain "why", not "what". No obvious comments.

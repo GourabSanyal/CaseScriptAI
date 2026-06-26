@@ -1,0 +1,44 @@
+---
+description: UI components, theming, and iOS/Android patterns
+globs: "**/*.{tsx}"
+alwaysApply: false
+---
+
+# React Native UI
+
+## Platform
+iOS and Android are production targets. Do not add web-only APIs or require web parity.
+
+## Theming
+Use `ThemedText`, `ThemedView`, and `useTheme()` — not raw `Text`/`View` with hardcoded colors.
+
+```typescript
+import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
+import { Spacing } from '@/constants/theme';
+
+function MyScreen() {
+  return (
+    <ThemedView style={{ padding: Spacing.three }}>
+      <ThemedText type="title">Record</ThemedText>
+    </ThemedView>
+  );
+}
+```
+
+Use `Colors`, `Spacing`, `Fonts` from `@/constants/theme`. Use `StyleSheet.create` for component styles.
+
+## Layer Separation
+- `src/app/` — thin screens, route wiring only
+- `src/components/` — reusable UI
+- `src/hooks/` — screen logic, calls services
+- `src/services/` — no React imports, no UI
+
+## Platform Files
+Use extension suffixes when needed: `Component.web.tsx`, `Component.ios.tsx`. Import normally — bundler resolves.
+
+## Accessibility
+Add `testID` to interactive elements. Use `accessibilityLabel` where `testID` is insufficient.
+
+## English Only (V1)
+User-facing strings in English. No i18n library until explicitly added.

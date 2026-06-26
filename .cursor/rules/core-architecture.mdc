@@ -1,0 +1,30 @@
+---
+description: POC phase, monorepo, eval, paywall, and dependency rules
+alwaysApply: true
+---
+
+# Core Architecture
+
+## POC Gate
+Do not build product features until `poc.tsx` passes all 4 kill-switch tests. Never import from `poc.tsx` into product code.
+
+## Platform
+Production targets are **iOS and Android only**. Web is dev UI testing — no web parity requirements.
+
+## Monorepo
+- Use `yarn workspace casescriptai <script>` for app commands
+- Check `packages/*` before creating new utilities (packages are planned, not all exist yet)
+- Do not add dependencies without explicit need
+
+## Eval
+- Never auto-generate or modify `eval/golden-dataset/`
+- Suggest eval after changes to `whisper.ts`, `llm.ts`, or `prompts.ts`
+- Never commit `eval/results/`
+
+## Paywall
+Trial-gated features: `router.push('/paywall')` at navigation layer. UI-only hiding is not a gate.
+
+## Security
+- No PHI in production logs
+- No secrets in `EXPO_PUBLIC_*` env vars
+- De-identify audio before adding to golden dataset

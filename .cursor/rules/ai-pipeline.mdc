@@ -1,0 +1,50 @@
+---
+description: Whisper, LLM, prompts, memory, guardrails, and eval
+globs: "**/{services/ai/**,hooks/ai/**,services/audio/**}"
+alwaysApply: false
+---
+
+# AI Pipeline
+
+## Prompts
+All prompts in `src/services/ai/prompts.ts` only. Never inline in hooks or components.
+
+- System role is fixed and not user-overridable
+- Transcript appended after instructions, delimited with `---`
+- Every clinical prompt includes STRICT OUTPUT RULES (format only, no preamble/epilogue)
+- Anti-hallucination: "Do not infer or add clinical findings not present in the transcript"
+- Missing data → `[not documented]`, never invent vitals or diagnoses
+
+## Output Validation
+Every LLM response must pass `validateSOAPOutput()` in `src/services/ai/output-validator.ts` before display.
+
+- Reject empty or < 50 char responses
+- Require all SOAP sections: Subjective, Objective, Assessment, Plan
+- Strip LLM meta-text ("Here is your note", disclaimers) before display
+- On failure → return typed error, show retry UI (never show raw output)
+
+## Memory Management
+```typescript
+let context = null;
+try {
+  context = await initWhisper({ filePath: modelPath });
+  // ...
+} finally {
+  await context?.release();
+}
+```
+
+- Never load Whisper and LLM simultaneously
+- Pipeline: load → process → release → load next
+- Model paths via `model-utils.ts` / device tier — never hardcoded in `whisper.ts` or `llm.ts`
+
+## Audio
+- ffmpeg output must be 16 kHz mono WAV before Whisper
+- Chunking contract: `src/services/audio/chunker.ts`
+- Check `src/utils/device-tier.ts` for lower-end device limits
+
+## Eval
+After changes to `whisper.ts`, `llm.ts`, or `prompts.ts`, suggest running eval against `eval/golden-dataset/`.
+
+## Logging
+Never log transcripts, SOAP output, or audio file paths in production builds.
