@@ -4,6 +4,11 @@ CaseScriptAI is a privacy-first, edge-AI powered medical transcription and clini
 
 By leveraging optimized, quantized Large Language Models (LLMs) and advanced speech recognition directly on iOS and Android devices, CaseScriptAI reduces clinical documentation time from hours to minutes.
 
+## Architecture 
+
+<img width="2048" height="1384" alt="architecture-hld" src="https://github.com/user-attachments/assets/581c31fd-f000-4173-bf1d-03391572b89b" />
+
+
 ## 💼 Business Value
 
 - **Zero-Trust Privacy:** 100% on-device processing guarantees zero data leakage to external cloud APIs. Data stays securely on the clinician’s device.
