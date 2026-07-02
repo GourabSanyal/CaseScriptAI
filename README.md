@@ -1,8 +1,25 @@
-# CaseScriptAI
-
-CaseScriptAI is a privacy-first, edge-AI powered medical transcription and clinical note generation platform. Designed for offline use in high-security environments, it processes sensitive patient encounters entirely on-device, eliminating traditional cloud-based HIPAA and data compliance risks.
-
-By leveraging optimized, quantized Large Language Models (LLMs) and advanced speech recognition directly on iOS and Android devices, CaseScriptAI reduces clinical documentation time from hours to minutes.
+<h1 align="center">CaseScriptAI</h1>
+<p align="center">
+  <strong>
+    A privacy-first, edge-AI powered medical transcription and clinical note generation platform
+  </strong>
+</p>
+<p align="center">
+  <img src="https://img.shields.io/badge/Offline--First-On--Device-0f172a?style=flat-square" alt="Offline First" />
+  <img src="https://img.shields.io/badge/iOS-Android-1f6feb?style=flat-square" alt="iOS and Android" />
+  <img src="https://img.shields.io/badge/Whisper-STT-7c3aed?style=flat-square" alt="Whisper STT" />
+  <img src="https://img.shields.io/badge/ExecuTorch-LLM-f97316?style=flat-square" alt="ExecuTorch LLM" />
+  <img src="https://img.shields.io/badge/HIPAA-Risk_Minimized-16a34a?style=flat-square" alt="HIPAA Risk Minimized" />
+</p>
+<p align="center">
+  CaseScriptAI is a privacy-first, edge-AI powered medical transcription and clinical note generation platform.
+  Designed for offline use in high-security environments, it processes sensitive patient encounters entirely
+  on-device, eliminating traditional cloud-based HIPAA and data compliance risks.
+</p>
+<p align="center">
+  By leveraging optimized, quantized Large Language Models (LLMs) and advanced speech recognition directly on
+  iOS and Android devices, CaseScriptAI reduces clinical documentation time from hours to minutes.
+</p>
 
 ## Architecture 
 
