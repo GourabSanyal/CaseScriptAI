@@ -45,15 +45,18 @@
     "react-dom": "19.1.0",
     "react-native": "0.81.5",
     "react-native-aes-gcm-crypto": "^0.2.2",
+    "react-native-audio-api": "patch:react-native-audio-api@npm%3A0.12.2#~/.yarn/patches/react-native-audio-api-npm-0.12.2-af25dd296c.patch",
     "react-native-executorch": "^0.8.1",
     "react-native-executorch-expo-resource-fetcher": "^0.8.0",
     "react-native-gesture-handler": "~2.28.0",
+    "react-native-live-audio-stream": "^1.1.1",
     "react-native-mmkv": "^3.1.0",
     "react-native-reanimated": "~4.1.1",
     "react-native-safe-area-context": "~5.6.2",
     "react-native-screens": "~4.16.0",
     "react-native-web": "~0.21.0",
     "react-native-worklets": "0.5.1",
+    "whisper.rn": "0.6.0",
     "zustand": "^5.0.11"
   },
   "devDependencies": {

@@ -3213,9 +3213,11 @@ __metadata:
     react-dom: "npm:19.1.0"
     react-native: "npm:0.81.5"
     react-native-aes-gcm-crypto: "npm:^0.2.2"
+    react-native-audio-api: "patch:react-native-audio-api@npm%3A0.12.2#~/.yarn/patches/react-native-audio-api-npm-0.12.2-af25dd296c.patch"
     react-native-executorch: "npm:^0.8.1"
     react-native-executorch-expo-resource-fetcher: "npm:^0.8.0"
     react-native-gesture-handler: "npm:~2.28.0"
+    react-native-live-audio-stream: "npm:^1.1.1"
     react-native-mmkv: "npm:^3.1.0"
     react-native-reanimated: "npm:~4.1.1"
     react-native-safe-area-context: "npm:~5.6.2"
@@ -3223,6 +3225,7 @@ __metadata:
     react-native-web: "npm:~0.21.0"
     react-native-worklets: "npm:0.5.1"
     typescript: "npm:~5.9.2"
+    whisper.rn: "npm:0.6.0"
     zustand: "npm:^5.0.11"
   languageName: unknown
   linkType: soft
@@ -6507,6 +6510,42 @@ __metadata:
   languageName: node
   linkType: hard
 
+"react-native-audio-api@npm:0.12.2":
+  version: 0.12.2
+  resolution: "react-native-audio-api@npm:0.12.2"
+  dependencies:
+    semver: "npm:^7.7.3"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+    react-native-worklets: ">= 0.6.0"
+  peerDependenciesMeta:
+    react-native-worklets:
+      optional: true
+  bin:
+    setup-rn-audio-api-web: scripts/setup-rn-audio-api-web.js
+  checksum: 10c0/4c3f8aecadfe83186c2727f558cb9e9de2983da292b56599f7e0c184e7a4d93b2615810557688b6e3370177b8312df184aa143be8602ae57a0808e8c10928743
+  languageName: node
+  linkType: hard
+
+"react-native-audio-api@patch:react-native-audio-api@npm%3A0.12.2#~/.yarn/patches/react-native-audio-api-npm-0.12.2-af25dd296c.patch":
+  version: 0.12.2
+  resolution: "react-native-audio-api@patch:react-native-audio-api@npm%3A0.12.2#~/.yarn/patches/react-native-audio-api-npm-0.12.2-af25dd296c.patch::version=0.12.2&hash=e6ddc0"
+  dependencies:
+    semver: "npm:^7.7.3"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+    react-native-worklets: ">= 0.6.0"
+  peerDependenciesMeta:
+    react-native-worklets:
+      optional: true
+  bin:
+    setup-rn-audio-api-web: scripts/setup-rn-audio-api-web.js
+  checksum: 10c0/891f99c46107893915d16390a89b4a79084954f798316c43c9cff1ac839c840539c1faa86a4abe5912d766509e6afb1f74aa513fae091be4dbdeffb99a0d37e7
+  languageName: node
+  linkType: hard
+
 "react-native-executorch-expo-resource-fetcher@npm:^0.8.0":
   version: 0.8.0
   resolution: "react-native-executorch-expo-resource-fetcher@npm:0.8.0"
@@ -6557,6 +6596,13 @@ __metadata:
     react: "*"
     react-native: "*"
   checksum: 10c0/28cebd5f1f3632864ff5e342278721d1e5e38627ae73859a8814012116ef15c629fee7137a6c9c97bb05d94bbe639b0b47e69b36fc2735ab53ed31570140663f
+  languageName: node
+  linkType: hard
+
+"react-native-live-audio-stream@npm:^1.1.1":
+  version: 1.1.1
+  resolution: "react-native-live-audio-stream@npm:1.1.1"
+  checksum: 10c0/10ba7fb69b47316558ffe48988146cc135620c49ed6161c8a7232f94ccab2a731838c0a82745d869562570e148d5f21e315f752e811eb0cefdaba2f91532d755
   languageName: node
   linkType: hard
 
@@ -6939,7 +6985,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"safe-buffer@npm:5.2.1":
+"safe-buffer@npm:5.2.1, safe-buffer@npm:^5.2.1":
   version: 5.2.1
   resolution: "safe-buffer@npm:5.2.1"
   checksum: 10c0/6501914237c0a86e9675d4e51d89ca3c21ffd6a31642efeba25ad65720bce6921c9e7e974e5be91a786b25aa058b5303285d3c15dbabf983a919f5f630d349f3
@@ -6991,6 +7037,15 @@ __metadata:
   bin:
     semver: bin/semver.js
   checksum: 10c0/5215ad0234e2845d4ea5bb9d836d42b03499546ddafb12075566899fc617f68794bb6f146076b6881d755de17d6c6cc73372555879ec7dce2c2feee947866ad2
+  languageName: node
+  linkType: hard
+
+"semver@npm:^7.7.3":
+  version: 7.8.5
+  resolution: "semver@npm:7.8.5"
+  bin:
+    semver: bin/semver.js
+  checksum: 10c0/b1f3127a5be8125a94f37188b361c212466c292c6910adce3ec106cff5dc211ccaedc4739c11bb70fda59d6fc1f040a9bca289f4e093451521a2372e5231fe0c
   languageName: node
   linkType: hard
 
@@ -7850,6 +7905,18 @@ __metadata:
   bin:
     node-which: bin/which.js
   checksum: 10c0/7e710e54ea36d2d6183bee2f9caa27a3b47b9baf8dee55a199b736fcf85eab3b9df7556fca3d02b50af7f3dfba5ea3a45644189836df06267df457e354da66d5
+  languageName: node
+  linkType: hard
+
+"whisper.rn@npm:0.6.0":
+  version: 0.6.0
+  resolution: "whisper.rn@npm:0.6.0"
+  dependencies:
+    safe-buffer: "npm:^5.2.1"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  checksum: 10c0/24bd0023aff8c7da0fb5d6157c16341b4b4c3d88e675924625745098624390a14c1fa568479ddc06c493ff5cbec727d850d7b3d31a69aa2f26526c8fb8c1154f
   languageName: node
   linkType: hard
 
