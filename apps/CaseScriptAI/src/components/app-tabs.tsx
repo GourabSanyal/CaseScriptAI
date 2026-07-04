@@ -25,6 +25,12 @@ export default function AppTabs() {
         <Icon src={require("@/assets/images/tabIcons/explore.png")} />
       </NativeTabs.Trigger>
 
+      {/* POC_remove_ffmpeg: throwaway tab for native-audio pipeline POC. */}
+      <NativeTabs.Trigger name="poc-audio">
+        <Label>Audio</Label>
+        <Icon src={require("@/assets/images/tabIcons/explore.png")} />
+      </NativeTabs.Trigger>
+
       <NativeTabs.Trigger name="explore">
         <Label>Explore</Label>
         <Icon src={require("@/assets/images/tabIcons/explore.png")} />
