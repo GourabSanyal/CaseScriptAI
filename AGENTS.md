@@ -88,6 +88,7 @@ Workflow skills live in `.ai/skills/`. Cursor and Claude resolve them via symlin
 | Prompts | `src/services/ai/prompts.ts` |
 | Output validator | `src/services/ai/output-validator.ts` |
 | Whisper | `src/services/ai/whisper.ts` |
+| Whisper inference | `src/services/ai/whisper-inference.ts` |
 | LLM inference | `src/services/ai/llm-inference.ts` |
 | Chunker | `src/services/audio/chunker.ts` |
 | Encryption | `src/services/audio/crypto-service.ts` |
