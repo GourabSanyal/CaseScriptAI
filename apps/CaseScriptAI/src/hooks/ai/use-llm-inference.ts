@@ -269,8 +269,17 @@ export const useLLMInference = () => {
     return loadModel();
   }, [loadModel]);
 
+  /** Drop LLM from RAM so Whisper can load (never co-resident). */
+  const unloadModel = useCallback(async (): Promise<void> => {
+    console.log("[LLM] Unloading model to free RAM...");
+    setShouldLoadModel(false);
+    setIsLLMReady(false);
+    await sleep(500);
+  }, []);
+
   return {
     loadModel,
+    unloadModel,
     retryModelLoad,
     generate,
     generateSOAPNote,
