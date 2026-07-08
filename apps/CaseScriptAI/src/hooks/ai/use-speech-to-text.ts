@@ -83,6 +83,8 @@ export const useSpeechToTextInference = () => {
   const [transcript, setTranscript] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [shouldLoadModel, setShouldLoadModel] = useState(false);
+  /** True once Whisper has been downloaded/loaded at least once — survives unload. */
+  const [isAssetReady, setIsAssetReady] = useState(false);
 
   const speechConfig = useMemo(
     () => ({
@@ -121,6 +123,7 @@ export const useSpeechToTextInference = () => {
     try {
       if (modelRef.current?.isReady) {
         console.log("[SpeechToText] Whisper model already loaded");
+        setIsAssetReady(true);
         setIsInitializing(false);
         return { success: true, data: modelRef.current };
       }
@@ -181,6 +184,7 @@ export const useSpeechToTextInference = () => {
       }
 
       console.log("[SpeechToText] Whisper model is ready");
+      setIsAssetReady(true);
       setIsInitializing(false);
       return { success: true, data: modelRef.current };
     } catch (err) {
@@ -192,14 +196,12 @@ export const useSpeechToTextInference = () => {
     }
   }, []);
 
-  // Transcribe audio from file path
   const transcribe = useCallback(
     async (audioPath: string): Promise<Result<string>> => {
       setIsTranscribing(true);
       setError(null);
 
       try {
-        // Initialize model if not already done
         const modelResult = await initModel();
         if (!modelResult.success || !modelResult.data) {
           setIsTranscribing(false);
@@ -209,9 +211,6 @@ export const useSpeechToTextInference = () => {
         const model = modelResult.data;
 
         console.log("[SpeechToText] Loading audio file:", audioPath);
-
-        // Load and decode WAV file
-        console.log("[SpeechToText] Processing WAV file:", audioPath);
 
         let audioBuffer: Float32Array;
         try {
@@ -226,14 +225,14 @@ export const useSpeechToTextInference = () => {
         } catch (decodeErr) {
           console.error("[SpeechToText] WAV parsing error:", decodeErr);
           setIsTranscribing(false);
-          const errorMessage = decodeErr instanceof Error ? decodeErr.message : 'Unknown error';
+          const errorMessage =
+            decodeErr instanceof Error ? decodeErr.message : "Unknown error";
           return {
             success: false,
-            error: `Failed to parse WAV file: ${errorMessage}`
+            error: `Failed to parse WAV file: ${errorMessage}`,
           };
         }
 
-        // Transcribe the audio
         console.log("[Pipeline] 🔊 Whisper starting transcription...");
 
         const transcriptionResult = await model.transcribe(audioBuffer, {
@@ -247,12 +246,17 @@ export const useSpeechToTextInference = () => {
         const transcriptionText = transcriptionResult.text;
 
         console.log("[Pipeline] ✅ Whisper transcription complete");
-        console.log("[Pipeline] Transcript:", transcriptionText.substring(0, 100) + (transcriptionText.length > 100 ? "..." : ""));
+        console.log(
+          "[Pipeline] Transcript:",
+          transcriptionText.substring(0, 100) +
+            (transcriptionText.length > 100 ? "..." : ""),
+        );
         setTranscript(transcriptionText);
         setIsTranscribing(false);
         return { success: true, data: transcriptionText };
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Transcription failed";
+        const message =
+          err instanceof Error ? err.message : "Transcription failed";
         console.error("[Pipeline] ❌ Whisper transcription error:", message);
         setError(message);
         setIsTranscribing(false);
@@ -262,34 +266,43 @@ export const useSpeechToTextInference = () => {
     [initModel],
   );
 
+  /** Unload Whisper from RAM (ExecuTorch: preventLoad flip + yield for GC). */
+  const unloadModel = useCallback(async () => {
+    console.log("[SpeechToText] Unloading Whisper to free RAM for LLM...");
+    setShouldLoadModel(false);
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }, []);
+
   // Release resources
   const release = useCallback(async () => {
     try {
+      await unloadModel();
       console.log("[SpeechToText] Resources released");
-      // Note: react-native-executorch handles model cleanup automatically
     } catch (err) {
       console.error("[SpeechToText] Release error:", err);
     }
-  }, []);
+  }, [unloadModel]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      release();
+      void release();
     };
   }, [release]);
 
   return {
     initModel,
+    unloadModel,
     transcribe,
     release,
     isLoading,
     isTranscribing,
     transcript,
     error,
-    isReady,
+    /** Asset ready for pipeline (survives unload). Native in-RAM readiness is model.isReady. */
+    isReady: isAssetReady,
     getIsModelReady,
-    hasStartedLoading: shouldLoadModel,
+    hasStartedLoading: shouldLoadModel || isAssetReady,
     downloadProgress,
     modelError,
   };
