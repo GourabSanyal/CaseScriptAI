@@ -1,11 +1,12 @@
-import { initWhisper, Whisper } from "whisper.rn";
-import { Directory, File, Paths } from "expo-file-system";
-import { checkModelExists, MODEL_PATHS } from "./model-utils";
+import { initWhisper } from "whisper.rn";
+import { getModelPath, checkModelExists } from "./model-utils";
 import type { Result } from "@/types/result";
 
-let whisperContext: Whisper | null = null;
+type WhisperContext = Awaited<ReturnType<typeof initWhisper>>;
 
-export const initWhisperModel = async (): Promise<Result<Whisper>> => {
+let whisperContext: WhisperContext | null = null;
+
+export const initWhisperModel = async (): Promise<Result<WhisperContext>> => {
   try {
     if (whisperContext) {
       return { success: true, data: whisperContext };
@@ -18,10 +19,10 @@ export const initWhisperModel = async (): Promise<Result<Whisper>> => {
       };
     }
 
-    const modelsDir = new Directory(Paths.document, "models");
-    const whisperDir = new Directory(modelsDir, MODEL_PATHS.whisper.dir);
-    const modelFile = new File(whisperDir, MODEL_PATHS.whisper.file);
-    const modelPath = modelFile.uri.replace("file://", "");
+    const modelPath = getModelPath("whisper");
+    if (!modelPath) {
+      return { success: false, error: "Could not resolve Whisper model path" };
+    }
 
     console.log("[Whisper] Initializing with model:", modelPath);
 
@@ -39,6 +40,10 @@ export const initWhisperModel = async (): Promise<Result<Whisper>> => {
   }
 };
 
+/**
+ * Transcribe one audio file. Loads whisper.rn, runs inference, always releases.
+ * Callers must not keep LLM loaded while this runs (MemoryManager comes later).
+ */
 export const transcribeAudio = async (
   audioPath: string,
 ): Promise<Result<string>> => {
@@ -49,9 +54,9 @@ export const transcribeAudio = async (
     }
 
     const context = contextResult.data;
-    const cleanAudioPath = audioPath.replace("file://", "");
+    const cleanAudioPath = audioPath.replace(/^file:\/\//, "");
 
-    console.log("[Whisper] Transcribing:", cleanAudioPath);
+    console.log("[Whisper] Transcribing...");
 
     const { promise } = context.transcribe(cleanAudioPath, {
       language: "en",
@@ -60,24 +65,29 @@ export const transcribeAudio = async (
 
     const { result } = await promise;
 
-    console.log("[Whisper] Transcription complete:", result.substring(0, 100));
+    console.log(
+      "[Whisper] Transcription complete:",
+      result.substring(0, 100),
+    );
     return { success: true, data: result };
   } catch (err) {
     const message =
       err instanceof Error ? err.message : "Transcription failed";
     console.error("[Whisper] Transcribe error:", message);
     return { success: false, error: message };
+  } finally {
+    await releaseWhisper();
   }
 };
 
 export const releaseWhisper = async (): Promise<void> => {
-  if (whisperContext) {
-    try {
-      await whisperContext.release();
-      whisperContext = null;
-      console.log("[Whisper] Model released");
-    } catch (err) {
-      console.error("[Whisper] Release error:", err);
-    }
+  if (!whisperContext) return;
+
+  try {
+    await whisperContext.release();
+    whisperContext = null;
+    console.log("[Whisper] Model released");
+  } catch (err) {
+    console.error("[Whisper] Release error:", err);
   }
 };

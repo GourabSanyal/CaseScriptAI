@@ -3,9 +3,12 @@ import { Directory, File, Paths } from "expo-file-system";
 export const MODEL_PATHS = {
   whisper: {
     dir: "whisper",
-    file: "ggml-tiny.bin",
+    file: "ggml-base.bin",
   },
 } as const;
+
+/** Minimum bytes for a valid Whisper base GGML file (~142MB on disk). */
+export const WHISPER_MIN_BYTES = 100 * 1024 * 1024;
 
 export type ModelType = keyof typeof MODEL_PATHS;
 
@@ -32,27 +35,24 @@ export const checkModelExists = (type: ModelType): boolean => {
     const modelFile = new File(modelDir, config.file);
     
     if (!modelFile.exists) {
-      console.log(`[ModelUtils] ${type} file does not exist at:`, modelFile.uri);
       return false;
     }
-    
+
     // Validate file size - reject error responses and incomplete downloads
     const fileSize = modelFile.size;
     const minSizeBytes = {
-      whisper: 67108864, // 64MB minimum for ggml-tiny.bin
+      whisper: WHISPER_MIN_BYTES,
     };
-    
+
     const minSize = minSizeBytes[type] || 0;
-    console.log(`[ModelUtils] ${type} file size: ${fileSize} bytes (min required: ${minSize})`);
-    
+
     if (fileSize < minSize) {
       console.warn(
-        `[ModelUtils] ${type} file too small: ${fileSize} bytes (expected > ${minSize}). Likely a failed download or error response.`
+        `[ModelUtils] ${type} file too small: ${fileSize} bytes (expected > ${minSize}). Likely a failed download or error response.`,
       );
       return false;
     }
-    
-    // File is valid and large enough
+
     return true;
   } catch (error) {
     console.warn(`[ModelUtils] Error checking existence for ${type}:`, error);

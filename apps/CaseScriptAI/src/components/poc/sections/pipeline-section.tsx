@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { View, Text, StyleSheet, ScrollView } from "react-native";
 import { TestButton } from "@/components/common/test-button";
-import { useSpeechToTextInference } from "@/hooks/ai/use-speech-to-text";
+import { useWhisperInference } from "@/hooks/ai/use-whisper-inference";
 import { useLLMInference } from "@/hooks/ai/use-llm-inference";
 import { usePocStore } from "@/stores/poc-store";
 import { resolveAudioUri } from "@/services/audio/audio-storage";
@@ -32,7 +32,7 @@ export const PipelineSection = ({
   const clearPipelineResult = usePocStore((s) => s.clearPipelineResult);
   const pipelineResult = usePocStore((s) => s.pipelineResult);
 
-  // Speech-to-text models are downloaded automatically by react-native-executorch
+  // Whisper: owned download + whisper.rn. LLM: still ExecuTorch (Slice 1 later).
   const [pipelineStep, setPipelineStep] = useState<'idle' | 'loading-models' | 'transcribing' | 'soap-generating' | 'complete'>('idle');
   const [isPreloadingModels, setIsPreloadingModels] = useState(true);
   const [modelLoadError, setModelLoadError] = useState<string | null>(null);
@@ -40,114 +40,86 @@ export const PipelineSection = ({
 
   const {
     initModel: initWhisperModel,
+    retryModelLoad: retryWhisperLoad,
     transcribe: runSpeechToTextTranscribe,
     isLoading: isSpeechModelLoading,
-    isTranscribing,
     isReady: isSpeechModelReady,
     hasStartedLoading: hasStartedWhisperLoad,
     downloadProgress: whisperDownloadProgress,
-    error: speechToTextError,
     modelError: whisperModelError,
-  } = useSpeechToTextInference();
+  } = useWhisperInference();
 
   const {
     loadModel,
-    retryModelLoad,
+    unloadModel,
     generateSOAPNote,
     isGenerating: isLLMGenerating,
-    response: soapNote,
-    error: soapError,
     isLLMReady,
-    getIsLLMReady,
     downloadProgress: llmDownloadProgress,
     isLoading: isLLMModelLoading,
     hasStartedLoading: hasStartedLlmLoad,
     modelError: llmModelError,
   } = useLLMInference();
 
-  const modelsReady = isSpeechModelReady && isLLMReady;
+  // Preload only Whisper file-on-disk. LLM loads after Whisper releases (no co-residency).
+  const canRunPipeline = isSpeechModelReady && !isPreloadingModels;
 
-  const ensureModelsReady = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
-    if (isSpeechModelReady && getIsLLMReady()) {
+  const ensureWhisperDownloaded = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
+    if (isSpeechModelReady) {
       return { success: true };
     }
 
-    console.log("[Pipeline] Downloading and loading AI models...");
+    console.log("[Pipeline] Downloading Whisper only (LLM deferred until after transcription)...");
     const whisperResult = await initWhisperModel();
     if (!whisperResult.success) {
-      const error = whisperResult.error ?? "Failed to load Whisper model";
-      setModelLoadError(error);
-      return { success: false, error };
-    }
-
-    const llmResult = await loadModel();
-    if (!llmResult.success) {
-      const error = llmResult.error ?? "Failed to load LLM model";
-      setModelLoadError(error);
-      return { success: false, error };
-    }
-
-    let readyWait = 0;
-    while (!getIsLLMReady() && readyWait < 60) {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      readyWait++;
-    }
-
-    if (!getIsLLMReady()) {
-      const error = "LLM model did not become ready after download";
+      const error = whisperResult.error ?? "Failed to download Whisper model";
       setModelLoadError(error);
       return { success: false, error };
     }
 
     setModelLoadError(null);
     return { success: true };
-  }, [
-    isSpeechModelReady,
-    getIsLLMReady,
-    initWhisperModel,
-    loadModel,
-  ]);
+  }, [isSpeechModelReady, initWhisperModel]);
 
   const retryModelDownload = useCallback(async (): Promise<void> => {
     setIsPreloadingModels(true);
     setModelLoadError(null);
 
-    const result = isSpeechModelReady
-      ? await retryModelLoad()
-      : await ensureModelsReadyRef.current();
-
+    const result = await retryWhisperLoad();
     if (!result.success) {
-      setModelLoadError(result.error ?? "Failed to load AI models");
+      setModelLoadError(result.error ?? "Failed to download Whisper");
     } else {
       setModelLoadError(null);
     }
     setIsPreloadingModels(false);
-  }, [isSpeechModelReady, retryModelLoad]);
+  }, [retryWhisperLoad]);
 
-  const ensureModelsReadyRef = useRef(ensureModelsReady);
-  ensureModelsReadyRef.current = ensureModelsReady;
+  const ensureWhisperDownloadedRef = useRef(ensureWhisperDownloaded);
+  ensureWhisperDownloadedRef.current = ensureWhisperDownloaded;
 
   useEffect(() => {
     let cancelled = false;
 
-    const preloadModels = async (): Promise<void> => {
+    const preloadWhisper = async (): Promise<void> => {
       setIsPreloadingModels(true);
       setModelLoadError(null);
-      const result = await ensureModelsReadyRef.current();
+      // Keep LLM out of RAM while Whisper may load later
+      await unloadModel();
+      const result = await ensureWhisperDownloadedRef.current();
       if (!cancelled && !result.success) {
-        setModelLoadError(result.error ?? "Failed to load AI models");
+        setModelLoadError(result.error ?? "Failed to download Whisper");
       }
       if (!cancelled) {
         setIsPreloadingModels(false);
       }
     };
 
-    preloadModels();
+    preloadWhisper();
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [unloadModel]);
 
   useEffect(() => {
     setPipelineStep('idle');
@@ -155,32 +127,34 @@ export const PipelineSection = ({
     clearPipelineResult();
   }, [audioKey, clearPipelineResult]);
 
-  // State monitoring useEffect removed - pipeline state is now managed directly in runFullPipeline
-
   const runFullPipeline = async (): Promise<void> => {
     if (!audioReady) return;
     if (pipelineStep !== 'idle') return;
 
-    console.log('[Pipeline] Starting full pipeline...');
+    console.log('[Pipeline] Starting full pipeline (Whisper → release → LLM)...');
     await Promise.resolve(handlePress('Run Pipeline'));
 
     setPipelineStep('loading-models');
     setPipelineProgress(0);
 
-    const modelsResult = await ensureModelsReady();
-    if (!modelsResult.success) {
+    const whisperDl = await ensureWhisperDownloaded();
+    if (!whisperDl.success) {
       setPipelineStep('idle');
       setPipelineProgress(0);
       setPipelineResult({
         transcript: '',
         soapNote: '',
         transcriptError: null,
-        soapNoteError: modelsResult.error ?? 'Failed to load AI models',
+        soapNoteError: whisperDl.error ?? 'Failed to download Whisper',
         isTranscribing: false,
         isGeneratingSoap: false,
       });
       return;
     }
+
+    // ARCHITECTURE invariant: never co-load Whisper + LLM
+    console.log('[Pipeline] Ensuring LLM is unloaded before Whisper...');
+    await unloadModel();
 
     setPipelineStep('transcribing');
     setPipelineProgress(10);
@@ -188,7 +162,6 @@ export const PipelineSection = ({
     const lastAudio = audios[audios.length - 1];
     const audioUri = resolveAudioUri(lastAudio.uri, 'poc');
 
-    // Update UI to show transcribing state
     setPipelineResult({
       transcript: '',
       soapNote: '',
@@ -198,22 +171,18 @@ export const PipelineSection = ({
       isGeneratingSoap: false,
     });
 
-    // Start transcription progress
     const transcriptionProgressInterval = setInterval(() => {
-      setPipelineProgress(prev => Math.min(prev + 5, 35)); // 10-35% for transcription
+      setPipelineProgress(prev => Math.min(prev + 5, 35));
     }, 200);
 
-    // Step 1: Transcribe audio
     const transcribeResult = await runSpeechToTextTranscribe(audioUri);
 
-    // Stop transcription progress
     clearInterval(transcriptionProgressInterval);
     setPipelineProgress(40);
 
     if (!transcribeResult.success) {
       setPipelineStep('idle');
       setPipelineProgress(0);
-      // Transcription failed - update store with error
       setPipelineResult({
         transcript: '',
         soapNote: '',
@@ -226,10 +195,10 @@ export const PipelineSection = ({
       return;
     }
 
+    // Whisper releases in transcribeAudio finally — now safe to load LLM
     setPipelineStep('soap-generating');
-    setPipelineProgress(50);
+    setPipelineProgress(45);
 
-    // Update UI to show generating state
     const cleanedTranscript = cleanTranscript(transcribeResult.data);
     setPipelineResult({
       transcript: cleanedTranscript,
@@ -240,12 +209,29 @@ export const PipelineSection = ({
       isGeneratingSoap: true,
     });
 
-    // Step 3: Generate SOAP note (no retry needed)
+    console.log('[Pipeline] Loading LLM after Whisper release...');
+    const llmResult = await loadModel();
+    if (!llmResult.success) {
+      setPipelineStep('idle');
+      setPipelineProgress(0);
+      setModelLoadError(llmResult.error ?? 'Failed to load LLM');
+      setPipelineResult({
+        transcript: cleanedTranscript,
+        soapNote: '',
+        transcriptError: null,
+        soapNoteError: llmResult.error ?? 'Failed to load LLM',
+        isTranscribing: false,
+        isGeneratingSoap: false,
+      });
+      return;
+    }
+
+    setPipelineProgress(55);
+
     let soapResult;
     try {
-      console.log('[Pipeline][DEBUG] Calling generateSOAPNote()...');
+      console.log('[Pipeline] Calling generateSOAPNote()...');
       soapResult = await generateSOAPNote(cleanedTranscript);
-      console.log('[Pipeline][DEBUG] generateSOAPNote() result:', soapResult);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Unknown error during SOAP note generation';
       setPipelineStep('idle');
@@ -259,8 +245,11 @@ export const PipelineSection = ({
         isTranscribing: false,
         isGeneratingSoap: false,
       });
+      await unloadModel();
       return;
     }
+
+    await unloadModel();
 
     if (soapResult && soapResult.success) {
       setPipelineStep('complete');
@@ -297,45 +286,43 @@ export const PipelineSection = ({
     ? Math.round(llmDownloadProgress * 100)
     : Math.round(llmDownloadProgress || 0);
 
-  const preloadPercent = isSpeechModelReady
-    ? Math.round(20 + llmPercent * 0.8)
-    : Math.round(whisperPercent * 0.2);
+  const preloadPercent = Math.round(whisperPercent);
 
   const whisperStatus = isSpeechModelReady
-    ? "Whisper ready ✅"
+    ? "Whisper ready ✅ (whisper.rn / ggml-base) — on disk only"
     : isSpeechModelLoading || isPreloadingModels
-      ? `Downloading Whisper... ${whisperPercent}%`
+      ? `Downloading Whisper base... ${whisperPercent}%`
       : hasStartedWhisperLoad
         ? "Preparing Whisper..."
         : "Whisper will download when this screen opens";
 
-  const llmStatus = isLLMReady
-    ? "LLM ready ✅ (built-in Qwen 2.5 1.5B Quantized)"
-    : isSpeechModelReady && (isLLMModelLoading || hasStartedLlmLoad || isPreloadingModels)
-      ? `Downloading LLM (~1 GB)... ${llmPercent}%`
-      : isPreloadingModels || pipelineStep === "loading-models"
-        ? "Waiting to download LLM..."
-        : modelLoadError
-          ? `LLM error: ${modelLoadError}`
-          : "Preparing LLM...";
+  const llmStatus =
+    pipelineStep === "soap-generating"
+      ? isLLMReady || isLLMModelLoading || hasStartedLlmLoad
+        ? `Loading / running LLM... ${llmPercent}%`
+        : "Loading LLM after Whisper release..."
+      : isLLMReady
+        ? "LLM loaded (will unload after SOAP)"
+        : "LLM deferred until after Whisper (no co-load)";
 
-  const runEnabled = audioReady && pipelineStep === 'idle' && modelsReady && !isPreloadingModels;
+  const runEnabled =
+    audioReady && pipelineStep === "idle" && canRunPipeline;
 
   const runTitle = isPreloadingModels
-    ? isSpeechModelReady
-      ? `Downloading LLM (~1 GB)... ${llmPercent}%`
-      : `Downloading Whisper... ${whisperPercent}%`
-    : pipelineStep === 'loading-models'
-      ? `Loading AI models... ${pipelineProgress}%`
-      : pipelineStep === 'transcribing'
+    ? `Downloading Whisper... ${whisperPercent}%`
+    : pipelineStep === "loading-models"
+      ? `Preparing Whisper... ${pipelineProgress}%`
+      : pipelineStep === "transcribing"
         ? `Transcribing... ${pipelineProgress}%`
-        : pipelineStep === 'soap-generating'
-          ? `Summarizing... ${pipelineProgress}%`
-          : pipelineStep === 'complete'
+        : pipelineStep === "soap-generating"
+          ? isLLMReady
+            ? `Summarizing... ${pipelineProgress}%`
+            : `Loading LLM (~1 GB)... ${llmPercent}%`
+          : pipelineStep === "complete"
             ? "Pipeline complete ✅"
-            : modelsReady
+            : canRunPipeline
               ? "Run Full Pipeline"
-              : "Waiting for AI models...";
+              : "Waiting for Whisper download...";
 
   return (
     <View style={styles.section}>

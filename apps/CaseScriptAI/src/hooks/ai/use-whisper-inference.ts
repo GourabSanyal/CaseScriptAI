@@ -1,61 +1,88 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Directory, File, Paths } from "expo-file-system";
-import { checkModelExists, MODEL_PATHS } from "@/services/ai/model-utils";
+import {
+  downloadWhisper,
+  checkWhisperExists,
+} from "@/services/ai/whisper";
+import {
+  transcribeAudio,
+  releaseWhisper,
+} from "@/services/ai/whisper-inference";
 import type { Result } from "@/types/result";
 
-type WhisperContext = {
-  transcribe: (audioPath: string, options?: Record<string, unknown>) => { promise: Promise<{ result: string }> };
-  release: () => Promise<void>;
-};
-
+/**
+ * Owned-download + whisper.rn for the POC pipeline.
+ * Preload = download only (file on disk). Inference loads then releases so LLM can follow.
+ * Callers must unload LLM before transcribe() (ARCHITECTURE: never co-resident).
+ */
 export const useWhisperInference = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [isReady, setIsReady] = useState(() => checkWhisperExists());
+  const [hasStartedLoading, setHasStartedLoading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(
+    checkWhisperExists() ? 1 : 0,
+  );
   const [transcript, setTranscript] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const contextRef = useRef<WhisperContext | null>(null);
+  const readyRef = useRef(isReady);
 
-  const initModel = useCallback(async (): Promise<Result<WhisperContext>> => {
-    if (contextRef.current) {
-      return { success: true, data: contextRef.current };
-    }
+  useEffect(() => {
+    readyRef.current = isReady;
+  }, [isReady]);
 
+  const getIsModelReady = useCallback(() => readyRef.current, []);
+
+  /** Download ggml-base.bin if missing. Does not keep the native model in RAM. */
+  const initModel = useCallback(async (): Promise<Result<void>> => {
     setIsLoading(true);
+    setHasStartedLoading(true);
     setError(null);
 
     try {
-      if (!checkModelExists("whisper")) {
-        return {
-          success: false,
-          error: "Whisper model not found. Please download it first.",
-        };
+      if (checkWhisperExists()) {
+        setDownloadProgress(1);
+        setIsReady(true);
+        setIsLoading(false);
+        console.log("[Whisper] Model already on disk");
+        return { success: true, data: undefined };
       }
 
-      const modelsDir = new Directory(Paths.document, "models");
-      const whisperDir = new Directory(modelsDir, MODEL_PATHS.whisper.dir);
-      const modelFile = new File(whisperDir, MODEL_PATHS.whisper.file);
-      const modelPath = modelFile.uri.replace("file://", "");
-
-      console.log("[Whisper] Initializing with model:", modelPath);
-
-      const { initWhisper } = await import("whisper.rn");
-      const context = await initWhisper({
-        filePath: modelPath,
+      console.log("[Whisper] Starting owned download...");
+      setDownloadProgress(0);
+      const dl = await downloadWhisper((progress) => {
+        setDownloadProgress(progress);
       });
 
-      contextRef.current = context;
-      console.log("[Whisper] Model initialized successfully");
+      if (!dl.success) {
+        setError(dl.error ?? "Whisper download failed");
+        setIsLoading(false);
+        setIsReady(false);
+        return { success: false, error: dl.error };
+      }
+
+      setDownloadProgress(1);
+      setIsReady(true);
       setIsLoading(false);
-      return { success: true, data: context };
+      console.log("[Whisper] Download complete — ready for transcription");
+      return { success: true, data: undefined };
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : "Whisper initialization failed";
+        err instanceof Error ? err.message : "Whisper download failed";
       console.error("[Whisper] Init error:", message);
       setError(message);
       setIsLoading(false);
+      setIsReady(false);
       return { success: false, error: message };
     }
   }, []);
+
+  const retryModelLoad = useCallback(async (): Promise<Result<void>> => {
+    setIsReady(false);
+    setDownloadProgress(0);
+    setError(null);
+    await releaseWhisper();
+    return initModel();
+  }, [initModel]);
 
   const transcribe = useCallback(
     async (audioPath: string): Promise<Result<string>> => {
@@ -63,32 +90,31 @@ export const useWhisperInference = () => {
       setError(null);
 
       try {
-        const contextResult = await initModel();
-        if (!contextResult.success || !contextResult.data) {
-          setIsTranscribing(false);
-          return { success: false, error: contextResult.error };
+        if (!checkWhisperExists()) {
+          const init = await initModel();
+          if (!init.success) {
+            setIsTranscribing(false);
+            return { success: false, error: init.error };
+          }
         }
 
-        const context = contextResult.data;
-        const cleanAudioPath = audioPath.replace("file://", "");
+        console.log("[Pipeline] 🔊 Whisper starting transcription...");
+        const result = await transcribeAudio(audioPath);
 
-        console.log("[Whisper] Transcribing:", cleanAudioPath);
+        if (!result.success) {
+          setError(result.error ?? "Transcription failed");
+          setIsTranscribing(false);
+          return result;
+        }
 
-        const { promise } = context.transcribe(cleanAudioPath, {
-          language: "en",
-          maxThreads: 4,
-        });
-
-        const { result } = await promise;
-
-        console.log("[Whisper] Transcription complete:", result.substring(0, 100));
-        setTranscript(result);
+        console.log("[Pipeline] ✅ Whisper transcription complete");
+        setTranscript(result.data);
         setIsTranscribing(false);
-        return { success: true, data: result };
+        return result;
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "Transcription failed";
-        console.error("[Whisper] Transcribe error:", message);
+        console.error("[Pipeline] ❌ Whisper transcription error:", message);
         setError(message);
         setIsTranscribing(false);
         return { success: false, error: message };
@@ -98,30 +124,28 @@ export const useWhisperInference = () => {
   );
 
   const release = useCallback(async () => {
-    if (contextRef.current) {
-      try {
-        await contextRef.current.release();
-        contextRef.current = null;
-        console.log("[Whisper] Model released");
-      } catch (err) {
-        console.error("[Whisper] Release error:", err);
-      }
-    }
+    await releaseWhisper();
   }, []);
 
   useEffect(() => {
     return () => {
-      release();
+      void releaseWhisper();
     };
-  }, [release]);
+  }, []);
 
   return {
     initModel,
+    retryModelLoad,
     transcribe,
     release,
     isLoading,
     isTranscribing,
     transcript,
     error,
+    isReady,
+    getIsModelReady,
+    hasStartedLoading,
+    downloadProgress,
+    modelError: error,
   };
 };

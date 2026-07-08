@@ -4,6 +4,8 @@
 > Workflow: update the sub-slice to `IN PROGRESS` (with test plan) **before** work; mark `DONE` (with test + impl file links) only when tests are green.
 >
 > Status legend: `TODO` · `IN PROGRESS` · `DONE` · `PARKED`
+>
+> **Active cutover:** ExecuTorch Whisper → `whisper.rn` is tracked separately in [`WHISPER_MIGRATION_SLICES.md`](./WHISPER_MIGRATION_SLICES.md).
 
 ---
 
