@@ -10,7 +10,7 @@
 ## Cross-cutting decisions (locked in grill — see ARCHITECTURE.md)
 
 - Download: per-file phased sequential; **Range-resume for LLM**, restart for small assets.
-- **We own all downloads** → hand ExecuTorch/Whisper local file paths.
+- **Model downloads (current):** `react-native-executorch` built-ins — STT: `WHISPER_TINY` (`useSpeechToText`); LLM: tier constant e.g. `QWEN2_5_1_5B_QUANTIZED` (`useLLM`). Library fetches `.pte` + tokenizer from Software Mansion HuggingFace repos; caches on device.
 - LLM = imperative `LLMModule`; Whisper = imperative `whisper.rn`; Whisper model = **`base`**.
 - Device tiering: 3 tiers (Qwen3 0.6B/1.7B/4B); Assess→Commit→Verify(warmup)→Auto-heal; sub-3GB served Lite.
 - Memory: Whisper & LLM never co-resident; recording loads no model; peak <2GB on 3GB device.
@@ -41,8 +41,8 @@
 | 1.1 | `StorageChecker` | TODO | | |
 | 1.2 | `ChecksumValidator` (+ Worker/MMKV/fallback) | TODO | | |
 | 1.3 | `ResumableDownloadManager` (Range/restart, NetInfo, AppState, retry) | TODO | | |
-| 1.4 | Upgrade `downloadWhisper()` (base) onto manager | TODO | | |
-| 1.5 | `downloadLLM()` (tier `.pte` + tokenizer + config) | TODO | | |
+| 1.4 | ExecuTorch STT download (`WHISPER_TINY` / `useSpeechToText` — progress, retry, readiness) | TODO | | |
+| 1.5 | ExecuTorch LLM download (tier `.pte` + tokenizer via `useLLM` / `LLMModule`) | TODO | | |
 | 1.6 | `downloadFFmpeg()` | PARKED | | pending POC |
 | 1.7 | `download-store` | TODO | | |
 | 1.8 | Download Screen (progress, tier copy, warmup, retry) | TODO | | |
