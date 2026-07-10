@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-surface-variant": "#414943",
+                    "error-container": "#ffdad6",
+                    "outline-variant": "#c0c9c1",
+                    "on-secondary-fixed-variant": "#344a55",
+                    "inverse-surface": "#31302e",
+                    "secondary-fixed-dim": "#b3cad7",
+                    "surface-container-highest": "#e5e2de",
+                    "tertiary-fixed": "#e6e2da",
+                    "surface-container-high": "#ebe8e4",
+                    "surface-container-low": "#f6f3ef",
+                    "on-surface": "#1c1c19",
+                    "on-primary-fixed": "#002113",
+                    "tertiary": "#605e58",
+                    "primary-fixed": "#bceed0",
+                    "outline": "#717973",
+                    "secondary-container": "#cce3f1",
+                    "surface-variant": "#e5e2de",
+                    "on-secondary-fixed": "#061e28",
+                    "tertiary-container": "#a7a49d",
+                    "on-secondary": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "surface-bright": "#fcf9f5",
+                    "background": "#fcf9f5",
+                    "primary-fixed-dim": "#a0d2b5",
+                    "surface-dim": "#dcdad6",
+                    "on-tertiary-fixed-variant": "#484741",
+                    "inverse-on-surface": "#f3f0ec",
+                    "inverse-primary": "#a0d2b5",
+                    "on-primary-container": "#13422e",
+                    "on-primary": "#ffffff",
+                    "primary": "#3a6750",
+                    "error": "#ba1a1a",
+                    "secondary-fixed": "#cfe6f4",
+                    "on-background": "#1c1c19",
+                    "primary-container": "#7faf94",
+                    "on-primary-fixed-variant": "#214f39",
+                    "surface": "#fcf9f5",
+                    "secondary": "#4c616d",
+                    "on-tertiary-container": "#3b3a35",
+                    "surface-container-lowest": "#ffffff",
+                    "tertiary-fixed-dim": "#cac6be",
+                    "surface-container": "#f0ede9",
+                    "on-tertiary-fixed": "#1c1c17",
+                    "surface-tint": "#3a6750",
+                    "on-tertiary": "#ffffff",
+                    "on-secondary-container": "#506671",
+                    "on-error": "#ffffff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "1rem",
+                    "lg": "2rem",
+                    "xl": "3rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "xs": "4px",
+                    "xl": "32px",
+                    "sm": "8px",
+                    "lg": "24px",
+                    "md": "16px",
+                    "gutter": "16px",
+                    "margin-tablet": "40px",
+                    "section": "48px",
+                    "margin-mobile": "20px"
+            },
+            "fontFamily": {
+                    "headline-md": ["DM Sans"],
+                    "label-lg": ["DM Sans"],
+                    "display": ["DM Sans"],
+                    "body-lg": ["DM Sans"],
+                    "headline-lg": ["DM Sans"],
+                    "headline-lg-mobile": ["DM Sans"],
+                    "body-md": ["DM Sans"],
+                    "label-sm": ["DM Sans"]
+            },
+            "fontSize": {
+                    "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "500"}],
+                    "label-lg": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500"}],
+                    "display": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "headline-lg": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                    "headline-lg-mobile": ["22px", {"lineHeight": "30px", "fontWeight": "700"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.04em", "fontWeight": "500"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .progress-ring__circle {
+            transition: stroke-dashoffset 0.35s;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+        .fade-slide-enter {
+            animation: fadeSlide 0.8s ease-out forwards;
+        }
+        @keyframes fadeSlide {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .carousel-item {
+            display: none;
+        }
+        .carousel-item.active {
+            display: block;
+            animation: fadeInOut 4s ease-in-out infinite;
+        }
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateY(5px); }
+            15% { opacity: 1; transform: translateY(0); }
+            85% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-5px); }
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-md min-h-screen flex flex-col">
+<!-- TopAppBar -->
+<header class="flex items-center justify-between px-margin-mobile h-14 w-full z-40 bg-surface border-b border-outline-variant transition-all duration-300 ease-in-out">
+<div class="flex items-center gap-md">
+<button class="material-symbols-outlined text-primary hover:opacity-80 transition-opacity duration-300 active:scale-95" data-icon="menu">menu</button>
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile font-bold text-primary">CaseScriptAI</h1>
+</div>
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="cloud_download">cloud_download</span>
+</div>
+</header>
+<!-- Main Canvas -->
+<main class="flex-1 flex flex-col items-center justify-center px-margin-mobile py-section relative overflow-hidden">
+<!-- Animated Tips Carousel -->
+<div class="absolute top-12 left-0 right-0 text-center px-lg h-16 pointer-events-none">
+<div class="flex flex-col items-center" id="tips-carousel">
+<p class="carousel-item active font-headline-md text-headline-md text-on-surface-variant italic">"Start with open-ended questions to build rapport."</p>
+<p class="carousel-item font-headline-md text-headline-md text-on-surface-variant italic">"Validate their emotions before moving to solutions."</p>
+<p class="carousel-item font-headline-md text-headline-md text-on-surface-variant italic">"Allow silence; it provides space for the client to process."</p>
+<p class="carousel-item font-headline-md text-headline-md text-on-surface-variant italic">"Track patterns, not just incidents."</p>
+</div>
+</div>
+<!-- Center Progress Ring Section -->
+<div class="flex flex-col items-center gap-xl fade-slide-enter">
+<div class="relative flex items-center justify-center w-64 h-64">
+<!-- Background decorative elements for "Quiet Therapy Room" feel -->
+<div class="absolute inset-0 bg-primary-fixed-dim opacity-10 rounded-full blur-3xl scale-125"></div>
+<!-- SVG Progress Ring -->
+<svg class="w-full h-full" viewbox="0 0 120 120">
+<circle class="text-surface-container-high" cx="60" cy="60" fill="transparent" r="52" stroke="currentColor" stroke-width="6"></circle>
+<circle class="progress-ring__circle text-primary" cx="60" cy="60" fill="transparent" id="progress-ring-circle" r="52" stroke="currentColor" stroke-dasharray="326.7" stroke-dashoffset="326.7" stroke-linecap="round" stroke-width="8"></circle>
+</svg>
+<!-- Center Content -->
+<div class="absolute inset-0 flex flex-col items-center justify-center">
+<span class="font-display text-display text-primary" id="progress-percent">0%</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant tracking-widest uppercase">Optimizing Model</span>
+</div>
+</div>
+<div class="text-center max-w-xs">
+<p class="font-body-md text-body-md text-on-surface-variant">We're preparing your private, encrypted clinical processing engine. This stays 100% on your device.</p>
+</div>
+</div>
+<!-- Footer / Action Area -->
+<div class="mt-section w-full max-w-sm px-gutter">
+<button class="w-full h-[56px] bg-primary text-on-primary rounded-full font-headline-md text-headline-md shadow-sm hover:opacity-90 active:scale-95 transition-all duration-500 flex items-center justify-center gap-md" id="action-btn">
+<span class="material-symbols-outlined" data-icon="download" id="btn-icon">download</span>
+<span id="btn-text">Start Download</span>
+</button>
+</div>
+</main>
+<!-- Hidden Navigation Drawer (Placeholder structure as per JSON) -->
+<div class="fixed inset-y-0 left-0 z-50 flex flex-col p-md bg-surface-container-low border-r border-outline-variant h-full w-80 rounded-r-lg transform -translate-x-full transition-transform duration-300" id="nav-drawer">
+<div class="flex flex-col gap-lg mb-xl">
+<div class="flex items-center gap-md px-md">
+<div class="w-12 h-12 rounded-full overflow-hidden bg-surface-container-high">
+<img alt="Dr. Sarah Miller" data-alt="A professional headshot of a middle-aged woman with a warm, empathetic expression. She is wearing clinical attire in a brightly lit, modern medical office. The background is softly blurred with neutral tones, suggesting a professional yet calming therapeutic environment. High-quality photography with soft, natural lighting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA2M5hgH2oKujOG8L-v6BgybBP8XNIQYCVp3cpKAng0a0LFcLTJxtQnK4GU4mrGvx80TVbrbXo_SAToVvIoZXBIQbElQZZeuevWeSvzxqzhjT6ptZyIsBPLEqWXUEJM979x6UYtOhoLpvfzarD1-mwiQD8z5XjObx4jCkyZDzPhFp5zFfT3j_VMomz9MR8ssQVJV-KLUSlZhf8paaMIv4hnZ58-8BvconbtkEKOYXL8ZSBJPLPrfd9fMYku3JYRt2Eph9EKFldhhOZT"/>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md text-primary leading-none">Dr. Sarah Miller</h3>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Licensed Clinical Psychologist</p>
+</div>
+</div>
+</div>
+<nav class="flex flex-col gap-sm">
+<a class="flex items-center gap-md px-lg py-md text-on-surface-variant hover:bg-surface-container-high rounded-full transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="font-body-md text-body-md">Home</span>
+</a>
+<a class="flex items-center gap-md px-lg py-md text-on-surface-variant hover:bg-surface-container-high rounded-full transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="reorder">reorder</span>
+<span class="font-body-md text-body-md">Sessions Queue</span>
+</a>
+<a class="flex items-center gap-md px-lg py-md text-on-surface-variant hover:bg-surface-container-high rounded-full transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-body-md text-body-md">Settings</span>
+</a>
+<a class="flex items-center gap-md px-lg py-md text-on-surface-variant hover:bg-surface-container-high rounded-full transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="info">info</span>
+<span class="font-body-md text-body-md">About</span>
+</a>
+</nav>
+</div>
+<script>
+        // Progress Logic
+        const circle = document.getElementById('progress-ring-circle');
+        const percentText = document.getElementById('progress-percent');
+        const actionBtn = document.getElementById('action-btn');
+        const btnText = document.getElementById('btn-text');
+        const btnIcon = document.getElementById('btn-icon');
+        const radius = circle.r.baseVal.value;
+        const circumference = radius * 2 * Math.PI;
+
+        circle.style.strokeDasharray = `${circumference} ${circumference}`;
+        circle.style.strokeDashoffset = circumference;
+
+        function setProgress(percent) {
+            const offset = circumference - (percent / 100 * circumference);
+            circle.style.strokeDashoffset = offset;
+            percentText.innerText = `${Math.floor(percent)}%`;
+        }
+
+        let isDownloading = false;
+        let progress = 0;
+
+        actionBtn.addEventListener('click', () => {
+            if (progress >= 100) {
+                // Mock "Go to Home"
+                alert('Navigating to Home Dashboard...');
+                return;
+            }
+
+            if (isDownloading) return;
+            
+            isDownloading = true;
+            actionBtn.style.opacity = '0.7';
+            actionBtn.style.cursor = 'default';
+            btnText.innerText = 'Downloading...';
+            btnIcon.innerText = 'sync';
+            btnIcon.classList.add('animate-spin');
+
+            const interval = setInterval(() => {
+                progress += Math.random() * 5;
+                if (progress >= 100) {
+                    progress = 100;
+                    clearInterval(interval);
+                    completeDownload();
+                }
+                setProgress(progress);
+            }, 200);
+        });
+
+        function completeDownload() {
+            isDownloading = false;
+            // Morph Button to Mist Blue State
+            actionBtn.classList.remove('bg-primary');
+            actionBtn.classList.add('bg-secondary-container', 'text-on-secondary-container');
+            actionBtn.style.opacity = '1';
+            actionBtn.style.cursor = 'pointer';
+            btnText.innerText = 'Go to Home';
+            btnIcon.innerText = 'arrow_forward';
+            btnIcon.classList.remove('animate-spin');
+            
+            // Subtle pulse effect on completion
+            actionBtn.classList.add('animate-bounce');
+            setTimeout(() => actionBtn.classList.remove('animate-bounce'), 1000);
+        }
+
+        // Carousel Logic
+        const tips = document.querySelectorAll('.carousel-item');
+        let currentTip = 0;
+
+        setInterval(() => {
+            tips[currentTip].classList.remove('active');
+            currentTip = (currentTip + 1) % tips.length;
+            tips[currentTip].classList.add('active');
+        }, 4000);
+
+        // Sidebar Toggle Mock
+        const menuBtn = document.querySelector('[data-icon="menu"]');
+        const drawer = document.getElementById('nav-drawer');
+        let drawerOpen = false;
+
+        menuBtn.addEventListener('click', () => {
+            drawerOpen = !drawerOpen;
+            if (drawerOpen) {
+                drawer.classList.remove('-translate-x-full');
+            } else {
+                drawer.classList.add('-translate-x-full');
+            }
+        });
+
+        // Close drawer on click outside
+        document.addEventListener('click', (e) => {
+            if (drawerOpen && !drawer.contains(e.target) && e.target !== menuBtn) {
+                drawerOpen = false;
+                drawer.classList.add('-translate-x-full');
+            }
+        });
+    </script>
+</body></html>
