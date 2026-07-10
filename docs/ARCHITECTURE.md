@@ -116,8 +116,8 @@ next session ← processing_queue
 
 ## 7. Downloads & Integrity
 
-- **We download everything ourselves** to known paths → hand ExecuTorch/Whisper **local file paths**. ExecuTorch never self-downloads.
-- Per-file **phased sequential**. LLM `.pte` = **HTTP `Range`-resume** from on-disk offset (HEAD checks `Accept-Ranges`; else restart). Small assets = restart-from-zero.
+- **Whisper + LLM (current):** both via **`react-native-executorch`** built-in model constants — STT: `WHISPER_TINY` + `useSpeechToText`; LLM: tier constant (e.g. `QWEN2_5_1_5B_QUANTIZED`) + `useLLM`. The library downloads `.pte` + tokenizer from **Software Mansion HuggingFace repos** (URLs shipped in the package); caches to device on first load. Hooks use `preventLoad` until the Download Screen / pipeline triggers fetch.
+- Per-file **phased sequential** *(future: custom manager for LLM)*. LLM `.pte` = **HTTP `Range`-resume** from on-disk offset (HEAD checks `Accept-Ranges`; else restart). Small assets = restart-from-zero.
 - Checksums: Worker JSON (`sha256`+`size`+`version`, incl. tokenizer files) → MMKV cache (30d TTL) → **hardcoded `FALLBACK_CHECKSUMS` shipped for every tier**. Block on unverifiable.
 - NetInfo pause/resume; AppState graceful pause; retry 3× exponential backoff (2s/4s/8s); pre-download disk check.
 
