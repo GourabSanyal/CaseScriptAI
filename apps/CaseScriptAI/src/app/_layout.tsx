@@ -3,20 +3,34 @@ import {
   DefaultTheme,
   ThemeProvider,
 } from "@react-navigation/native";
-import React, { useEffect, useState } from "react";
-import { useColorScheme, View, Text } from "react-native";
+import * as ExpoSplashScreen from "expo-splash-screen";
+import React, { useCallback, useEffect, useState } from "react";
+import { Text, useColorScheme, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
-import { AnimatedSplashOverlay } from "@/components/animated-icon";
 import AppTabs from "@/components/app-tabs";
+import { SplashScreenOverlay } from "@/components/splash-screen";
+import { useDmSans } from "@/hooks/use-dm-sans";
 import { initializeExecutorch } from "@/services/ai/llm-inference";
+
+ExpoSplashScreen.preventAutoHideAsync().catch(() => {
+  // Native splash may already be hidden during fast reload.
+});
 
 const TabLayout = () => {
   const colorScheme = useColorScheme();
+  const { loaded: fontsLoaded, error: fontError } = useDmSans();
   const [isExecutorchReady, setIsExecutorchReady] = useState(false);
   const [executorchError, setExecutorchError] = useState<string | null>(null);
+  const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
+    if (!fontsLoaded) {
+      return;
+    }
+
+    ExpoSplashScreen.hideAsync().catch(() => undefined);
+
     const init = async () => {
       const result = await initializeExecutorch();
       if (result.success) {
@@ -25,8 +39,21 @@ const TabLayout = () => {
         setExecutorchError(result.error ?? "Failed to initialize AI runtime");
       }
     };
-    init();
+
+    void init();
+  }, [fontsLoaded]);
+
+  const handleSplashFinish = useCallback(() => {
+    setShowSplash(false);
   }, []);
+
+  if (fontError) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <Text style={{ color: "red" }}>Font error: {fontError.message}</Text>
+      </View>
+    );
+  }
 
   if (executorchError) {
     return (
@@ -36,19 +63,20 @@ const TabLayout = () => {
     );
   }
 
-  if (!isExecutorchReady) {
-    return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <Text>Initializing AI runtime...</Text>
-      </View>
-    );
+  if (!fontsLoaded) {
+    return null;
   }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-        <AnimatedSplashOverlay />
-        <AppTabs />
+        {isExecutorchReady && !showSplash ? <AppTabs /> : null}
+        {showSplash ? (
+          <SplashScreenOverlay
+            readyToDismiss={isExecutorchReady}
+            onFinish={handleSplashFinish}
+          />
+        ) : null}
       </ThemeProvider>
     </GestureHandlerRootView>
   );
