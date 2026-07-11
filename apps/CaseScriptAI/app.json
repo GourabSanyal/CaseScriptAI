@@ -51,10 +51,17 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#fcf9f5",
+          "image": "./assets/images/leaf-logo.png",
+          "imageWidth": 128,
+          "resizeMode": "contain",
           "android": {
-            "image": "./assets/images/splash-icon.png",
-            "imageWidth": 76
+            "image": "./assets/images/leaf-logo.png",
+            "imageWidth": 128
+          },
+          "ios": {
+            "image": "./assets/images/leaf-logo.png",
+            "imageWidth": 128
           }
         }
       ],
