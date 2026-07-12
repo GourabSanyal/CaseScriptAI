@@ -4,7 +4,7 @@
 > All AI runs locally (ExecuTorch + whisper.rn). No cloud inference. PHI never leaves the device.
 >
 > **Read this file first** at the start of every new chat/tab. Keep it in sync **before** changing code
-> (see "Change Control" at the bottom). Companion doc: [`SLICES_PLAN.md`](./SLICES_PLAN.md).
+> (see "Change Control" at the bottom). Companions: [`SLICES_PLAN.md`](./SLICES_PLAN.md), [`PROJECT_RULES.md`](../PROJECT_RULES.md).
 
 ---
 
