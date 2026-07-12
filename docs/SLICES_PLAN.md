@@ -1,6 +1,6 @@
 # CaseScriptAI — Slice Plan & Tracker
 
-> Canonical progress tracker. **Read this + [`ARCHITECTURE.md`](./ARCHITECTURE.md) first** in every new chat/tab.
+> Canonical progress tracker. **Read this + [`ARCHITECTURE.md`](./ARCHITECTURE.md) + [`PROJECT_RULES.md`](../PROJECT_RULES.md) first** in every new chat/tab.
 > Workflow: update the sub-slice to `IN PROGRESS` (with test plan) **before** work; mark `DONE` (with test + impl file links) only when tests are green.
 >
 > Status legend: `TODO` · `IN PROGRESS` · `DONE` · `PARKED`
