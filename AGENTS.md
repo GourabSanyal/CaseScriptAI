@@ -46,9 +46,9 @@ Future monorepo packages (check before creating utilities):
 - `packages/pdf-engine` — PDF generation
 - `packages/shared-types` — shared interfaces
 
-## Current Phase: POC Validation
+## Current Phase: MVP
 
-Do **not** build product features until `poc.tsx` passes all 4 kill-switch tests (Whisper load, memory stability, ffmpeg, chunking). `src/app/poc.tsx` is throwaway — never import from it or copy its patterns. It will be deleted before V1.
+Build against [`docs/SLICES_PLAN.md`](docs/SLICES_PLAN.md) (Slices 0–7) and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). **Dev practices:** [`PROJECT_RULES.md`](PROJECT_RULES.md). `src/app/poc.tsx` is legacy — never import from it or copy its patterns; delete when no longer needed for reference.
 
 ## Eval Rules
 
