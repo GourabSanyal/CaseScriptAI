@@ -1,9 +1,5 @@
-import { View, Text } from 'react-native';
+import { ModelDownloadView } from '@/components/model-download/model-download-view';
 
-export default function Screen() {
-  return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <Text>(onboarding)/model-download.tsx Screen</Text>
-    </View>
-  );
+export default function ModelDownloadScreen() {
+  return <ModelDownloadView />;
 }
