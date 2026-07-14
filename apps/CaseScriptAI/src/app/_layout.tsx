@@ -8,7 +8,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { Text, useColorScheme, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
-import AppTabs from "@/components/app-tabs";
+import { ModelDownloadView } from "@/components/model-download/model-download-view";
 import { SplashScreenOverlay } from "@/components/splash-screen";
 import { useDmSans } from "@/hooks/use-dm-sans";
 import { initializeExecutorch } from "@/services/ai/llm-inference";
@@ -70,7 +70,7 @@ const TabLayout = () => {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-        {isExecutorchReady && !showSplash ? <AppTabs /> : null}
+        {isExecutorchReady && !showSplash ? <ModelDownloadView /> : null}
         {showSplash ? (
           <SplashScreenOverlay
             readyToDismiss={isExecutorchReady}
