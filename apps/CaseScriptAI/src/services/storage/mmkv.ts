@@ -1,17 +1,29 @@
-import { MMKV } from 'react-native-mmkv'
-import { StateStorage } from 'zustand/middleware'
+import { MMKV } from 'react-native-mmkv';
 
-export const storage = new MMKV({ id: 'poc-storage' })
+import type { StateStorage } from 'zustand/middleware';
+
+export const storage = new MMKV({ id: 'poc-storage' });
+export const appStorage = new MMKV({ id: 'casescriptai-storage' });
 
 export const zustandMMKVStorage: StateStorage = {
   setItem: (name, value) => {
-    storage.set(name, value)
+    storage.set(name, value);
   },
   getItem: (name) => {
-    const value = storage.getString(name)
-    return value ?? null
+    const value = storage.getString(name);
+    return value ?? null;
   },
   removeItem: (name) => {
-    storage.delete(name)
+    storage.delete(name);
   },
-}
+};
+
+export const appZustandMMKVStorage: StateStorage = {
+  setItem: (name, value) => {
+    appStorage.set(name, value);
+  },
+  getItem: (name) => appStorage.getString(name) ?? null,
+  removeItem: (name) => {
+    appStorage.delete(name);
+  },
+};
