@@ -7,7 +7,7 @@ Privacy-first, on-device medical transcription and clinical note generation for 
 - React 19.1, React Native 0.81, Expo 54
 - Expo Router 6 (file-based routing)
 - Zustand (state), MMKV (storage)
-- whisper.rn (STT), react-native-executorch (LLM)
+- react-native-executorch (Whisper STT + Qwen LLM)
 - ffmpeg-kit-react-native (audio conversion)
 - expo-print (PDF), react-native-aes-gcm-crypto (encryption)
 
