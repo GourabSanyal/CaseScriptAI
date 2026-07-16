@@ -9,6 +9,9 @@
     "ios": "node scripts/manage-ffmpeg.js --setup --ensure-pods && npx expo run:ios",
     "web": "npx expo start --web",
     "lint": "expo lint",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "typecheck": "tsc --noEmit",
     "prebuild": "node scripts/manage-ffmpeg.js --setup && npx expo prebuild --clean",
     "postinstall": "node scripts/manage-ffmpeg.js --setup"
   },
@@ -57,7 +60,10 @@
     "zustand": "^5.0.11"
   },
   "devDependencies": {
+    "@types/jest": "^29.5.0",
     "@types/react": "~19.1.10",
+    "jest": "^29.7.0",
+    "jest-expo": "~54.0.0",
     "typescript": "~5.9.2"
   },
   "private": true
