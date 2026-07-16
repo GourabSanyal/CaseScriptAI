@@ -1,3 +1,16 @@
+export enum AppErrorCode {
+  MODEL_OOM = 'MODEL_OOM',
+  MODEL_CORRUPT = 'MODEL_CORRUPT',
+  MODEL_MISSING = 'MODEL_MISSING',
+  DOWNLOAD_NETWORK = 'DOWNLOAD_NETWORK',
+  DOWNLOAD_STORAGE = 'DOWNLOAD_STORAGE',
+  DOWNLOAD_CHECKSUM = 'DOWNLOAD_CHECKSUM',
+  AUDIO_PERMISSION = 'AUDIO_PERMISSION',
+  AUDIO_BUFFER_OVERFLOW = 'AUDIO_BUFFER_OVERFLOW',
+  LLM_GENERATION_FAILED = 'LLM_GENERATION_FAILED',
+  SESSION_ORPHANED = 'SESSION_ORPHANED',
+}
+
 export type Result<T> =
   | { success: true; data: T }
-  | { success: false; error: string };
+  | { success: false; error: string; errorCode?: AppErrorCode };
