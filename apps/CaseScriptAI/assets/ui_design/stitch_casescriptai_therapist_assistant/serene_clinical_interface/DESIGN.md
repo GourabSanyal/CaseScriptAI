@@ -112,74 +112,92 @@ spacing:
   margin-tablet: 40px
 ---
 
-## Brand & Style
+## Runtime source of truth
 
-The design system is centered on the "Quiet Therapy Room" philosophy. It prioritizes emotional regulation for therapists managing complex caseloads. The aesthetic is a blend of **Soft Minimalism** and **Organic Professionalism**, avoiding the coldness of traditional medical software in favor of a tactile, grounded atmosphere.
+App screens must consume tokens from `apps/CaseScriptAI/src/constants/theme.ts` via `useTheme()`, `ThemedText`, and `ThemedView`. Do **not** hardcode hex values in screens. This file is the design reference; if prose and `theme.ts` diverge, **update this file or `theme.ts` together**.
 
-**Target Audience:** Mental health professionals and clinical administrators.
-**Emotional Response:** Composed, supported, focused, and unhurried.
-**Visual Direction:** High-end stationary meets soft digital interfaces. The UI utilizes expansive whitespace and low-frequency visual changes to reduce cognitive load. High-contrast elements are replaced with tonal shifts to maintain a "low-arousal" environment.
+Mapped app tokens (light):
+
+| Role | Hex | `theme.ts` |
+|------|-----|------------|
+| Background / surface | `#fcf9f5` | `background`, `surface` |
+| Card / element | `#f0ede9` | `backgroundElement` |
+| Selected / high container | `#ebe8e4` | `backgroundSelected`, `surfaceContainerHigh` |
+| Primary text | `#1c1c19` | `text` |
+| Secondary text | `#414943` | `textSecondary` |
+| Primary (sage) | `#3a6750` | `primary` |
+| On primary | `#ffffff` | `onPrimary` |
+| Outline | `#717973` | `outline` |
+| Outline variant | `#c0c9c1` | `outlineVariant` |
+| Primary fixed dim | `#a0d2b5` | `primaryFixedDim` |
+| Secondary fixed dim | `#b3cad7` | `secondaryFixedDim` |
+
+Font: **DM Sans** (`assets/fonts/DMSans.ttf`, `useDmSans()` → `FontFamily.sans`). Spacing/radius: `Spacing` / `Radius` in `theme.ts` (e.g. `three` = 16, `section` = 48, card radius `md` = 16, pill `lg`/`full`). Tablet breakpoint: `Layout.tabletBreakpoint` (768).
+
+## Brand & style
+
+"Quiet Therapy Room" — soft minimalism for clinicians documenting encounters. Prefer tonal layers over high-contrast chrome.
+
+**Audience:** Clinicians using CaseScriptAI (record → process → SOAP / sessions).
+**Feel:** Composed, focused, unhurried.
+**Direction:** Warm off-white field, sage actions, mist-blue secondary accents; whitespace over density.
 
 ## Colors
 
-The palette is derived from natural, muted tones to prevent eye strain during long documentation sessions. 
-
-- **Primary (Sage Green):** Used for primary actions and active states. It represents growth and stability.
-- **Secondary (Mist Blue):** Used for supportive information and secondary interactive elements.
-- **Surface (Light Stone):** Used for card backgrounds and input fields to provide subtle separation from the warm off-white background.
-- **Functional States:** In place of traditional red for errors, use a deep **Warm Slate (#726D6A)** with an icon to indicate attention. Success states should use a slightly more saturated version of the primary Sage.
-- **Text:** Avoid pure black. Use a deep, warm grey for primary text to maintain the soft aesthetic.
+- **Primary (sage `#3a6750`):** Primary actions and active states.
+- **Secondary (mist / `#4c616d` family):** Supportive UI; chips and secondary actions lean on secondary-container / fixed-dim tokens.
+- **Surfaces:** Page `#fcf9f5`; raised content `#f0ede9` / `#ebe8e4` — not flat pure white cards with heavy shadow.
+- **Text:** `#1c1c19` / `#414943` — never pure black `#000000`.
+- **Errors:** Prefer semantic error tokens from the palette above when needed; pair with iconography. Success stays in the sage family.
 
 ## Typography
 
-The design system utilizes **DM Sans** for its approachable, geometric clarity and soft terminals. 
+DM Sans. Hierarchy via weight and color more than large size jumps. Body ~1.5× line height for long notes. Left-align clinical documentation.
 
-- **Scale:** Typographic hierarchy is established through weight and color rather than drastic size jumps.
-- **Readability:** Body text uses a generous 1.5x line height to facilitate the reading of long clinical notes.
-- **Alignment:** Left-aligned text is preferred for all clinical documentation to ensure a predictable "F-pattern" scanning for the therapist.
+## Layout & spacing
 
-## Layout & Spacing
+- Major blocks: `section` (48px).
+- Mobile margins ~20px; tablet ~40px (`Spacing.marginMobile` / `marginTablet`).
+- Touch targets ≥ 44×44; primary pills aim ~56px height.
+- Tablet: soft side zones using surface-container tones.
 
-This design system employs a **Fluid-Inset Model**. While the app utilizes a standard 12-column grid for tablet/desktop views, the mobile experience relies on consistent "breathing room" around elements.
+## Elevation & depth
 
-- **Negative Space:** Use `section` spacing (48px) between major functional blocks to prevent the UI from feeling cluttered or overwhelming.
-- **Touch Targets:** Minimum touch target size is 44x44px, but primary pill buttons should aim for 56px height to emphasize ease of use.
-- **Reflow:** On tablets, sidebars should use the "Light Stone" surface color to create a distinct but soft functional zone.
+No heavy drop shadows. Depth via tonal layering:
 
-## Elevation & Depth
-
-To maintain a "flat and focused" feel, the system avoids traditional drop shadows. Depth is communicated through:
-
-- **Tonal Layering:** The Background (#F7F5F0) is the lowest level. Surface Cards (#E8E4DC) sit on top. Active elements (like pressed buttons) shift slightly in hue rather than lifting off the page.
-- **Micro-Borders:** Use 1px solid borders in a color 5% darker than the surface color to define boundaries without adding visual weight.
-- **Blur:** For modal overlays, use a soft backdrop blur (10px - 15px) to maintain the sense of the "room" behind the dialogue.
+- Lowest: background `#fcf9f5`
+- Content: `#f0ede9` / `#ebe8e4`
+- 1px borders using outline / outline-variant
+- Modals: light backdrop blur (10–15px) when used
 
 ## Shapes
 
-The shape language is fundamentally **Ovoid and Organic**. 
-
-- **Interactive Elements:** Buttons and tags must be fully pill-shaped (radius 24px+) to evoke a sense of softness and safety.
-- **Containers:** Cards and input fields use a 16px radius (`rounded-lg`). 
-- **Iconography:** Use soft-line icons (2px stroke) with rounded caps and joins. Avoid sharp 90-degree corners in custom illustrations or UI graphics.
+- Buttons / tags: pill (`Radius.lg` / `full`)
+- Cards / inputs: 16px (`Radius.md`)
+- Icons: soft 2px stroke, rounded caps
 
 ## Components
 
 ### Buttons
-- **Primary:** Sage Green background, white text, pill-shaped.
-- **Secondary:** Mist Blue background or Light Stone with a Primary border.
-- **Interaction:** On press, reduce opacity to 0.8 with a 300ms ease-in-out transition.
+
+- Primary: sage fill, on-primary text, pill.
+- Secondary: mist / surface with primary outline.
+- Press: opacity ~0.8, ~300ms ease.
 
 ### Cards
-- **Structure:** Background in Light Stone (#E8E4DC), 16px corner radius, no shadow. 
-- **Padding:** 20px internal padding to ensure content doesn't feel cramped.
 
-### Input Fields
-- **Style:** Light Stone background with a subtle Mist Blue border (1px) when focused. 
-- **Labels:** Always visible, positioned above the field in `label-lg` style.
+- Fill `backgroundElement` (`#f0ede9`), 16px radius, no shadow, ~20px padding.
 
-### Feedback & Progress
-- **Progress Bars:** Use thick, pill-shaped tracks in Sage Green.
-- **Animations:** Transitions between screens should use a "Cross-Fade + Slight Slide" (500ms duration) to mimic a calm breathing rhythm. Avoid "pop" or "snap" animations.
+### Inputs
 
-### Case Chips
-- Small pill-shaped badges used for patient tags or status. Use Mist Blue with 12px horizontal padding.
+- Surface-container fill; focused border from secondary / outline tokens.
+- Labels always visible above the field (`label-lg`).
+
+### Feedback & progress
+
+- Thick pill progress tracks in sage.
+- Screen transitions: cross-fade + slight slide (~500ms); avoid snap/pop.
+
+### Status chips
+
+- Pill badges for session / patient tags; mist secondary-container with horizontal padding.

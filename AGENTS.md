@@ -8,7 +8,7 @@ Privacy-first, on-device medical transcription and clinical note generation for 
 - Expo Router 6 (file-based routing)
 - Zustand (state), MMKV (storage)
 - react-native-executorch (Whisper STT + Qwen LLM)
-- ffmpeg-kit-react-native (audio conversion)
+- ffmpeg-kit-react-native (installed; audio-conversion **PARKED** — see `docs/ARCHITECTURE.md` §12)
 - expo-print (PDF), react-native-aes-gcm-crypto (encryption)
 
 Do **not** add libraries without explicit need. No TanStack Query, Lingui, or custom design-system packages. Use `yarn workspace` exclusively — never pnpm or npm at the root.
@@ -17,13 +17,14 @@ Do **not** add libraries without explicit need. No TanStack Query, Lingui, or cu
 
 ```bash
 yarn install                              # from repo root
-yarn workspace casescriptai ios           # native build (required for AI/ffmpeg)
+yarn workspace casescriptai ios           # native build (required for AI)
 yarn workspace casescriptai android
 yarn workspace casescriptai web           # UI dev only
 yarn workspace casescriptai lint
+yarn workspace casescriptai test
 ```
 
-Native modules (Whisper, ffmpeg, ExecuTorch) do **not** work in Expo Go. Use `expo run:ios` / `expo run:android` or EAS builds.
+Native modules (ExecuTorch, and current FFmpeg kit wiring) do **not** work in Expo Go. Use `expo run:ios` / `expo run:android` or EAS builds.
 
 ## Project Structure
 
@@ -35,8 +36,9 @@ apps/CaseScriptAI/src/
 ├── services/     → Business logic, no UI (ai/, audio/, pdf/, storage/)
 ├── stores/       → Zustand state
 ├── types/        → Shared TypeScript types
-├── constants/    → Theme, config
-└── utils/        → Pure helpers (device-tier, etc.)
+├── constants/    → Theme, config, model constants
+├── utils/        → Pure helpers
+└── __tests__/    → Unit tests mirroring src/
 ```
 
 Future monorepo packages (check before creating utilities):
@@ -49,12 +51,6 @@ Future monorepo packages (check before creating utilities):
 ## Current Phase: MVP
 
 Build against [`docs/SLICES_PLAN.md`](docs/SLICES_PLAN.md) (Slices 0–7) and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). **Dev practices:** [`PROJECT_RULES.md`](PROJECT_RULES.md). `src/app/poc.tsx` is legacy — never import from it or copy its patterns; delete when no longer needed for reference.
-
-## Eval Rules
-
-- `eval/golden-dataset/` is sacred — never auto-generate or modify ground truth
-- Suggest running eval after changes to `whisper.ts`, `llm.ts`, or `prompts.ts`
-- `eval/results/` is local only — never commit
 
 ## Paywall Navigation
 
@@ -70,7 +66,7 @@ Trial-gated features must navigate via `router.push('/paywall')`. Never use cond
 
 ## LLM Guardrails (summary)
 
-Full rules in `.cursor/rules/ai-pipeline.mdc`. Every LLM response must pass `validateSOAPOutput()` before display. Prompts live only in `prompts.ts`.
+Full rules in `.cursor/rules/ai-pipeline.mdc`. SOAP output must be validated before display. Prompts live only in `prompts.ts`. Whisper/LLM exclusivity is owned by `MemoryManager`.
 
 ## i18n
 
@@ -80,16 +76,24 @@ English-only for V1. When i18n is added later, all user-facing strings must go t
 
 Workflow skills live in `.ai/skills/`. Cursor and Claude resolve them via symlinks in `.cursor/skills/` and `.claude/skills/`.
 
+| Task | Skill |
+|------|-------|
+| Legacy POC device notes | `.ai/skills/poc-testing/SKILL.md` |
+| AI / audio pipeline | `.cursor/rules/ai-pipeline.mdc` (scoped rule) |
+| Screens / routing | `.cursor/rules/navigation.mdc` |
+
 ## Key Files
 
 | Purpose | Location |
 |---------|----------|
-| POC screen | `src/app/poc.tsx` |
+| POC screen (legacy) | `src/app/poc.tsx` |
 | Prompts | `src/services/ai/prompts.ts` |
-| Output validator | `src/services/ai/output-validator.ts` |
+| Model constants | `src/constants/models.ts` |
+| Memory mutex | `src/services/ai/memory-manager.ts` |
 | Whisper | `src/services/ai/whisper.ts` |
-| LLM inference | `src/services/ai/llm-inference.ts` |
-| Chunker | `src/services/audio/chunker.ts` |
+| LLM | `src/services/ai/llm.ts` / `llm-inference.ts` |
+| Tier selection | `src/services/ai/llm-tier-selector.ts` |
+| Device store | `src/stores/device-store.ts` |
 | Encryption | `src/services/audio/crypto-service.ts` |
 | Theme | `src/constants/theme.ts` |
 | Result type | `src/types/result.ts` |

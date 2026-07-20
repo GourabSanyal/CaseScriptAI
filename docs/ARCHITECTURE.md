@@ -1,7 +1,7 @@
 # CaseScriptAI — Architecture (Source of Truth)
 
 > Privacy-first, **fully offline** on-device medical transcription for **iOS + Android**.
-> All AI runs locally (ExecuTorch + whisper.rn). No cloud inference. PHI never leaves the device.
+> All AI runs locally with ExecuTorch. No cloud inference. PHI never leaves the device.
 >
 > **Read this file first** at the start of every new chat/tab. Keep it in sync **before** changing code
 > (see "Change Control" at the bottom). Companions: [`SLICES_PLAN.md`](./SLICES_PLAN.md), [`PROJECT_RULES.md`](../PROJECT_RULES.md).
@@ -16,7 +16,7 @@
 4. **STOP** → completed session is enqueued into the **processing queue** (does *not* immediately block; doctor can record the next patient right away).
 5. **Pipeline** (one session at a time): `AudioChunkQueue → Whisper → TranscriptQueue → LLM → SOAP note → SQLite`.
 6. Sessions viewable in **Sessions Screen**. Optional patient fields (name/id/notes) addable during or after recording, never forced.
-7. **Imported audio** (pre-recorded, any format) → `AudioConversionService` → same Whisper→LLM pipeline. *(Conversion strategy pending `POC_remove_ffmpeg` result — see §9.)*
+7. **Imported audio** (pre-recorded, any format) → `AudioConversionService` → same Whisper→LLM pipeline. *(Conversion strategy pending `POC_remove_ffmpeg` result — see §12.)*
 
 ---
 
@@ -31,7 +31,7 @@ Services (no UI)              ai/  audio/  storage/  pdf/  subscription/
         │
 Foundation (contracts)        Result<T>, AppErrorCode, MemoryManager, Queues, State Machines
         │
-Native modules                react-native-executorch, whisper.rn, op-sqlite, MMKV, device-info
+Native modules                react-native-executorch, op-sqlite, MMKV, expo-device
 ```
 
 **Rules:** UI → Stores → Services → Foundation. Services never import UI. Screens never call native modules directly.
@@ -43,8 +43,8 @@ Native modules                react-native-executorch, whisper.rn, op-sqlite, MM
 | Component | Responsibility |
 |---|---|
 | **ModelManager** | `checkAllModelsReady()`; existence + checksum gate before recording/processing; triggers targeted re-download. |
-| **DeviceCapabilityService** | Reads total/available RAM, free disk, OS version; runs one-time CPU micro-benchmark; computes capability score. |
-| **LLMTierSelector** | Maps capability → tier (Lite/Standard/Pro); persists `{tier, selectedModel}` to MMKV. |
+| **DeviceCapabilityService** | Reads total RAM, free disk, OS version; runs a versioned CPU micro-benchmark; returns capability data. |
+| **LLMTierSelector** | Pure capability → tier mapping (Lite/Standard/Pro). RAM caps tier up; benchmark can only downgrade. `device-store` persists the selection. |
 | **ResumableDownloadManager** | Owns **all** downloads. Per-file phased sequential. Range-resume (LLM) / restart (small). NetInfo + AppState aware. Retry w/ backoff. Persists per-asset state to MMKV. |
 | **StorageChecker** | Pre-download free-disk check (asset size + 20% buffer). |
 | **ChecksumValidator** | SHA-256 validation. Worker → MMKV cache (30d) → hardcoded fallback. **Block on unverifiable.** |
@@ -52,8 +52,8 @@ Native modules                react-native-executorch, whisper.rn, op-sqlite, MM
 | **ForegroundSessionService** | Keeps recording alive when backgrounded (iOS bg-audio / Android mic foreground service). Simple tap-to-return notification. 30s checkpoint. |
 | **AudioConversionService** | Imports only. Decode arbitrary format → 16kHz mono WAV. *(impl pending POC)* |
 | **PipelineOrchestrator** | Queue consumer. One session at a time. Drives Whisper then LLM. Emits progress events. |
-| **WhisperService** | Imperative whisper.rn (`initWhisper→transcribe→release`). Per-chunk, disk-partial, unload+GC. |
-| **LLMService** | Imperative `LLMModule` (`fromModelName→generate→interrupt?→delete`). Pre-check + OOM handling. |
+| **WhisperService** | ExecuTorch `useSpeechToText` with `WHISPER_TINY`, matching the validated POC. Per-chunk, disk-partial, unload+GC. |
+| **LLMService** | ExecuTorch `useLLM` with the selected Qwen3 tier. Pre-check + OOM handling. |
 | **MemoryManager** | Singleton mutex. `modelLoadLock: 'whisper'|'llm'|null`. `canLoadModel`, `acquire/releaseLock`, `forceGC`. |
 | **SessionRepository** | op-sqlite/SQLCipher CRUD; indexes; date/patient search. |
 | **DocumentExporter** | SOAP → PDF → share sheet. |
@@ -69,14 +69,16 @@ mic → 30s PCM chunk → temp file → atomic rename → audio_chunks (SQLite p
 STOP → session row status=QUEUED → processing_queue
 ```
 
+**Queue contracts (Slice 0):** `AudioChunkQueue` and `TranscriptQueue` own ordering, acknowledgement, idempotency, and restore behavior through injected persistence ports. They do not persist PHI to MMKV. Concrete SQLCipher audio-backlog and encrypted transcript-file adapters are wired in Slices 3–4. `AudioChunkQueue.nextBatch()` is non-destructive and materializes at most 50 path records; removal happens only after transcript persistence succeeds.
+
 **Pipeline (one session, one model at a time):**
 ```
 next session ← processing_queue
-  acquire Whisper lock → initWhisper
+  acquire Whisper lock → ExecuTorch `useSpeechToText` (`WHISPER_TINY`)
     for each chunk path (fed through AudioChunkQueue, ≤50 in flight):
         transcribe → append segment → TranscriptQueue (persisted) → delete WAV
   release Whisper (release + forceGC)
-  acquire LLM lock → LLMModule.fromModelName(local paths)
+  acquire LLM lock → ExecuTorch `useLLM` (selected Qwen3 tier)
     concat TranscriptQueue → generate SOAP
   delete() + forceGC → release LLM
   save SOAP (encrypted file) → session status=COMPLETE → purge chunks
@@ -110,13 +112,13 @@ next session ← processing_queue
 | Pro | > 6GB + healthy compute | Qwen3 4B | ~2.5–3GB |
 | < 3GB | served **Lite**, gentle "may be slower" notice — never blocked | Qwen3 0.6B | — |
 
-**Selection flow:** Assess (RAM + micro-benchmark) → Commit (persist tier) → Verify (warmup load + short generate) → **Auto-heal** (downgrade + re-download during setup only, never mid-session). Rule: **RAM caps tier up; compute/benchmark can only downgrade.** Whisper model = **`base`**.
+**Selection flow:** Assess (total RAM + versioned micro-benchmark) → Commit (`device-store` persists tier) → Verify (warmup load + short generate) → **Auto-heal** (downgrade + re-download during setup only, never mid-session). Rule: **RAM caps tier up; compute/benchmark can only downgrade.** Missing RAM safely selects Lite. Cross-platform available RAM is not part of the contract because Expo does not expose a reliable value. Whisper runtime/model = **ExecuTorch `useSpeechToText` + `WHISPER_TINY`**, matching the validated POC.
 
 ---
 
 ## 7. Downloads & Integrity
 
-- **Whisper + LLM (current):** both via **`react-native-executorch`** built-in model constants — STT: `WHISPER_TINY` + `useSpeechToText`; LLM: tier constant (e.g. `QWEN2_5_1_5B_QUANTIZED`) + `useLLM`. The library downloads `.pte` + tokenizer from **Software Mansion HuggingFace repos** (URLs shipped in the package); caches to device on first load. Hooks use `preventLoad` until the Download Screen / pipeline triggers fetch.
+- **Whisper + LLM:** both via **`react-native-executorch`** built-in model constants — STT: validated POC path `WHISPER_TINY` + `useSpeechToText`; LLM: Qwen3 tier constant (0.6B/1.7B/4B) + `useLLM`. The library downloads `.pte` + tokenizer from **Software Mansion HuggingFace repos** (URLs shipped in the package); caches on device. Hooks use `preventLoad` until the Download Screen / pipeline triggers fetch.
 - Per-file **phased sequential** *(future: custom manager for LLM)*. LLM `.pte` = **HTTP `Range`-resume** from on-disk offset (HEAD checks `Accept-Ranges`; else restart). Small assets = restart-from-zero.
 - Checksums: Worker JSON (`sha256`+`size`+`version`, incl. tokenizer files) → MMKV cache (30d TTL) → **hardcoded `FALLBACK_CHECKSUMS` shipped for every tier**. Block on unverifiable.
 - NetInfo pause/resume; AppState graceful pause; retry 3× exponential backoff (2s/4s/8s); pre-download disk check.

@@ -1,0 +1,24 @@
+---
+description: Project-level dev rules — follow PROJECT_RULES.md
+alwaysApply: true
+---
+
+# Project Rules
+
+**Read and follow [`PROJECT_RULES.md`](../../PROJECT_RULES.md)** at the start of MVP work.
+
+Also read before implementing:
+
+- [`docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md) — what to build
+- [`docs/SLICES_PLAN.md`](../../docs/SLICES_PLAN.md) — slice status & TDD workflow
+
+Quick enforcers:
+
+- MVP phase — never import from `poc.tsx`
+- Slice: `IN PROGRESS` + test plan before code; `DONE` only when tests green
+- Layers: `app/` → `stores/` → `services/` — no native calls from screens
+- `MemoryManager` owns Whisper/LLM exclusivity
+- No PHI in logs; paywall at navigation layer
+- iOS + Android only; web is dev UI testing
+
+File-scoped detail: `ai-pipeline.mdc`, `typescript-standards.mdc`, `react-native-ui.mdc`, `navigation.mdc`.

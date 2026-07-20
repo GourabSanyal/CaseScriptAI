@@ -112,7 +112,7 @@ From `ARCHITECTURE.md` — enforce in code review:
 | Errors | `Result<T>` + `AppErrorCode` in services |
 | UI | `ThemedText`, `ThemedView`, `useTheme()` — no hardcoded colors |
 | Navigation | Expo Router only; paywall via `router.push('/paywall')` |
-| LLM output | Must pass `validateSOAPOutput()` before display |
+| LLM output | Must validate SOAP structure before display (see `ai-pipeline.mdc`) |
 | i18n | English-only; no i18n library yet |
 
 Detail: `.cursor/rules/typescript-standards.mdc`, `react-native-ui.mdc`, `navigation.mdc`, `ai-pipeline.mdc`.
@@ -125,6 +125,7 @@ Detail: `.cursor/rules/typescript-standards.mdc`, `react-native-ui.mdc`, `naviga
 - Reference screens: `assets/ui_design/stitch_casescriptai_therapist_assistant/*/screen.png`
 - Font: **DM Sans** (`assets/fonts/DMSans.ttf`, `useDmSans()`)
 - Palette: warm off-white background `#fcf9f5`, sage primary `#3a6750`, no pure black text
+- Tokens live in `apps/CaseScriptAI/src/constants/theme.ts` — use `useTheme()` / `ThemedText` / `ThemedView`; never hardcode palette hex in screens
 - Shapes: pill buttons, 16px card radius, soft elevation (tonal layers, not heavy shadows)
 - Responsive: scale typography and logo on tablet breakpoint (~768px)
 
@@ -136,20 +137,17 @@ Detail: `.cursor/rules/typescript-standards.mdc`, `react-native-ui.mdc`, `naviga
 - Encryption keys in Keychain/Keystore (replace POC placeholder before Slice 4.6 ships)
 - No secrets in `EXPO_PUBLIC_*`
 - Release: R8/ProGuard on Android; strip `console.log` in production
-- De-identify audio before adding to `eval/golden-dataset/`
 
 ---
 
-## 9. Testing & eval
+## 9. Testing
 
 | What | How |
 |------|-----|
 | Unit / integration | Per slice in `SLICES_PLAN.md`; required before `DONE` |
-| Native AI / ffmpeg | `yarn workspace casescriptai ios` or `android` — **not Expo Go** |
+| Test location | Keep tests under `src/__tests__/`, mirroring the production tree; do not colocate them with production files |
+| Native AI | `yarn workspace casescriptai ios` or `android` — **not Expo Go** |
 | Memory | Validate on ~3GB device before closing memory-related slices |
-| LLM/STT quality | Suggest eval after changes to `whisper.ts`, `llm.ts`, `prompts.ts` |
-| Golden dataset | `eval/golden-dataset/` is sacred — never auto-modify |
-| Eval results | `eval/results/` is local only — never commit |
 
 ---
 
@@ -161,6 +159,7 @@ yarn workspace casescriptai ios           # native (AI, ExecuTorch)
 yarn workspace casescriptai android
 yarn workspace casescriptai web           # UI dev only
 yarn workspace casescriptai lint
+yarn workspace casescriptai test
 ```
 
 - Use `yarn workspace` exclusively — never pnpm/npm at root
@@ -169,13 +168,14 @@ yarn workspace casescriptai lint
 
 ---
 
-## 11. Skills (workflows)
+## 11. Skills & scoped rules
 
-| Task | Skill |
-|------|-------|
-| New feature | `.ai/skills/add-feature/SKILL.md` |
-| AI / audio pipeline | `.ai/skills/ai-service-update/SKILL.md` |
-| Screens / routing | `.ai/skills/manage-navigation/SKILL.md` |
+| Task | Location |
+|------|----------|
+| Legacy POC device notes | `.ai/skills/poc-testing/SKILL.md` |
+| AI / audio pipeline | `.cursor/rules/ai-pipeline.mdc` |
+| Screens / routing | `.cursor/rules/navigation.mdc` |
+| UI / theming | `.cursor/rules/react-native-ui.mdc` |
 
 ---
 

@@ -10,8 +10,8 @@
 ## Cross-cutting decisions (locked in grill — see ARCHITECTURE.md)
 
 - Download: per-file phased sequential; **Range-resume for LLM**, restart for small assets.
-- **Model downloads (current):** `react-native-executorch` built-ins — STT: `WHISPER_TINY` (`useSpeechToText`); LLM: tier constant e.g. `QWEN2_5_1_5B_QUANTIZED` (`useLLM`). Library fetches `.pte` + tokenizer from Software Mansion HuggingFace repos; caches on device.
-- LLM = imperative `LLMModule`; Whisper = imperative `whisper.rn`; Whisper model = **`base`**.
+- **Model downloads:** `react-native-executorch` built-ins — STT: POC-validated `WHISPER_TINY` (`useSpeechToText`); LLM: selected Qwen3 tier constant (`useLLM`). Library fetches `.pte` + tokenizer from Software Mansion HuggingFace repos; caches on device.
+- Runtime integration = ExecuTorch hooks with explicit load/unload; `MemoryManager` enforces no co-residency.
 - Device tiering: 3 tiers (Qwen3 0.6B/1.7B/4B); Assess→Commit→Verify(warmup)→Auto-heal; sub-3GB served Lite.
 - Memory: Whisper & LLM never co-resident; recording loads no model; peak <2GB on 3GB device.
 - Recording: batch (no live transcript); 30s chunks→disk atomic; background Option (b).
@@ -26,13 +26,13 @@
 
 | Sub | Description | Status | Tests | Impl |
 |---|---|---|---|---|
-| 0.1 | Extend `Result<T>` + `AppErrorCode` enum | IN PROGRESS | _tbd_ | `src/types/result.ts` |
-| 0.2 | `MemoryManager` singleton | TODO | | |
-| 0.3 | `AudioChunkQueue` + `TranscriptQueue` (persist/restore) | TODO | | |
-| 0.4 | `ModelStateMachine` | TODO | | |
-| 0.5 | `DownloadStateMachine` | TODO | | |
-| 0.6 | `device-store` + `DeviceCapabilityService` + `LLMTierSelector` | TODO | | |
-| 0.7 | Unit tests for all of Slice 0 | TODO | | |
+| 0.1 | Extend `Result<T>` + `AppErrorCode` enum | DONE | [`result.test.ts`](../apps/CaseScriptAI/src/__tests__/types/result.test.ts) | [`result.ts`](../apps/CaseScriptAI/src/types/result.ts) |
+| 0.2 | `MemoryManager` singleton | DONE | [`memory-manager.test.ts`](../apps/CaseScriptAI/src/__tests__/services/ai/memory-manager.test.ts) | [`memory-manager.ts`](../apps/CaseScriptAI/src/services/ai/memory-manager.ts) |
+| 0.3 | `AudioChunkQueue` + `TranscriptQueue` (persist/restore) | DONE | [`audio-chunk-queue.test.ts`](../apps/CaseScriptAI/src/__tests__/services/audio/audio-chunk-queue.test.ts), [`transcript-queue.test.ts`](../apps/CaseScriptAI/src/__tests__/services/ai/transcript-queue.test.ts) | [`audio-chunk-queue.ts`](../apps/CaseScriptAI/src/services/audio/audio-chunk-queue.ts), [`transcript-queue.ts`](../apps/CaseScriptAI/src/services/ai/transcript-queue.ts) |
+| 0.4 | `ModelStateMachine` | DONE | [`model-state-machine.test.ts`](../apps/CaseScriptAI/src/__tests__/services/ai/model-state-machine.test.ts) | [`model-state-machine.ts`](../apps/CaseScriptAI/src/services/ai/model-state-machine.ts) |
+| 0.5 | `DownloadStateMachine` | DONE | [`download-state-machine.test.ts`](../apps/CaseScriptAI/src/__tests__/services/download/download-state-machine.test.ts) | [`download-state-machine.ts`](../apps/CaseScriptAI/src/services/download/download-state-machine.ts) |
+| 0.6 | `device-store` + `DeviceCapabilityService` + `LLMTierSelector` | DONE | [`device-store.test.ts`](../apps/CaseScriptAI/src/__tests__/stores/device-store.test.ts), [`device-capability-service.test.ts`](../apps/CaseScriptAI/src/__tests__/services/device/device-capability-service.test.ts), [`llm-tier-selector.test.ts`](../apps/CaseScriptAI/src/__tests__/services/ai/llm-tier-selector.test.ts) | [`device-store.ts`](../apps/CaseScriptAI/src/stores/device-store.ts), [`device-capability-service.ts`](../apps/CaseScriptAI/src/services/device/device-capability-service.ts), [`llm-tier-selector.ts`](../apps/CaseScriptAI/src/services/ai/llm-tier-selector.ts) |
+| 0.7 | Unit tests for all of Slice 0 | DONE | `yarn workspace casescriptai test --runInBand` — 48 passing | [`jest.config.js`](../apps/CaseScriptAI/jest.config.js) |
 
 ## SLICE 1 — Download System
 
@@ -42,7 +42,7 @@
 | 1.2 | `ChecksumValidator` (+ Worker/MMKV/fallback) | TODO | | |
 | 1.3 | `ResumableDownloadManager` (Range/restart, NetInfo, AppState, retry) | TODO | | |
 | 1.4 | ExecuTorch STT download (`WHISPER_TINY` / `useSpeechToText` — progress, retry, readiness) | TODO | | |
-| 1.5 | ExecuTorch LLM download (tier `.pte` + tokenizer via `useLLM` / `LLMModule`) | TODO | | |
+| 1.5 | ExecuTorch LLM download (tier `.pte` + tokenizer via `useLLM`) | TODO | | |
 | 1.6 | `downloadFFmpeg()` | PARKED | | pending POC |
 | 1.7 | `download-store` | TODO | | |
 | 1.8 | Download Screen (progress, tier copy, warmup, retry) | TODO | | |

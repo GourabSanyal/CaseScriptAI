@@ -52,10 +52,6 @@ Thumbs.db
 *.swo
 .idea/
 
-# ─── Eval output ──────────────────────────────────────────────────────────────
-eval/results/*.json
-eval/results/*.log
-
 # ─── Logs & temp ──────────────────────────────────────────────────────────────
 *.log
 npm-debug.log*

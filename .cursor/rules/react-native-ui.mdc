@@ -1,9 +1,8 @@
 ---
 description: UI components, theming, and iOS/Android patterns
-globs: "**/*.{tsx}"
+globs: "**/*.{tsx,ts}"
 alwaysApply: false
 ---
-
 # React Native UI
 
 ## Platform
@@ -11,6 +10,8 @@ iOS and Android are production targets. Do not add web-only APIs or require web 
 
 ## Theming
 Use `ThemedText`, `ThemedView`, and `useTheme()` — not raw `Text`/`View` with hardcoded colors.
+
+Palette + spacing + radius: `@/constants/theme` (Serene Clinical — see `DESIGN.md`). Never define local `DESIGN` / hex color maps in screens.
 
 ```typescript
 import { ThemedText } from '@/components/themed-text';
