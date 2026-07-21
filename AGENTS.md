@@ -74,13 +74,17 @@ English-only for V1. When i18n is added later, all user-facing strings must go t
 
 ## Skills
 
-Workflow skills live in `.ai/skills/`. Cursor and Claude resolve them via symlinks in `.cursor/skills/` and `.claude/skills/`.
+Workflow skills live in `.ai/skills/` (symlinked from `.cursor/skills/`). Canonical product docs beat skills when they conflict.
 
-| Task | Skill |
-|------|-------|
+| Task | Location |
+|------|----------|
+| Product flow / invariants | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
+| Slice status / TDD | [`docs/SLICES_PLAN.md`](docs/SLICES_PLAN.md) |
+| Dev practices | [`PROJECT_RULES.md`](PROJECT_RULES.md) |
+| AI / model memory (Whisper↔LLM) | [`.cursor/rules/ai-pipeline.mdc`](.cursor/rules/ai-pipeline.mdc) |
+| Screens / paywall | [`.cursor/rules/navigation.mdc`](.cursor/rules/navigation.mdc) |
+| JS/native memory leaks + Android R8 | `.ai/skills/react-native-best-practices/SKILL.md` |
 | Legacy POC device notes | `.ai/skills/poc-testing/SKILL.md` |
-| AI / audio pipeline | `.cursor/rules/ai-pipeline.mdc` (scoped rule) |
-| Screens / routing | `.cursor/rules/navigation.mdc` |
 
 ## Key Files
 

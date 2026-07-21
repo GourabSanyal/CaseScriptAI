@@ -22,3 +22,5 @@ Quick enforcers:
 - iOS + Android only; web is dev UI testing
 
 File-scoped detail: `ai-pipeline.mdc`, `typescript-standards.mdc`, `react-native-ui.mdc`, `navigation.mdc`.
+
+Skills (memory/R8 + legacy POC only): `.ai/skills/` — model memory always defers to `ai-pipeline.mdc`. Canonical docs: `ARCHITECTURE.md`, `SLICES_PLAN.md`, `PROJECT_RULES.md`.

@@ -23,6 +23,7 @@ Enforce exclusivity through `MemoryManager` (`acquireLock` / `releaseLock` / `fo
 - Recording loads **no** model (mic → disk only)
 - Pipeline: acquire → process → unload + `forceGC` → acquire next
 - Peak RAM budget: **< 2GB** on a 3GB device
+- JS/native leak hunting and Android R8: `.ai/skills/react-native-best-practices/` (does not override this section)
 
 ## Queues & audio
 

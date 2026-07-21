@@ -89,9 +89,9 @@ src/utils/        Pure helpers
 
 From `ARCHITECTURE.md` — enforce in code review:
 
-1. Never load Whisper and LLM simultaneously (`MemoryManager` mutex)
+1. Never load Whisper and LLM simultaneously (`MemoryManager` mutex) — detail: `.cursor/rules/ai-pipeline.mdc`
 2. Recording loads **no** model (mic → disk only)
-3. Peak RAM **< 2GB** on a 3GB device
+3. Peak RAM **< 2GB** on a 3GB device — leak/R8 playbooks: `.ai/skills/react-native-best-practices/`
 4. Never hold audio bytes in JS — queues hold **file paths**
 5. Never load binaries without checksum verification
 6. Offline-first after initial download
@@ -172,10 +172,15 @@ yarn workspace casescriptai test
 
 | Task | Location |
 |------|----------|
-| Legacy POC device notes | `.ai/skills/poc-testing/SKILL.md` |
-| AI / audio pipeline | `.cursor/rules/ai-pipeline.mdc` |
-| Screens / routing | `.cursor/rules/navigation.mdc` |
+| Product flow / invariants | `docs/ARCHITECTURE.md` |
+| Slice status / TDD | `docs/SLICES_PLAN.md` |
+| AI / model memory (Whisper↔LLM) | `.cursor/rules/ai-pipeline.mdc` |
+| Screens / paywall | `.cursor/rules/navigation.mdc` |
 | UI / theming | `.cursor/rules/react-native-ui.mdc` |
+| JS/native memory + Android R8 | `.ai/skills/react-native-best-practices/SKILL.md` |
+| Legacy POC device notes | `.ai/skills/poc-testing/SKILL.md` |
+
+Skills are under `.ai/skills/` only (symlinked into `.cursor/skills/`). Do **not** vendor the Callstack `agent-skills` repo. Model memory exclusivity always defers to `ai-pipeline.mdc`.
 
 ---
 

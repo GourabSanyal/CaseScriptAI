@@ -39,9 +39,9 @@ These appear in older notes and are **wrong for MVP**:
 When validating memory or native builds:
 
 1. Run a **dev client** (`yarn workspace casescriptai ios` or `android`) — not Expo Go
-2. Confirm Whisper load → unload → LLM load never overlaps
-3. Confirm RAM returns toward baseline after unload + `forceGC`
-4. Prefer a ~3GB-class device before closing memory-related slices
+2. Confirm Whisper load → unload → LLM load never overlaps — see [`.cursor/rules/ai-pipeline.mdc`](../../../.cursor/rules/ai-pipeline.mdc)
+3. Confirm RAM returns toward baseline after unload + `forceGC` — see `.ai/skills/react-native-best-practices/`
+4. Prefer a ~3GB-class device before closing memory-related slices ([`ARCHITECTURE.md`](../../../docs/ARCHITECTURE.md) §5–6)
 
 ## Sign-off
 
