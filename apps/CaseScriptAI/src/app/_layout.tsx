@@ -2,22 +2,22 @@ import {
   DarkTheme,
   DefaultTheme,
   ThemeProvider,
-} from "@react-navigation/native";
-import * as ExpoSplashScreen from "expo-splash-screen";
-import React, { useCallback, useEffect, useState } from "react";
-import { Text, useColorScheme, View } from "react-native";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
+} from '@react-navigation/native';
+import { Slot } from 'expo-router';
+import * as ExpoSplashScreen from 'expo-splash-screen';
+import { useCallback, useEffect, useState } from 'react';
+import { Text, useColorScheme, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
-import { ModelDownloadView } from "@/components/model-download/model-download-view";
-import { SplashScreenOverlay } from "@/components/splash-screen";
-import { useDmSans } from "@/hooks/use-dm-sans";
-import { initializeExecutorch } from "@/services/ai/llm-inference";
+import { SplashScreenOverlay } from '@/components/splash-screen';
+import { useDmSans } from '@/hooks/use-dm-sans';
+import { initializeExecutorch } from '@/services/ai/llm-inference';
 
 ExpoSplashScreen.preventAutoHideAsync().catch(() => {
   // Native splash may already be hidden during fast reload.
 });
 
-const TabLayout = () => {
+export default function RootLayout() {
   const colorScheme = useColorScheme();
   const { loaded: fontsLoaded, error: fontError } = useDmSans();
   const [isExecutorchReady, setIsExecutorchReady] = useState(false);
@@ -25,9 +25,7 @@ const TabLayout = () => {
   const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
-    if (!fontsLoaded) {
-      return;
-    }
+    if (!fontsLoaded) return;
 
     ExpoSplashScreen.hideAsync().catch(() => undefined);
 
@@ -36,7 +34,7 @@ const TabLayout = () => {
       if (result.success) {
         setIsExecutorchReady(true);
       } else {
-        setExecutorchError(result.error ?? "Failed to initialize AI runtime");
+        setExecutorchError(result.error ?? 'Failed to initialize AI runtime');
       }
     };
 
@@ -49,28 +47,26 @@ const TabLayout = () => {
 
   if (fontError) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <Text style={{ color: "red" }}>Font error: {fontError.message}</Text>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Text style={{ color: 'red' }}>Font error: {fontError.message}</Text>
       </View>
     );
   }
 
   if (executorchError) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <Text style={{ color: "red" }}>AI runtime error: {executorchError}</Text>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Text style={{ color: 'red' }}>AI runtime error: {executorchError}</Text>
       </View>
     );
   }
 
-  if (!fontsLoaded) {
-    return null;
-  }
+  if (!fontsLoaded) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-        {isExecutorchReady && !showSplash ? <ModelDownloadView /> : null}
+      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        {isExecutorchReady && !showSplash ? <Slot /> : null}
         {showSplash ? (
           <SplashScreenOverlay
             readyToDismiss={isExecutorchReady}
@@ -80,6 +76,4 @@ const TabLayout = () => {
       </ThemeProvider>
     </GestureHandlerRootView>
   );
-};
-
-export default TabLayout;
+}
