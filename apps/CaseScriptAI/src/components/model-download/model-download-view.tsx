@@ -7,11 +7,18 @@ import { ProgressRing } from '@/components/model-download/progress-ring';
 import { ThemedText } from '@/components/themed-text';
 import { Layout, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import {
+  MODEL_STATUS_COPY,
+  type ModelStatusRow,
+} from '@/services/ai/model-status-rows';
+
+export type { ModelStatusRow };
 
 export type ModelDownloadViewProps = {
   percent: number;
   phaseLabel: string;
   tierLabel?: string;
+  modelStatuses?: ModelStatusRow[];
   error?: string | null;
   busy?: boolean;
   complete?: boolean;
@@ -22,6 +29,7 @@ export function ModelDownloadView({
   percent,
   phaseLabel,
   tierLabel,
+  modelStatuses = [],
   error,
   busy = false,
   complete = false,
@@ -64,6 +72,38 @@ export function ModelDownloadView({
           <ThemedText type="bodyMd" themeColor="textSecondary">
             {phaseLabel}
           </ThemedText>
+
+          {modelStatuses.length > 0 ? (
+            <View
+              style={[styles.statusList, { borderColor: theme.outlineVariant, maxWidth: isTablet ? 420 : 340 }]}
+              accessibilityRole="summary"
+            >
+              {modelStatuses.map((row) => (
+                <View key={row.label} style={styles.statusRow}>
+                  <MaterialIcons
+                    name={
+                      row.state === 'ready'
+                        ? 'check-circle'
+                        : row.state === 'corrupt'
+                          ? 'error'
+                          : row.state === 'missing'
+                            ? 'cloud-download'
+                            : 'hourglass-empty'
+                    }
+                    size={20}
+                    color={row.state === 'ready' ? theme.primary : theme.textSecondary}
+                  />
+                  <View style={styles.statusText}>
+                    <ThemedText type="bodyMd">{row.label}</ThemedText>
+                    <ThemedText type="labelSm" themeColor="textSecondary">
+                      {MODEL_STATUS_COPY[row.state]}
+                      {row.detail ? ` · ${row.detail}` : ''}
+                    </ThemedText>
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : null}
         </View>
 
         <Pressable
@@ -112,10 +152,27 @@ const styles = StyleSheet.create({
   },
   center: {
     alignItems: 'center',
-    gap: Spacing.six,
+    gap: Spacing.four,
   },
   bodyCopy: {
     textAlign: 'center',
+  },
+  statusList: {
+    width: '100%',
+    gap: Spacing.three,
+    paddingVertical: Spacing.three,
+    paddingHorizontal: Spacing.four,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: Radius.md,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+  },
+  statusText: {
+    flex: 1,
+    gap: 2,
   },
   button: {
     width: '100%',
