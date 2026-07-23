@@ -1,11 +1,7 @@
-import {
-  downloadLlmAssets,
-  downloadSttAssets,
-  type AssetDownloader,
-} from '@/services/download/executorch-model-download';
+import { downloadLlmAssets, downloadSttAssets } from '@/services/download/executorch-model-download';
 import { AppErrorCode } from '@/types/result';
 
-import type { DownloadAsset } from '@/types/download';
+import type { AssetDownloader, DownloadAsset } from '@/types/download';
 
 jest.mock('@/constants/models', () => ({
   WHISPER_MODEL: {
