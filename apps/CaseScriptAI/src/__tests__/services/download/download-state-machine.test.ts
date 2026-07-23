@@ -1,10 +1,10 @@
 import {
   normalizeRestoredDownloadState,
   transitionDownloadState,
-  type DownloadEvent,
-  type DownloadState,
 } from '@/services/download/download-state-machine';
 import { AppErrorCode } from '@/types/result';
+
+import type { DownloadEvent, DownloadState } from '@/types/download';
 
 const transition = (state: DownloadState, event: DownloadEvent): DownloadState => {
   const result = transitionDownloadState(state, event);

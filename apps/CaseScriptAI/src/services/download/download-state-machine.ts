@@ -1,43 +1,5 @@
-import type { AppErrorCode, Result } from '@/types/result';
-
-type ActivePhase = 'downloading' | 'verifying';
-export type PauseReason = 'network' | 'background' | 'user' | 'interrupted';
-
-export type DownloadState =
-  | { status: 'idle' }
-  | { status: 'checking-storage'; attempt: number }
-  | { status: 'downloading'; progress: number; attempt: number }
-  | {
-      status: 'paused';
-      progress: number;
-      attempt: number;
-      phase: ActivePhase;
-      reason: PauseReason;
-    }
-  | { status: 'verifying'; progress: number; attempt: number }
-  | { status: 'complete' }
-  | {
-      status: 'failed';
-      error: string;
-      errorCode?: AppErrorCode;
-      progress: number;
-      attempt: number;
-    }
-  | { status: 'cancelled' };
-
-export type DownloadEvent =
-  | { type: 'START' }
-  | { type: 'STORAGE_OK' }
-  | { type: 'PROGRESS'; progress: number }
-  | { type: 'PAUSE'; reason: Exclude<PauseReason, 'interrupted'> }
-  | { type: 'RESUME' }
-  | { type: 'DOWNLOADED' }
-  | { type: 'VERIFY_PROGRESS'; progress: number }
-  | { type: 'VERIFIED' }
-  | { type: 'RETRY' }
-  | { type: 'FAIL'; error: string; errorCode?: AppErrorCode }
-  | { type: 'CANCEL' }
-  | { type: 'RESET' };
+import type { DownloadEvent, DownloadState } from '@/types/download';
+import type { Result } from '@/types/result';
 
 const success = (state: DownloadState): Result<DownloadState> => ({ success: true, data: state });
 const isProgress = (value: number): boolean => Number.isFinite(value) && value >= 0 && value <= 1;
