@@ -169,7 +169,7 @@ describe('Slice 1 integration', () => {
 
     const modelManager = createModelManager({
       fileExists: async (asset) => files.has(asset.id),
-      validateChecksum: async (assetId) => validator.validateFile(assetId, hashes[assetId], 10),
+      validateChecksum: async (asset) => validator.validateFile(asset.id, hashes[asset.id], 10),
     });
     expect(await modelManager.checkAllModelsReady('lite')).toEqual({
       success: true,
