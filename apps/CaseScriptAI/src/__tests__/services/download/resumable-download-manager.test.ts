@@ -1,11 +1,14 @@
 import {
   DOWNLOAD_BACKOFF_MS,
   createResumableDownloadManager,
-  type ResumableDownloadDependencies,
 } from '@/services/download/resumable-download-manager';
 import { AppErrorCode } from '@/types/result';
 
-import type { AssetDownloadState, DownloadAsset } from '@/types/download';
+import type {
+  AssetDownloadState,
+  DownloadAsset,
+  ResumableDownloadDependencies,
+} from '@/types/download';
 
 const asset: DownloadAsset = {
   id: 'qwen3-0.6b-quantized.model',
