@@ -45,8 +45,8 @@ describe('ModelManager', () => {
   it('lists missing and corrupt assets separately', async () => {
     const manager = createModelManager({
       fileExists: async (asset) => !asset.id.includes('tokenizer-config'),
-      validateChecksum: async (assetId) =>
-        assetId.endsWith('.model')
+      validateChecksum: async (asset) =>
+        asset.id.endsWith('.model')
           ? {
               success: false,
               error: 'bad',
