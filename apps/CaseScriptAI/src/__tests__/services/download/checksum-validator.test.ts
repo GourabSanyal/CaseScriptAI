@@ -1,12 +1,15 @@
 import {
   CHECKSUM_CACHE_TTL_MS,
   createChecksumValidator,
-  type ChecksumCacheStore,
-  type ChecksumValidatorDependencies,
 } from '@/services/download/checksum-validator';
 import { AppErrorCode } from '@/types/result';
 
-import type { ChecksumManifest, ChecksumRecord } from '@/types/download';
+import type {
+  ChecksumCacheStore,
+  ChecksumManifest,
+  ChecksumRecord,
+  ChecksumValidatorDependencies,
+} from '@/types/download';
 
 const record = (overrides: Partial<ChecksumRecord> = {}): ChecksumRecord => ({
   sha256: 'abc123',
