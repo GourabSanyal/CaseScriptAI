@@ -1,7 +1,8 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { GradientButton } from '@/components/gradient-button';
 import { ModelDownloadHeader } from '@/components/model-download/model-download-header';
 import { ProgressRing } from '@/components/model-download/progress-ring';
 import { ThemedText } from '@/components/themed-text';
@@ -14,13 +15,16 @@ import {
 
 export type { ModelStatusRow };
 
+// ponytail: static tip; carousel when tips are productized
+const TIP = '"Start with open-ended questions to build rapport."';
+
 export type ModelDownloadViewProps = {
   percent: number;
   phaseLabel: string;
-  tierLabel?: string;
   modelStatuses?: ModelStatusRow[];
   error?: string | null;
   busy?: boolean;
+  checking?: boolean;
   complete?: boolean;
   onPrimaryPress: () => void;
 };
@@ -28,10 +32,10 @@ export type ModelDownloadViewProps = {
 export function ModelDownloadView({
   percent,
   phaseLabel,
-  tierLabel,
   modelStatuses = [],
   error,
   busy = false,
+  checking = false,
   complete = false,
   onPrimaryPress,
 }: ModelDownloadViewProps) {
@@ -40,7 +44,25 @@ export function ModelDownloadView({
   const isTablet = width >= Layout.tabletBreakpoint;
   const horizontalPad = isTablet ? Spacing.marginTablet : Spacing.marginMobile;
   const ringSize = isTablet ? 280 : Math.min(256, width * 0.64);
-  const primaryLabel = complete ? 'Continue' : error ? 'Retry' : busy ? 'Downloading…' : 'Start Download';
+  const primaryLabel = checking
+    ? 'Checking'
+    : complete
+      ? 'Continue'
+      : error
+        ? 'Retry'
+        : busy
+          ? 'Downloading…'
+          : 'Start Download';
+  const ringCaption = checking
+    ? 'Checking models'
+    : complete
+      ? 'Ready'
+      : busy
+        ? phaseLabel
+        : error
+          ? 'Needs attention'
+          : 'Ready to download';
+  const disabled = busy || checking;
 
   return (
     <SafeAreaView
@@ -55,11 +77,15 @@ export function ModelDownloadView({
           themeColor="textSecondary"
           style={[styles.tip, { maxWidth: isTablet ? 420 : width - horizontalPad * 2 }]}
         >
-          {tierLabel ? `Selected model tier: ${tierLabel}` : phaseLabel}
+          {TIP}
         </ThemedText>
 
         <View style={styles.center}>
-          <ProgressRing size={ringSize} percent={Math.round(percent * 100)} />
+          <ProgressRing
+            size={ringSize}
+            percent={Math.round(percent * 100)}
+            caption={ringCaption}
+          />
           <ThemedText
             type="bodyMd"
             themeColor="textSecondary"
@@ -69,13 +95,13 @@ export function ModelDownloadView({
               ? error
               : "We're preparing your private, encrypted clinical processing engine. This stays 100% on your device."}
           </ThemedText>
-          <ThemedText type="bodyMd" themeColor="textSecondary">
-            {phaseLabel}
-          </ThemedText>
 
           {modelStatuses.length > 0 ? (
             <View
-              style={[styles.statusList, { borderColor: theme.outlineVariant, maxWidth: isTablet ? 420 : 340 }]}
+              style={[
+                styles.statusList,
+                { borderColor: theme.outlineVariant, maxWidth: isTablet ? 420 : 340 },
+              ]}
               accessibilityRole="summary"
             >
               {modelStatuses.map((row) => (
@@ -106,30 +132,31 @@ export function ModelDownloadView({
           ) : null}
         </View>
 
-        <Pressable
+        <GradientButton
           accessibilityLabel={primaryLabel}
           accessibilityRole="button"
           testID="model-download-start"
-          disabled={busy}
+          disabled={disabled}
           onPress={onPrimaryPress}
-          style={({ pressed }) => [
-            styles.button,
-            {
-              maxWidth: Math.min(width - horizontalPad * 2, 384),
-              backgroundColor: theme.primary,
-              opacity: busy ? 0.6 : pressed ? 0.9 : 1,
-            },
-          ]}
+          style={{ maxWidth: Math.min(width - horizontalPad * 2, 384) }}
         >
           <MaterialIcons
-            name={error ? 'refresh' : complete ? 'check' : 'file-download'}
+            name={
+              checking
+                ? 'hourglass-empty'
+                : error
+                  ? 'refresh'
+                  : complete
+                    ? 'check'
+                    : 'file-download'
+            }
             size={22}
             color={theme.onPrimary}
           />
           <ThemedText type="headlineMd" themeColor="onPrimary">
             {primaryLabel}
           </ThemedText>
-        </Pressable>
+        </GradientButton>
       </View>
     </SafeAreaView>
   );
@@ -152,12 +179,14 @@ const styles = StyleSheet.create({
   },
   center: {
     alignItems: 'center',
+    alignSelf: 'stretch',
     gap: Spacing.four,
   },
   bodyCopy: {
     textAlign: 'center',
   },
   statusList: {
+    alignSelf: 'stretch',
     width: '100%',
     gap: Spacing.three,
     paddingVertical: Spacing.three,
@@ -173,14 +202,5 @@ const styles = StyleSheet.create({
   statusText: {
     flex: 1,
     gap: 2,
-  },
-  button: {
-    width: '100%',
-    height: 56,
-    borderRadius: Radius.full,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
   },
 });
