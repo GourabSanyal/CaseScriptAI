@@ -22,6 +22,8 @@ export const Colors = {
     surfaceContainerHigh: '#ebe8e4',
     primaryFixedDim: '#a0d2b5',
     secondaryFixedDim: '#b3cad7',
+    secondaryContainer: '#cce3f1',
+    onSecondaryContainer: '#506671',
   },
   dark: {
     text: '#f3f0ec',
@@ -37,6 +39,8 @@ export const Colors = {
     surfaceContainerHigh: '#31302e',
     primaryFixedDim: '#3a6750',
     secondaryFixedDim: '#4c616d',
+    secondaryContainer: '#344a55',
+    onSecondaryContainer: '#cce3f1',
   },
 } as const;
 
