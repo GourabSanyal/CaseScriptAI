@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -52,7 +53,12 @@ export function HomeRecordView({
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]} edges={['top']}>
-      <AppHeader horizontalPad={horizontalPad} />
+      {/* ponytail: temp QA entry — remove once download UI is signed off */}
+      <AppHeader
+        horizontalPad={horizontalPad}
+        rightIcon="cloud-download"
+        onRightPress={() => router.push('/(onboarding)/model-download')}
+      />
 
       <View style={[styles.body, { paddingHorizontal: horizontalPad }]}>
         <SessionTimer elapsedMs={elapsedMs} />
