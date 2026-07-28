@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
+import { Appearance } from 'react-native';
 
 import { ModelDownloadView } from '@/components/model-download/model-download-view';
 import { modelManager } from '@/services/ai/model-manager-runtime';
@@ -23,11 +24,18 @@ export default function ModelDownloadScreen() {
   const [readiness, setReadiness] = useState<ModelReadiness | null>(null);
 
   useEffect(() => {
+    const previous = Appearance.getColorScheme();
+    Appearance.setColorScheme('light');
+    return () => Appearance.setColorScheme(previous);
+  }, []);
+
+  useEffect(() => {
     if (!selection) void assessAndSelect();
   }, [assessAndSelect, selection]);
 
   const tier = selection?.tier ?? 'lite';
   const busy = ['checking-storage', 'downloading', 'verifying'].includes(machine.status);
+  const checking = readiness === null;
   // Continue only when Whisper + LLM files are actually on disk (not store phase alone).
   const complete = readiness?.ready === true;
 
@@ -57,12 +65,13 @@ export default function ModelDownloadScreen() {
     <ModelDownloadView
       percent={progress}
       phaseLabel={phaseLabel}
-      tierLabel={selection ? `${selection.tier} (${selection.modelId})` : undefined}
       modelStatuses={buildModelStatusRows(tier, readiness)}
       error={error ?? incompleteMessage}
       busy={busy}
+      checking={checking}
       complete={complete}
       onPrimaryPress={() => {
+        if (checking) return;
         if (complete) {
           router.replace('/(app)/record');
           return;

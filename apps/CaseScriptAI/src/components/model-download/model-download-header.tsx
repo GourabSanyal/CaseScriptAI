@@ -5,5 +5,6 @@ type ModelDownloadHeaderProps = {
 };
 
 export function ModelDownloadHeader({ horizontalPad }: ModelDownloadHeaderProps) {
-  return <AppHeader horizontalPad={horizontalPad} rightIcon="cloud-download" />;
+  // ponytail: onboarding has no nav yet — title only until drawer exists
+  return <AppHeader horizontalPad={horizontalPad} showMenu={false} />;
 }
