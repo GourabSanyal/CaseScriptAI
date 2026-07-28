@@ -11,7 +11,10 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { SplashScreenOverlay } from '@/components/splash-screen';
 import { useDmSans } from '@/hooks/use-dm-sans';
+import { modelManager } from '@/services/ai/model-manager-runtime';
 import { initializeExecutorch } from '@/services/ai/llm-inference';
+import { useBootStore } from '@/stores/boot-store';
+import { useDeviceStore } from '@/stores/device-store';
 
 ExpoSplashScreen.preventAutoHideAsync().catch(() => {
   // Native splash may already be hidden during fast reload.
@@ -23,6 +26,8 @@ export default function RootLayout() {
   const [isExecutorchReady, setIsExecutorchReady] = useState(false);
   const [executorchError, setExecutorchError] = useState<string | null>(null);
   const [showSplash, setShowSplash] = useState(true);
+  const destination = useBootStore((state) => state.destination);
+  const setDestination = useBootStore((state) => state.setDestination);
 
   useEffect(() => {
     if (!fontsLoaded) return;
@@ -40,6 +45,31 @@ export default function RootLayout() {
 
     void init();
   }, [fontsLoaded]);
+
+  // Resolve download vs home while splash is still up (avoids the bare spinner screen).
+  useEffect(() => {
+    if (!isExecutorchReady || destination) return;
+
+    let cancelled = false;
+
+    const run = async () => {
+      const device = useDeviceStore.getState();
+      let tier = device.selection?.tier;
+      if (!tier) {
+        const assessed = await device.assessAndSelect();
+        tier = assessed.success ? assessed.data.tier : 'lite';
+      }
+
+      const readiness = await modelManager.checkAllModelsReady(tier);
+      if (cancelled) return;
+      setDestination(readiness.success && readiness.data.ready ? 'app' : 'download');
+    };
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [destination, isExecutorchReady, setDestination]);
 
   const handleSplashFinish = useCallback(() => {
     setShowSplash(false);
@@ -63,13 +93,15 @@ export default function RootLayout() {
 
   if (!fontsLoaded) return null;
 
+  const bootReady = isExecutorchReady && destination !== null;
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        {isExecutorchReady && !showSplash ? <Slot /> : null}
+        {bootReady && !showSplash ? <Slot /> : null}
         {showSplash ? (
           <SplashScreenOverlay
-            readyToDismiss={isExecutorchReady}
+            readyToDismiss={bootReady}
             onFinish={handleSplashFinish}
           />
         ) : null}

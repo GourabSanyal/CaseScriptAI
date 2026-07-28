@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import { FontFamily, Layout, Radius, Spacing } from '@/constants/theme';
@@ -19,7 +19,7 @@ export function SplashScreenOverlay({ readyToDismiss, onFinish }: SplashScreenOv
   const titleSize = isTablet ? 24 : 22;
   const titleLineHeight = isTablet ? 32 : 30;
   const blobScale = Math.min(width, height);
-  const { logoStyle, titleStyle, taglineStyle, overlayStyle } = useSplashSequence(
+  const { logoStyle, titleStyle, taglineStyle, loaderStyle, overlayStyle } = useSplashSequence(
     readyToDismiss,
     onFinish,
   );
@@ -100,6 +100,13 @@ export function SplashScreenOverlay({ readyToDismiss, onFinish }: SplashScreenOv
             Your session. Documented with care.
           </Animated.Text>
         </View>
+
+        <Animated.View style={[styles.loaderBlock, loaderStyle]}>
+          <ActivityIndicator color={theme.primary} />
+          <Animated.Text style={[styles.loaderLabel, { color: theme.textSecondary }]}>
+            {readyToDismiss ? 'Almost ready…' : 'Preparing your workspace…'}
+          </Animated.Text>
+        </Animated.View>
       </View>
     </Animated.View>
   );
@@ -129,6 +136,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
     fontWeight: '400',
+    textAlign: 'center',
+  },
+  loaderBlock: {
+    marginTop: Spacing.five,
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  loaderLabel: {
+    fontFamily: FontFamily.sans,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '500',
+    letterSpacing: 0.4,
     textAlign: 'center',
   },
 });

@@ -13,6 +13,7 @@ const LOGO_DURATION_MS = 1200;
 const TEXT_DURATION_MS = 800;
 const TITLE_DELAY_MS = 600;
 const TAGLINE_DELAY_MS = 1000;
+const LOADER_DELAY_MS = 1400;
 const DISMISS_DURATION_MS = 400;
 const EASE = Easing.bezier(0.22, 1, 0.36, 1);
 
@@ -23,6 +24,7 @@ export function useSplashSequence(readyToDismiss: boolean, onFinish: () => void)
   const titleTranslateY = useSharedValue(20);
   const taglineOpacity = useSharedValue(0);
   const taglineTranslateY = useSharedValue(20);
+  const loaderOpacity = useSharedValue(0);
   const overlayOpacity = useSharedValue(1);
   const [animationsDone, setAnimationsDone] = useState(false);
 
@@ -41,17 +43,23 @@ export function useSplashSequence(readyToDismiss: boolean, onFinish: () => void)
 
     taglineOpacity.value = withDelay(
       TAGLINE_DELAY_MS,
+      withTiming(1, { duration: TEXT_DURATION_MS, easing: EASE }),
+    );
+    taglineTranslateY.value = withDelay(
+      TAGLINE_DELAY_MS,
+      withTiming(0, { duration: TEXT_DURATION_MS, easing: EASE }),
+    );
+
+    loaderOpacity.value = withDelay(
+      LOADER_DELAY_MS,
       withTiming(1, { duration: TEXT_DURATION_MS, easing: EASE }, (finished) => {
         if (finished) {
           runOnJS(setAnimationsDone)(true);
         }
       }),
     );
-    taglineTranslateY.value = withDelay(
-      TAGLINE_DELAY_MS,
-      withTiming(0, { duration: TEXT_DURATION_MS, easing: EASE }),
-    );
   }, [
+    loaderOpacity,
     logoOpacity,
     logoScale,
     taglineOpacity,
@@ -91,9 +99,13 @@ export function useSplashSequence(readyToDismiss: boolean, onFinish: () => void)
     transform: [{ translateY: taglineTranslateY.value }],
   }));
 
+  const loaderStyle = useAnimatedStyle(() => ({
+    opacity: loaderOpacity.value,
+  }));
+
   const overlayStyle = useAnimatedStyle(() => ({
     opacity: overlayOpacity.value,
   }));
 
-  return { logoStyle, titleStyle, taglineStyle, overlayStyle };
+  return { logoStyle, titleStyle, taglineStyle, loaderStyle, overlayStyle };
 }
