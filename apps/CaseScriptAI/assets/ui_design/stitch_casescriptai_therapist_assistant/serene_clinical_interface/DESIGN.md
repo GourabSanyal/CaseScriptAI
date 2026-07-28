@@ -131,6 +131,8 @@ Mapped app tokens (light):
 | Outline variant | `#c0c9c1` | `outlineVariant` |
 | Primary fixed dim | `#a0d2b5` | `primaryFixedDim` |
 | Secondary fixed dim | `#b3cad7` | `secondaryFixedDim` |
+| Secondary container (HIPAA bar) | `#cce3f1` | `secondaryContainer` |
+| On secondary container | `#506671` | `onSecondaryContainer` |
 
 Font: **DM Sans** (`assets/fonts/DMSans.ttf`, `useDmSans()` → `FontFamily.sans`). Spacing/radius: `Spacing` / `Radius` in `theme.ts` (e.g. `three` = 16, `section` = 48, card radius `md` = 16, pill `lg`/`full`). Tablet breakpoint: `Layout.tabletBreakpoint` (768).
 
