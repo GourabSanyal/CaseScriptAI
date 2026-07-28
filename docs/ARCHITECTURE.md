@@ -48,7 +48,8 @@ Native modules                react-native-executorch, op-sqlite, MMKV, expo-dev
 | **ResumableDownloadManager** | Owns **all** downloads. Per-file phased sequential. Range-resume (LLM) / restart (small). NetInfo + AppState aware. Retry w/ backoff. Persists per-asset state to MMKV. |
 | **StorageChecker** | Pre-download free-disk check (asset size + 20% buffer). |
 | **ChecksumValidator** | SHA-256 validation. Worker → MMKV cache (30d) → hardcoded fallback. **Block on unverifiable.** |
-| **RecordingService** | Captures audio to disk in rolling ~30s chunks (atomic write+rename). Loads **no** model. |
+| **AudioRecorderService** (`RecordingService`) | Captures audio to disk in rolling ~30s chunks (atomic write+rename). Loads **no** model. Depends on an injectable `AudioCapturePort` (native PCM adapter gated on `POC_remove_ffmpeg` §12). |
+| **RecordingStateMachine** | Pure transitions for idle → permission → recording ↔ paused → stopping → queued; orphan detect/resume/discard; fail/reset. Restored mid-recording normalizes to `orphaned`. |
 | **ForegroundSessionService** | Keeps recording alive when backgrounded (iOS bg-audio / Android mic foreground service). Simple tap-to-return notification. 30s checkpoint. |
 | **AudioConversionService** | Imports only. Decode arbitrary format → 16kHz mono WAV. *(impl pending POC)* |
 | **PipelineOrchestrator** | Queue consumer. One session at a time. Drives Whisper then LLM. Emits progress events. |
@@ -151,8 +152,11 @@ App-level lock deferred to OS device lock (MVP). Rule: queryable → SQLite; sin
 - Continuous ~30s chunks written to disk; **no reliance on shutdown hooks** (hard kills give no cleanup window).
 - Temp file + **atomic rename** → half-written chunks discarded cleanly.
 - Worst-case loss = single in-progress chunk (≤30s).
-- Orphaned-session recovery on relaunch → Resume / Discard.
+- Each finalized chunk is a complete **16 kHz / mono / 16-bit PCM WAV** path record enqueued to `AudioChunkQueue` (paths only — no audio bytes in JS queues).
+- **RecordingStateMachine** owns UI/session phase; `AudioRecorderService` owns mic + disk. Neither loads Whisper/LLM.
+- Orphaned-session recovery on relaunch → Resume / Discard (`orphaned` state after restore of `recording`/`paused`/`stopping`).
 - Background recording via Option (b): stays alive + simple tap-to-return notification; STOP/PAUSE/RESUME in-app only.
+- **Native capture adapter** still gated on §12 device results; product code programs against `AudioCapturePort` so Slice 2 logic is testable without locking the library.
 
 ---
 

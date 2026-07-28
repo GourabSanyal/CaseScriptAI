@@ -38,29 +38,29 @@
 
 | Sub | Description | Status | Tests | Impl |
 |---|---|---|---|---|
-| 1.1 | `StorageChecker` | TODO | | |
-| 1.2 | `ChecksumValidator` (+ Worker/MMKV/fallback) | TODO | | |
-| 1.3 | `ResumableDownloadManager` (Range/restart, NetInfo, AppState, retry) | TODO | | |
-| 1.4 | ExecuTorch STT download (`WHISPER_TINY` / `useSpeechToText` — progress, retry, readiness) | TODO | | |
-| 1.5 | ExecuTorch LLM download (tier `.pte` + tokenizer via `useLLM`) | TODO | | |
+| 1.1 | `StorageChecker` | DONE | [`storage-checker.test.ts`](../apps/CaseScriptAI/src/__tests__/services/download/storage-checker.test.ts) | [`storage-checker.ts`](../apps/CaseScriptAI/src/services/download/storage-checker.ts) |
+| 1.2 | `ChecksumValidator` (+ Worker/MMKV/fallback) | DONE | [`checksum-validator.test.ts`](../apps/CaseScriptAI/src/__tests__/services/download/checksum-validator.test.ts), [`fallback-checksums.test.ts`](../apps/CaseScriptAI/src/__tests__/constants/fallback-checksums.test.ts) | [`checksum-validator.ts`](../apps/CaseScriptAI/src/services/download/checksum-validator.ts), [`checksum-manifest.ts`](../apps/CaseScriptAI/src/services/download/checksum-manifest.ts), [`fallback-checksums.ts`](../apps/CaseScriptAI/src/constants/fallback-checksums.ts) |
+| 1.3 | `ResumableDownloadManager` (Range/restart, NetInfo, AppState, retry) | DONE | [`resumable-download-manager.test.ts`](../apps/CaseScriptAI/src/__tests__/services/download/resumable-download-manager.test.ts) | [`resumable-download-manager.ts`](../apps/CaseScriptAI/src/services/download/resumable-download-manager.ts), [`download-runtime.ts`](../apps/CaseScriptAI/src/stores/download-runtime.ts) |
+| 1.4 | ExecuTorch STT download (`WHISPER_TINY` / `useSpeechToText` — progress, retry, readiness) | DONE | [`executorch-model-download.test.ts`](../apps/CaseScriptAI/src/__tests__/services/download/executorch-model-download.test.ts), [`executorch-resource.test.ts`](../apps/CaseScriptAI/src/__tests__/services/download/executorch-resource.test.ts) | [`executorch-model-download.ts`](../apps/CaseScriptAI/src/services/download/executorch-model-download.ts), [`executorch-resource.ts`](../apps/CaseScriptAI/src/services/download/executorch-resource.ts), [`model-assets.ts`](../apps/CaseScriptAI/src/services/download/model-assets.ts) |
+| 1.5 | ExecuTorch LLM download (tier `.pte` + tokenizer via `useLLM`) | DONE | [`executorch-model-download.test.ts`](../apps/CaseScriptAI/src/__tests__/services/download/executorch-model-download.test.ts) | [`executorch-model-download.ts`](../apps/CaseScriptAI/src/services/download/executorch-model-download.ts), [`executorch-resource.ts`](../apps/CaseScriptAI/src/services/download/executorch-resource.ts) |
 | 1.6 | `downloadFFmpeg()` | PARKED | | pending POC |
-| 1.7 | `download-store` | TODO | | |
-| 1.8 | Download Screen (progress, tier copy, warmup, retry) | TODO | | |
-| 1.9 | Integration tests (NetInfo/checksum/storage/Range/auto-heal) | TODO | | |
-| 1.10 | `ModelManager.checkAllModelsReady()` + integrity watcher | TODO | | |
+| 1.7 | `download-store` | DONE | [`download-store.test.ts`](../apps/CaseScriptAI/src/__tests__/stores/download-store.test.ts) | [`download-store.ts`](../apps/CaseScriptAI/src/stores/download-store.ts), [`run-model-download.ts`](../apps/CaseScriptAI/src/services/download/run-model-download.ts) |
+| 1.8 | Download Screen (progress, tier copy, warmup, retry) | DONE | [`download-store.test.ts`](../apps/CaseScriptAI/src/__tests__/stores/download-store.test.ts) | [`model-download.tsx`](../apps/CaseScriptAI/src/app/(onboarding)/model-download.tsx), [`model-download-view.tsx`](../apps/CaseScriptAI/src/components/model-download/model-download-view.tsx), [`download-runtime.ts`](../apps/CaseScriptAI/src/stores/download-runtime.ts) |
+| 1.9 | Integration tests (NetInfo/checksum/storage/Range/auto-heal) | DONE | [`slice1-integration.test.ts`](../apps/CaseScriptAI/src/__tests__/services/download/slice1-integration.test.ts) | — |
+| 1.10 | `ModelManager.checkAllModelsReady()` + integrity watcher | DONE | [`model-manager.test.ts`](../apps/CaseScriptAI/src/__tests__/services/ai/model-manager.test.ts) | [`model-manager.ts`](../apps/CaseScriptAI/src/services/ai/model-manager.ts), [`model-manager-runtime.ts`](../apps/CaseScriptAI/src/services/ai/model-manager-runtime.ts), [`file-integrity.ts`](../apps/CaseScriptAI/src/services/download/file-integrity.ts), [`index.tsx`](../apps/CaseScriptAI/src/app/index.tsx) |
 
-## SLICE 2 — Recording System *(capture lib gated on POC)*
+## SLICE 2 — Recording System *(native capture adapter gated on POC; logic via `AudioCapturePort`)*
 
 | Sub | Description | Status | Tests | Impl |
 |---|---|---|---|---|
-| 2.1 | `AudioRecorderService` (30s chunks→disk, atomic, permissions) | TODO | | |
-| 2.2 | `ForegroundSessionService` (background alive, notification, checkpoint) | TODO | | |
-| 2.3 | `RecordingStateMachine` | TODO | | |
-| 2.4 | `recording-store` | TODO | | |
-| 2.5 | START always enabled; enqueue; processing badge | TODO | | |
-| 2.6 | Orphaned-session recovery | TODO | | |
+| 2.1 | `AudioRecorderService` (30s chunks→disk, atomic, permissions) | DONE | [`audio-recorder-service.test.ts`](../apps/CaseScriptAI/src/__tests__/services/audio/audio-recorder-service.test.ts), [`wav-chunk-writer.test.ts`](../apps/CaseScriptAI/src/__tests__/services/audio/wav-chunk-writer.test.ts) | [`audio-recorder-service.ts`](../apps/CaseScriptAI/src/services/audio/audio-recorder-service.ts), [`wav-chunk-writer.ts`](../apps/CaseScriptAI/src/services/audio/wav-chunk-writer.ts), [`wav-pcm.ts`](../apps/CaseScriptAI/src/services/audio/wav-pcm.ts) — native `AudioCapturePort` adapter still pending §12 |
+| 2.2 | `ForegroundSessionService` (background alive, notification, checkpoint) | DONE | [`foreground-session-service.test.ts`](../apps/CaseScriptAI/src/__tests__/services/audio/foreground-session-service.test.ts) | [`foreground-session-service.ts`](../apps/CaseScriptAI/src/services/audio/foreground-session-service.ts) — real FG notification pending native capture |
+| 2.3 | `RecordingStateMachine` | DONE | [`recording-state-machine.test.ts`](../apps/CaseScriptAI/src/__tests__/services/audio/recording-state-machine.test.ts) | [`recording-state-machine.ts`](../apps/CaseScriptAI/src/services/audio/recording-state-machine.ts), [`recording.ts`](../apps/CaseScriptAI/src/types/recording.ts) |
+| 2.4 | `recording-store` | DONE | [`recording-store.test.ts`](../apps/CaseScriptAI/src/__tests__/stores/recording-store.test.ts) | [`recording-store.ts`](../apps/CaseScriptAI/src/stores/recording-store.ts), [`recording-runtime.ts`](../apps/CaseScriptAI/src/stores/recording-runtime.ts) |
+| 2.5 | START always enabled; enqueue; processing badge | DONE | [`recording-store.test.ts`](../apps/CaseScriptAI/src/__tests__/stores/recording-store.test.ts) | [`record.tsx`](../apps/CaseScriptAI/src/app/(app)/record.tsx), [`pending-session-queue.ts`](../apps/CaseScriptAI/src/services/audio/pending-session-queue.ts) |
+| 2.6 | Orphaned-session recovery | DONE | [`recording-store.test.ts`](../apps/CaseScriptAI/src/__tests__/stores/recording-store.test.ts), [`recording-state-machine.test.ts`](../apps/CaseScriptAI/src/__tests__/services/audio/recording-state-machine.test.ts) | [`recording-store.ts`](../apps/CaseScriptAI/src/stores/recording-store.ts), [`record.tsx`](../apps/CaseScriptAI/src/app/(app)/record.tsx) |
 | 2.7 | `AudioConversionService` (imports) | PARKED | | pending POC |
-| 2.8 | Unit tests | TODO | | |
+| 2.8 | Unit tests | DONE | `yarn workspace casescriptai test --runInBand --testPathPattern='(recording-state-machine\|wav-chunk-writer\|audio-recorder-service\|foreground-session-service\|recording-store)'` — 20 passing | — |
 
 ## SLICE 3 — Processing Pipeline
 
