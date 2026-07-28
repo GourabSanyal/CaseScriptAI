@@ -9,12 +9,16 @@ type AppHeaderProps = {
   horizontalPad: number;
   rightIcon?: keyof typeof MaterialIcons.glyphMap;
   onMenuPress?: () => void;
+  onRightPress?: () => void;
+  showMenu?: boolean;
 };
 
 export function AppHeader({
   horizontalPad,
   rightIcon,
   onMenuPress,
+  onRightPress,
+  showMenu = true,
 }: AppHeaderProps) {
   const theme = useTheme();
 
@@ -30,22 +34,33 @@ export function AppHeader({
       ]}
     >
       <View style={styles.headerLeft}>
-        <Pressable
-          accessibilityLabel="Open menu"
-          accessibilityRole="button"
-          hitSlop={8}
-          testID="app-menu"
-          onPress={onMenuPress}
-          style={styles.iconHit}
-        >
-          <MaterialIcons name="menu" size={24} color={theme.primary} />
-        </Pressable>
+        {showMenu ? (
+          <Pressable
+            accessibilityLabel="Open menu"
+            accessibilityRole="button"
+            hitSlop={8}
+            testID="app-menu"
+            onPress={onMenuPress}
+            style={styles.iconHit}
+          >
+            <MaterialIcons name="menu" size={24} color={theme.primary} />
+          </Pressable>
+        ) : null}
         <ThemedText type="headlineLgMobile" themeColor="primary">
           CaseScriptAI
         </ThemedText>
       </View>
       {rightIcon ? (
-        <MaterialIcons name={rightIcon} size={24} color={theme.textSecondary} />
+        <Pressable
+          accessibilityLabel="Header action"
+          accessibilityRole="button"
+          disabled={!onRightPress}
+          hitSlop={8}
+          onPress={onRightPress}
+          style={styles.iconHit}
+        >
+          <MaterialIcons name={rightIcon} size={24} color={theme.textSecondary} />
+        </Pressable>
       ) : (
         <View style={styles.iconHit} />
       )}
