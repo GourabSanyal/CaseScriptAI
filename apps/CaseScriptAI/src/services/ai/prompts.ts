@@ -6,6 +6,8 @@ STRICT OUTPUT RULES:
 - Output ONLY the SOAP note, nothing else
 - No intro text like "Here is your SOAP note"
 - No closing text like "Let me know if you need changes"
+- Do not invent findings, vitals, or diagnoses absent from the transcript
+- Missing data → write [not documented]
 - Use EXACTLY this format:
 
 ## SOAP Note
@@ -18,6 +20,9 @@ STRICT OUTPUT RULES:
 
 **Assessment:**
 [diagnosis]
+
+**Plan:**
+[next steps]
 
 ---
 Transcript:
