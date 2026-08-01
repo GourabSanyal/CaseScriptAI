@@ -1,4 +1,4 @@
-import { fetchExecutorchResource } from '@/services/download/executorch-resource';
+import { fetchExecutorchResource } from '@/services/download/executorch-resource-fetch';
 
 describe('executorch-resource fetch', () => {
   it('returns a local path after ResourceFetcher completes', async () => {
