@@ -2,7 +2,7 @@ import NetInfo from '@react-native-community/netinfo';
 import { AppState } from 'react-native';
 
 import { createResumableDownloadManager } from '@/services/download/resumable-download-manager';
-import { fetchExecutorchResource } from '@/services/download/executorch-resource';
+import { createExpoStreamingDownloadTransport } from '@/services/download/streaming-download-fs';
 import { validateDownloadedAsset } from '@/services/download/file-integrity';
 import { checkStorageAvailable } from '@/services/download/storage-checker';
 import { appStorage } from '@/services/storage/mmkv';
@@ -23,6 +23,8 @@ NetInfo.addEventListener((state) => {
   online = Boolean(state.isConnected && state.isInternetReachable !== false);
 });
 
+const streamingTransport = createExpoStreamingDownloadTransport();
+
 const downloadManager = createResumableDownloadManager({
   checkStorage: async (requiredBytes) => {
     const result = checkStorageAvailable(requiredBytes);
@@ -30,7 +32,9 @@ const downloadManager = createResumableDownloadManager({
       ? { success: true, data: undefined }
       : { success: false, error: result.error, errorCode: result.errorCode };
   },
-  validateChecksum: (assetId, path) => validateDownloadedAsset(assetId, path),
+  validateChecksum: (assetId, path) =>
+    // ponytail: size gate during download; SHA after entry is enough until streaming SHA lands
+    validateDownloadedAsset(assetId, path, { hash: false }),
   isOnline: () => online,
   isActive: () => AppState.currentState === 'active',
   sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
@@ -62,8 +66,7 @@ const downloadManager = createResumableDownloadManager({
         return false;
       }
     },
-    download: async ({ url, expectedSizeBytes = 0, onProgress }) =>
-      fetchExecutorchResource(url, expectedSizeBytes, onProgress),
+    download: (request) => streamingTransport.download(request),
   },
 });
 
