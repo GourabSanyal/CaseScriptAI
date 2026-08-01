@@ -11,8 +11,8 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { SplashScreenOverlay } from '@/components/splash-screen';
 import { useDmSans } from '@/hooks/use-dm-sans';
+import { getExecutorchBootReady } from '@/services/ai/executorch-boot';
 import { modelManager } from '@/services/ai/model-manager-runtime';
-import { initializeExecutorch } from '@/services/ai/llm-inference';
 import { useBootStore } from '@/stores/boot-store';
 import { useDeviceStore } from '@/stores/device-store';
 
@@ -29,29 +29,13 @@ export default function RootLayout() {
   const destination = useBootStore((state) => state.destination);
   const setDestination = useBootStore((state) => state.setDestination);
 
+  // ponytail: resolve download vs app from disk only — do not load ExecuTorch during download.
   useEffect(() => {
-    if (!fontsLoaded) return;
+    if (!fontsLoaded || destination) return;
 
     ExpoSplashScreen.hideAsync().catch(() => undefined);
 
-    const init = async () => {
-      const result = await initializeExecutorch();
-      if (result.success) {
-        setIsExecutorchReady(true);
-      } else {
-        setExecutorchError(result.error ?? 'Failed to initialize AI runtime');
-      }
-    };
-
-    void init();
-  }, [fontsLoaded]);
-
-  // Resolve download vs home while splash is still up (avoids the bare spinner screen).
-  useEffect(() => {
-    if (!isExecutorchReady || destination) return;
-
     let cancelled = false;
-
     const run = async () => {
       const device = useDeviceStore.getState();
       let tier = device.selection?.tier;
@@ -69,7 +53,29 @@ export default function RootLayout() {
     return () => {
       cancelled = true;
     };
-  }, [destination, isExecutorchReady, setDestination]);
+  }, [destination, fontsLoaded, setDestination]);
+
+  // Load ExecuTorch only when entering the main app (models already on disk).
+  useEffect(() => {
+    if (destination !== 'app' || isExecutorchReady) return;
+
+    let cancelled = false;
+    const run = async () => {
+      const { initializeExecutorch } = await import('@/services/ai/llm-inference');
+      const result = await initializeExecutorch();
+      if (cancelled) return;
+      if (result.success) {
+        setIsExecutorchReady(true);
+      } else {
+        setExecutorchError(result.error ?? 'Failed to initialize AI runtime');
+      }
+    };
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [destination, isExecutorchReady]);
 
   const handleSplashFinish = useCallback(() => {
     setShowSplash(false);
@@ -93,7 +99,11 @@ export default function RootLayout() {
 
   if (!fontsLoaded) return null;
 
-  const bootReady = isExecutorchReady && destination !== null;
+  // Download screen must not wait on ExecuTorch native init.
+  // Continue may init ExecuTorch before layout state updates — honor the module flag so Slot stays mounted.
+  const bootReady =
+    destination === 'download' ||
+    (destination === 'app' && (isExecutorchReady || getExecutorchBootReady()));
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

@@ -1,5 +1,6 @@
 import { useLLM, initExecutorch, Message } from "react-native-executorch";
 import { ExpoResourceFetcher } from "react-native-executorch-expo-resource-fetcher";
+import { setExecutorchBootReady } from "./executorch-boot";
 import { SOAP_NOTE_PROMPT } from "./prompts";
 import type { Result } from "@/types/result";
 
@@ -9,6 +10,7 @@ let executorchInitialized = false;
 export const initializeExecutorch = async (): Promise<Result<void>> => {
   try {
     if (executorchInitialized) {
+      setExecutorchBootReady(true);
       return { success: true, data: undefined };
     }
 
@@ -18,6 +20,7 @@ export const initializeExecutorch = async (): Promise<Result<void>> => {
     });
 
     executorchInitialized = true;
+    setExecutorchBootReady(true);
     console.log("[ExecuTorch] Initialized successfully");
     return { success: true, data: undefined };
   } catch (err) {
