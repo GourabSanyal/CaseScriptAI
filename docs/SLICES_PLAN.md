@@ -67,38 +67,16 @@
 
 | Sub | Description | Status | Tests | Impl |
 |---|---|---|---|---|
-| 3.0 | `processing-queue-store` | IN PROGRESS | test plan below | — |
-| 3.1 | `PipelineOrchestrator` (queue consumer, events) | TODO | | |
-| 3.2 | `WhisperService` (lock, per-chunk, disk-partial, unload) | TODO | | |
-| 3.3 | `LLMService` (pre-check, interrupt-before-delete, OOM) | TODO | | |
-| 3.4 | `pipeline-store` | TODO | | |
-| 3.5 | Processing Screen | TODO | | |
-| 3.6 | Background continuation | TODO | | |
-| 3.7 | Unit tests (mocked models, OOM→auto-heal) | TODO | | |
+| 3.0 | `processing-queue-store` | DONE | [`processing-queue-store.test.ts`](../apps/CaseScriptAI/src/__tests__/stores/processing-queue-store.test.ts) | [`processing-queue-store.ts`](../apps/CaseScriptAI/src/stores/processing-queue-store.ts), [`processing-queue.ts`](../apps/CaseScriptAI/src/types/processing-queue.ts), [`recording-runtime.ts`](../apps/CaseScriptAI/src/stores/recording-runtime.ts) |
+| 3.1 | `PipelineOrchestrator` (queue consumer, events) | DONE | [`pipeline-orchestrator.test.ts`](../apps/CaseScriptAI/src/__tests__/services/ai/pipeline-orchestrator.test.ts) | [`pipeline-orchestrator.ts`](../apps/CaseScriptAI/src/services/ai/pipeline-orchestrator.ts) |
+| 3.2 | `WhisperService` (lock, per-chunk, disk-partial, unload) | DONE | [`whisper-service.test.ts`](../apps/CaseScriptAI/src/__tests__/services/ai/whisper-service.test.ts) | [`whisper-service.ts`](../apps/CaseScriptAI/src/services/ai/whisper-service.ts) |
+| 3.3 | `LLMService` (pre-check, interrupt-before-delete, OOM) | DONE | [`llm-service.test.ts`](../apps/CaseScriptAI/src/__tests__/services/ai/llm-service.test.ts) | [`llm-service.ts`](../apps/CaseScriptAI/src/services/ai/llm-service.ts), [`output-validator.ts`](../apps/CaseScriptAI/src/services/ai/output-validator.ts), [`prompts.ts`](../apps/CaseScriptAI/src/services/ai/prompts.ts) |
+| 3.4 | `pipeline-store` | DONE | [`pipeline-store.test.ts`](../apps/CaseScriptAI/src/__tests__/stores/pipeline-store.test.ts) | [`pipeline-store.ts`](../apps/CaseScriptAI/src/stores/pipeline-store.ts), [`pipeline-store.ts` types](../apps/CaseScriptAI/src/types/pipeline-store.ts), [`pipeline-runtime.ts`](../apps/CaseScriptAI/src/stores/pipeline-runtime.ts) |
+| 3.5 | Processing Screen | DONE | (view wired; unit coverage via pipeline-store + queue) | [`processing.tsx`](../apps/CaseScriptAI/src/app/(app)/processing.tsx), [`processing-view.tsx`](../apps/CaseScriptAI/src/components/processing/processing-view.tsx) |
+| 3.6 | Background continuation | DONE | [`pipeline-background.test.ts`](../apps/CaseScriptAI/src/__tests__/services/ai/pipeline-background.test.ts) | [`pipeline-background.ts`](../apps/CaseScriptAI/src/services/ai/pipeline-background.ts), [`pipeline-runtime.ts`](../apps/CaseScriptAI/src/stores/pipeline-runtime.ts) |
+| 3.7 | Unit tests (mocked models, OOM→auto-heal) | DONE | `yarn workspace casescriptai test --runInBand --testPathPattern='(processing-queue-store\|pipeline-orchestrator\|whisper-service\|llm-service\|pipeline-store\|pipeline-background)'` — 28 passing | — |
 
-### 3.0 test plan (`processing-queue-store`)
-
-Target files (after approval): [`processing-queue-store.test.ts`](../apps/CaseScriptAI/src/__tests__/stores/processing-queue-store.test.ts) → [`processing-queue-store.ts`](../apps/CaseScriptAI/src/stores/processing-queue-store.ts) + [`processing-queue.ts`](../apps/CaseScriptAI/src/types/processing-queue.ts). Replaces lightweight [`pending-session-queue.ts`](../apps/CaseScriptAI/src/services/audio/pending-session-queue.ts) as `ProcessingEnqueuePort` for recording STOP.
-
-Contract: `ARCHITECTURE.md` §9.
-
-| # | Case |
-|---|---|
-| 1 | `enqueue` appends `queued` item; empty/blank sessionId fails `Result` |
-| 2 | `enqueue` is idempotent (same id twice → one row) |
-| 3 | Persist + restore round-trip via injected persistence port |
-| 4 | Mid-`processing` item normalizes to `queued` on restore (safe re-claim) |
-| 5 | `claimNext` promotes first `queued` → `processing`; second claim returns null while one processing |
-| 6 | `complete` removes item; `pendingBadge().pendingCount` drops |
-| 7 | `fail` with `retryCount===0` re-queues + sets `retryCount=1` |
-| 8 | Second `fail` marks `failed` (stays in list for "Needs attention") |
-| 9 | `requeue` from `failed` → `queued`, `retryCount=0` |
-| 10 | `cancel` removes item and calls injected `onCancel(sessionId)` |
-| 11 | `pendingBadge` counts `queued`+`processing`; `estimatedMinutes` from drain samples (0 until samples) |
-| 12 | Store satisfies `ProcessingEnqueuePort` (`enqueue` + `pendingCount`) for recording-store wiring |
-| 13 | No PHI: persistence payload is session ids + status metadata only (assert shape) |
-
-Out of scope for 3.0: PipelineOrchestrator drain loop, Whisper/LLM, SQLCipher adapter (Slice 4), UI confirm dialog (screen calls `cancel` after confirm), reorder/priority.
+> **Slice 3 device note:** Logic + mocked ports are green. Bind real ExecuTorch `useSpeechToText` / `useLLM` into `WhisperRuntimePort` / `LlmRuntimePort` and call `setPipelineRuntimesReady(true)` before draining — stub runtimes must not claim queue sessions (burns retry budget). SOAP file encryption lands in Slice 4.
 
 ## SLICE 4 — Storage & Sessions
 

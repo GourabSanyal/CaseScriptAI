@@ -53,9 +53,11 @@ Native modules                react-native-executorch, op-sqlite, MMKV, expo-dev
 | **ForegroundSessionService** | Keeps recording alive when backgrounded (iOS bg-audio / Android mic foreground service). Simple tap-to-return notification. 30s checkpoint. |
 | **AudioConversionService** | Imports only. Decode arbitrary format → 16kHz mono WAV. *(impl pending POC)* |
 | **processing-queue-store** | Zustand queue of session IDs awaiting/in pipeline. Persist + restore; soft pending badge; cancel-with-confirm; fail→retry-once→`failed`. Implements `ProcessingEnqueuePort` for recording STOP. No audio bytes / PHI. |
-| **PipelineOrchestrator** | Queue consumer. One session at a time. Drives Whisper then LLM. Emits progress events. |
-| **WhisperService** | ExecuTorch `useSpeechToText` with `WHISPER_TINY`, matching the validated POC. Per-chunk, disk-partial, unload+GC. |
-| **LLMService** | ExecuTorch `useLLM` with the selected Qwen3 tier. Pre-check + OOM handling. |
+| **PipelineOrchestrator** | Queue consumer. One session at a time. `tick`/`runUntilIdle`; Whisper then LLM; emits progress; `fail`→queue retry-once. |
+| **WhisperService** | Acquire whisper lock → load → per-chunk path STT → `TranscriptQueue` append → delete WAV → unload+GC. Disk-partial resume via `hasChunk`. Injectable `WhisperRuntimePort` (ExecuTorch hook binding separate). |
+| **LLMService** | Acquire llm lock → pre-check ready → generate SOAP (`prompts.ts`) → `validateSoapOutput` → interrupt before unload+GC. OOM → `MODEL_OOM`. Injectable `LlmRuntimePort`. |
+| **pipeline-store** | UI progress (`phase`/`progress`/`error`); `startDrain` → orchestrator. |
+| **pipeline-background** | AppState foreground → re-drain queue (auto-resume). |
 | **MemoryManager** | Singleton mutex. `modelLoadLock: 'whisper'|'llm'|null`. `canLoadModel`, `acquire/releaseLock`, `forceGC`. |
 | **SessionRepository** | op-sqlite/SQLCipher CRUD; indexes; date/patient search. |
 | **DocumentExporter** | SOAP → PDF → share sheet. |
