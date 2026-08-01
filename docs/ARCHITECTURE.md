@@ -11,7 +11,7 @@
 ## 1. Product Flow (source of truth)
 
 1. **Launch** → `ModelManager.checkAllModelsReady()` verifies existence + checksum of every required asset (Whisper, tier-selected LLM `.pte` + tokenizer files). Any missing/corrupt → Download Screen for **only** the missing assets.
-2. **Download Screen** → device capability assessed, correct LLM tier selected, assets downloaded sequentially with progress, checksum-validated, warmup-verified. Auto-redirect Home when all ready.
+2. **Download Screen** → device capability assessed, correct LLM tier selected, assets downloaded sequentially with progress (native disk stream; ExecuTorch **not** loaded yet). Size-gated integrity while fetching. Continue → `initExecutorch` → Home.
 3. **Home** → doctor presses **START** → recording begins (audio captured to disk in rolling chunks).
 4. **STOP** → completed session is enqueued into the **processing queue** (does *not* immediately block; doctor can record the next patient right away).
 5. **Pipeline** (one session at a time): `AudioChunkQueue → Whisper → TranscriptQueue → LLM → SOAP note → SQLite`.
@@ -52,6 +52,7 @@ Native modules                react-native-executorch, op-sqlite, MMKV, expo-dev
 | **RecordingStateMachine** | Pure transitions for idle → permission → recording ↔ paused → stopping → queued; orphan detect/resume/discard; fail/reset. Restored mid-recording normalizes to `orphaned`. |
 | **ForegroundSessionService** | Keeps recording alive when backgrounded (iOS bg-audio / Android mic foreground service). Simple tap-to-return notification. 30s checkpoint. |
 | **AudioConversionService** | Imports only. Decode arbitrary format → 16kHz mono WAV. *(impl pending POC)* |
+| **processing-queue-store** | Zustand queue of session IDs awaiting/in pipeline. Persist + restore; soft pending badge; cancel-with-confirm; fail→retry-once→`failed`. Implements `ProcessingEnqueuePort` for recording STOP. No audio bytes / PHI. |
 | **PipelineOrchestrator** | Queue consumer. One session at a time. Drives Whisper then LLM. Emits progress events. |
 | **WhisperService** | ExecuTorch `useSpeechToText` with `WHISPER_TINY`, matching the validated POC. Per-chunk, disk-partial, unload+GC. |
 | **LLMService** | ExecuTorch `useLLM` with the selected Qwen3 tier. Pre-check + OOM handling. |
@@ -119,9 +120,13 @@ next session ← processing_queue
 
 ## 7. Downloads & Integrity
 
-- **Whisper + LLM:** both via **`react-native-executorch`** built-in model constants — STT: validated POC path `WHISPER_TINY` + `useSpeechToText`; LLM: Qwen3 tier constant (0.6B/1.7B/4B) + `useLLM`. The library downloads `.pte` + tokenizer from **Software Mansion HuggingFace repos** (URLs shipped in the package); caches on device. Hooks use `preventLoad` until the Download Screen / pipeline triggers fetch.
-- Per-file **phased sequential** *(future: custom manager for LLM)*. LLM `.pte` = **HTTP `Range`-resume** from on-disk offset (HEAD checks `Accept-Ranges`; else restart). Small assets = restart-from-zero.
-- Checksums: Worker JSON (`sha256`+`size`+`version`, incl. tokenizer files) → MMKV cache (30d TTL) → **hardcoded `FALLBACK_CHECKSUMS` shipped for every tier**. Block on unverifiable.
+- **Whisper + LLM:** both via **`react-native-executorch`** built-in model constants — STT: validated POC path `WHISPER_TINY` + `useSpeechToText`; LLM: Qwen3 tier constant (0.6B/1.7B/4B) + `useLLM`. Assets come from **Software Mansion HuggingFace** URLs; cache dir = `documentDirectory/react-native-executorch/`. Hooks use `preventLoad` until the app (not the Download Screen) needs inference.
+- **Boot / RAM (jetsam):** Download Screen must **not** load ExecuTorch. Root layout resolves download vs app from **disk readiness only**; `initExecutorch` runs when entering `(app)` (Continue after download, or cold start with models already present). Keeps peak RAM under iOS ~2GB ActiveHard during large `.pte` fetches.
+- **Transport:** per-file phased sequential via **native `createDownloadResumable` → disk** (no JS `arrayBuffer` of model bodies). LLM Range-resume: remainder → `.part`, then ≤1MB disk append onto the final file. Small assets = restart-from-zero. Progress/MMKV updates throttled.
+- **Integrity during download:** size check against `FALLBACK_CHECKSUMS` / manifest (SHA not re-run on every progress tick — spreading multi‑MB buffers into JS arrays jetsams). Full SHA for small files remains available post-download; large `.pte` stay size-gated until streaming SHA lands.
+- **Delete / re-test:** Download Screen can delete Whisper or **all LLM tiers** (Lite+Standard+Pro) plus `.part` leftovers and MMKV resume/checksum keys, then sweep any orphan `qwen3*` cache filenames.
+- **Continue → Home:** init ExecuTorch → set boot destination `app` → `router.replace('/record')` only while root `Slot` stays mounted (`executorch-boot` flag). Do not flip destination to `app` before init or REPLACE to `(app)` fails with no navigator.
+- Checksums: Worker JSON (`sha256`+`size`+`version`) → MMKV cache (30d TTL) → **hardcoded `FALLBACK_CHECKSUMS`**. Block on unverifiable when hashing is enabled.
 - NetInfo pause/resume; AppState graceful pause; retry 3× exponential backoff (2s/4s/8s); pre-download disk check.
 
 ---
@@ -140,10 +145,36 @@ App-level lock deferred to OS device lock (MVP). Rule: queryable → SQLite; sin
 
 ## 9. Processing Queue
 
-- **No hard recording cap** — disk-gated + soft "N pending (~M min)" badge (estimate from measured drain time).
+**`processing-queue-store` (Slice 3.0)** owns the ordered session backlog that recording STOP feeds and `PipelineOrchestrator` (3.1) drains. Holds **session ids + queue metadata only** — never audio bytes, transcripts, or SOAP (paths stay in `AudioChunkQueue` / encrypted files).
+
+| Item field | Meaning |
+|---|---|
+| `sessionId` | Opaque id (no patient name/id in queue rows) |
+| `status` | `queued` \| `processing` \| `failed` |
+| `enqueuedAt` | ms timestamp for FIFO + badge ETA |
+| `retryCount` | `0` until first failure re-queues; `1` after auto-retry spent |
+| `failureReason?` | Non-PHI short code/message when `failed` |
+
+**API (store actions — all fallible ops → `Result<T>`):**
+
+| Action | Behavior |
+|---|---|
+| `enqueue(sessionId)` | Append if absent (`queued`); idempotent; satisfies `ProcessingEnqueuePort` |
+| `claimNext()` | First `queued` → `processing` (at most one `processing` at a time); `null` if none |
+| `complete(sessionId)` | Remove from queue (pipeline wrote session artifacts elsewhere) |
+| `fail(sessionId, reason)` | If `retryCount === 0` → re-`queued` + `retryCount = 1`; else → `failed` ("Needs attention") |
+| `requeue(sessionId)` | Manual re-run from `failed` → `queued`, `retryCount = 0` (LLM-only path is orchestrator concern when transcript exists) |
+| `cancel(sessionId)` | Remove item; invoke injected `onCancel(sessionId)` to delete recording assets (UI confirms first) |
+| `pendingBadge()` | `{ pendingCount, estimatedMinutes }` — count of `queued`+`processing`; ETA from measured drain ms/session (injectable; `0` until samples exist) |
+
+**Persistence:** injectable port (load/save item list). MVP wiring may use MMKV until Slice 4 SQLCipher `processing_queue` adapter. Restore on hydrate; crash mid-`processing` → treat as `queued` (orchestrator re-claims safely). No PHI in logs.
+
+**Product rules (unchanged):**
+
+- **No hard recording cap** — disk-gated + soft "N pending (~M min)" badge.
 - Persist + **auto-resume** on launch (background, non-blocking indicator).
 - **Cancel-with-confirm** (deletes recording). Reorder/priority deferred.
-- Failure → **auto-retry once** (OOM → tier auto-heal downgrade) → skip + mark `failed` ("Needs attention", manual re-run; re-run LLM-only if transcript on disk).
+- Failure → **auto-retry once** (OOM → tier auto-heal downgrade lives in LLM/orchestrator) → skip + mark `failed` ("Needs attention", manual re-run).
 
 ---
 

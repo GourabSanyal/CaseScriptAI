@@ -1,4 +1,4 @@
-# CaseScriptAI — Slice Plan & Tracker
+    # CaseScriptAI — Slice Plan & Tracker
 
 > Canonical progress tracker. **Read this + [`ARCHITECTURE.md`](./ARCHITECTURE.md) + [`PROJECT_RULES.md`](../PROJECT_RULES.md) first** in every new chat/tab.
 > Workflow: update the sub-slice to `IN PROGRESS` (with test plan) **before** work; mark `DONE` (with test + impl file links) only when tests are green.
@@ -9,10 +9,9 @@
 
 ## Cross-cutting decisions (locked in grill — see ARCHITECTURE.md)
 
-- Download: per-file phased sequential; **Range-resume for LLM**, restart for small assets.
-- **Model downloads:** `react-native-executorch` built-ins — STT: POC-validated `WHISPER_TINY` (`useSpeechToText`); LLM: selected Qwen3 tier constant (`useLLM`). Library fetches `.pte` + tokenizer from Software Mansion HuggingFace repos; caches on device.
-- Runtime integration = ExecuTorch hooks with explicit load/unload; `MemoryManager` enforces no co-residency.
-- Device tiering: 3 tiers (Qwen3 0.6B/1.7B/4B); Assess→Commit→Verify(warmup)→Auto-heal; sub-3GB served Lite.
+- Download: per-file phased sequential; **native disk stream** (not JS Range body buffers); **Range-resume for LLM**; restart for small assets.
+- **Download RAM:** never `initExecutorch` on the Download Screen; size-only integrity while fetching; delete wipes all LLM tiers + `.part` residue.
+- Runtime integration = ExecuTorch hooks with explicit load/unload; `MemoryManager` enforces no co-residency.- Device tiering: 3 tiers (Qwen3 0.6B/1.7B/4B); Assess→Commit→Verify(warmup)→Auto-heal; sub-3GB served Lite.
 - Memory: Whisper & LLM never co-resident; recording loads no model; peak <2GB on 3GB device.
 - Recording: batch (no live transcript); 30s chunks→disk atomic; background Option (b).
 - Storage: op-sqlite/SQLCipher + AES-GCM files + MMKV config; OS-level app lock.
@@ -40,14 +39,16 @@
 |---|---|---|---|---|
 | 1.1 | `StorageChecker` | DONE | [`storage-checker.test.ts`](../apps/CaseScriptAI/src/__tests__/services/download/storage-checker.test.ts) | [`storage-checker.ts`](../apps/CaseScriptAI/src/services/download/storage-checker.ts) |
 | 1.2 | `ChecksumValidator` (+ Worker/MMKV/fallback) | DONE | [`checksum-validator.test.ts`](../apps/CaseScriptAI/src/__tests__/services/download/checksum-validator.test.ts), [`fallback-checksums.test.ts`](../apps/CaseScriptAI/src/__tests__/constants/fallback-checksums.test.ts) | [`checksum-validator.ts`](../apps/CaseScriptAI/src/services/download/checksum-validator.ts), [`checksum-manifest.ts`](../apps/CaseScriptAI/src/services/download/checksum-manifest.ts), [`fallback-checksums.ts`](../apps/CaseScriptAI/src/constants/fallback-checksums.ts) |
-| 1.3 | `ResumableDownloadManager` (Range/restart, NetInfo, AppState, retry) | DONE | [`resumable-download-manager.test.ts`](../apps/CaseScriptAI/src/__tests__/services/download/resumable-download-manager.test.ts) | [`resumable-download-manager.ts`](../apps/CaseScriptAI/src/services/download/resumable-download-manager.ts), [`download-runtime.ts`](../apps/CaseScriptAI/src/stores/download-runtime.ts) |
-| 1.4 | ExecuTorch STT download (`WHISPER_TINY` / `useSpeechToText` — progress, retry, readiness) | DONE | [`executorch-model-download.test.ts`](../apps/CaseScriptAI/src/__tests__/services/download/executorch-model-download.test.ts), [`executorch-resource.test.ts`](../apps/CaseScriptAI/src/__tests__/services/download/executorch-resource.test.ts) | [`executorch-model-download.ts`](../apps/CaseScriptAI/src/services/download/executorch-model-download.ts), [`executorch-resource.ts`](../apps/CaseScriptAI/src/services/download/executorch-resource.ts), [`model-assets.ts`](../apps/CaseScriptAI/src/services/download/model-assets.ts) |
-| 1.5 | ExecuTorch LLM download (tier `.pte` + tokenizer via `useLLM`) | DONE | [`executorch-model-download.test.ts`](../apps/CaseScriptAI/src/__tests__/services/download/executorch-model-download.test.ts) | [`executorch-model-download.ts`](../apps/CaseScriptAI/src/services/download/executorch-model-download.ts), [`executorch-resource.ts`](../apps/CaseScriptAI/src/services/download/executorch-resource.ts) |
+| 1.3 | `ResumableDownloadManager` + native disk stream to ExecuTorch cache (throttled progress; no JS model buffers) | DONE | [`resumable-download-manager.test.ts`](../apps/CaseScriptAI/src/__tests__/services/download/resumable-download-manager.test.ts), [`streaming-download-transport.test.ts`](../apps/CaseScriptAI/src/__tests__/services/download/streaming-download-transport.test.ts) | [`resumable-download-manager.ts`](../apps/CaseScriptAI/src/services/download/resumable-download-manager.ts), [`streaming-download-transport.ts`](../apps/CaseScriptAI/src/services/download/streaming-download-transport.ts), [`streaming-download-fs.ts`](../apps/CaseScriptAI/src/services/download/streaming-download-fs.ts), [`download-runtime.ts`](../apps/CaseScriptAI/src/stores/download-runtime.ts) |
+| 1.4 | ExecuTorch STT download (`WHISPER_TINY` — progress, retry, readiness) | DONE | [`executorch-model-download.test.ts`](../apps/CaseScriptAI/src/__tests__/services/download/executorch-model-download.test.ts), [`executorch-resource.test.ts`](../apps/CaseScriptAI/src/__tests__/services/download/executorch-resource.test.ts) | [`executorch-model-download.ts`](../apps/CaseScriptAI/src/services/download/executorch-model-download.ts), [`executorch-resource.ts`](../apps/CaseScriptAI/src/services/download/executorch-resource.ts), [`executorch-resource-fetch.ts`](../apps/CaseScriptAI/src/services/download/executorch-resource-fetch.ts), [`model-assets.ts`](../apps/CaseScriptAI/src/services/download/model-assets.ts) |
+| 1.5 | ExecuTorch LLM download (tier `.pte` + tokenizer) | DONE | [`executorch-model-download.test.ts`](../apps/CaseScriptAI/src/__tests__/services/download/executorch-model-download.test.ts) | [`executorch-model-download.ts`](../apps/CaseScriptAI/src/services/download/executorch-model-download.ts), [`model-assets.ts`](../apps/CaseScriptAI/src/services/download/model-assets.ts) |
 | 1.6 | `downloadFFmpeg()` | PARKED | | pending POC |
 | 1.7 | `download-store` | DONE | [`download-store.test.ts`](../apps/CaseScriptAI/src/__tests__/stores/download-store.test.ts) | [`download-store.ts`](../apps/CaseScriptAI/src/stores/download-store.ts), [`run-model-download.ts`](../apps/CaseScriptAI/src/services/download/run-model-download.ts) |
-| 1.8 | Download Screen (progress, tier copy, warmup, retry) | DONE | [`download-store.test.ts`](../apps/CaseScriptAI/src/__tests__/stores/download-store.test.ts) | [`model-download.tsx`](../apps/CaseScriptAI/src/app/(onboarding)/model-download.tsx), [`model-download-view.tsx`](../apps/CaseScriptAI/src/components/model-download/model-download-view.tsx), [`download-runtime.ts`](../apps/CaseScriptAI/src/stores/download-runtime.ts) |
+| 1.8 | Download Screen (progress, delete all LLM tiers, Continue→init ExecuTorch→`/record`) | DONE | [`download-store.test.ts`](../apps/CaseScriptAI/src/__tests__/stores/download-store.test.ts), [`delete-model-assets.test.ts`](../apps/CaseScriptAI/src/__tests__/services/download/delete-model-assets.test.ts), [`executorch-resource-delete.test.ts`](../apps/CaseScriptAI/src/__tests__/services/download/executorch-resource-delete.test.ts) | [`model-download.tsx`](../apps/CaseScriptAI/src/app/(onboarding)/model-download.tsx), [`model-download-view.tsx`](../apps/CaseScriptAI/src/components/model-download/model-download-view.tsx), [`delete-model-assets.ts`](../apps/CaseScriptAI/src/services/download/delete-model-assets.ts), [`_layout.tsx`](../apps/CaseScriptAI/src/app/_layout.tsx), [`executorch-boot.ts`](../apps/CaseScriptAI/src/services/ai/executorch-boot.ts) |
 | 1.9 | Integration tests (NetInfo/checksum/storage/Range/auto-heal) | DONE | [`slice1-integration.test.ts`](../apps/CaseScriptAI/src/__tests__/services/download/slice1-integration.test.ts) | — |
-| 1.10 | `ModelManager.checkAllModelsReady()` + integrity watcher | DONE | [`model-manager.test.ts`](../apps/CaseScriptAI/src/__tests__/services/ai/model-manager.test.ts) | [`model-manager.ts`](../apps/CaseScriptAI/src/services/ai/model-manager.ts), [`model-manager-runtime.ts`](../apps/CaseScriptAI/src/services/ai/model-manager-runtime.ts), [`file-integrity.ts`](../apps/CaseScriptAI/src/services/download/file-integrity.ts), [`index.tsx`](../apps/CaseScriptAI/src/app/index.tsx) |
+| 1.10 | `ModelManager.checkAllModelsReady()` + size-safe integrity (`file-integrity` / no giant `toHex` spreads) | DONE | [`model-manager.test.ts`](../apps/CaseScriptAI/src/__tests__/services/ai/model-manager.test.ts), [`file-integrity.test.ts`](../apps/CaseScriptAI/src/__tests__/services/download/file-integrity.test.ts) | [`model-manager.ts`](../apps/CaseScriptAI/src/services/ai/model-manager.ts), [`model-manager-runtime.ts`](../apps/CaseScriptAI/src/services/ai/model-manager-runtime.ts), [`file-integrity.ts`](../apps/CaseScriptAI/src/services/download/file-integrity.ts), [`index.tsx`](../apps/CaseScriptAI/src/app/index.tsx) |
+
+> **Slice 1 device note (jetsam):** Peak RAM must stay &lt; ~2GB ActiveHard on 3GB phones. Do not reintroduce JS Range `fetch`+`arrayBuffer` for `.pte` files; do not `initExecutorch` before models are on disk; do not re-hash on every download progress tick.
 
 ## SLICE 2 — Recording System *(native capture adapter gated on POC; logic via `AudioCapturePort`)*
 
@@ -66,7 +67,7 @@
 
 | Sub | Description | Status | Tests | Impl |
 |---|---|---|---|---|
-| 3.0 | `processing-queue-store` | TODO | | |
+| 3.0 | `processing-queue-store` | IN PROGRESS | test plan below | — |
 | 3.1 | `PipelineOrchestrator` (queue consumer, events) | TODO | | |
 | 3.2 | `WhisperService` (lock, per-chunk, disk-partial, unload) | TODO | | |
 | 3.3 | `LLMService` (pre-check, interrupt-before-delete, OOM) | TODO | | |
@@ -74,6 +75,30 @@
 | 3.5 | Processing Screen | TODO | | |
 | 3.6 | Background continuation | TODO | | |
 | 3.7 | Unit tests (mocked models, OOM→auto-heal) | TODO | | |
+
+### 3.0 test plan (`processing-queue-store`)
+
+Target files (after approval): [`processing-queue-store.test.ts`](../apps/CaseScriptAI/src/__tests__/stores/processing-queue-store.test.ts) → [`processing-queue-store.ts`](../apps/CaseScriptAI/src/stores/processing-queue-store.ts) + [`processing-queue.ts`](../apps/CaseScriptAI/src/types/processing-queue.ts). Replaces lightweight [`pending-session-queue.ts`](../apps/CaseScriptAI/src/services/audio/pending-session-queue.ts) as `ProcessingEnqueuePort` for recording STOP.
+
+Contract: `ARCHITECTURE.md` §9.
+
+| # | Case |
+|---|---|
+| 1 | `enqueue` appends `queued` item; empty/blank sessionId fails `Result` |
+| 2 | `enqueue` is idempotent (same id twice → one row) |
+| 3 | Persist + restore round-trip via injected persistence port |
+| 4 | Mid-`processing` item normalizes to `queued` on restore (safe re-claim) |
+| 5 | `claimNext` promotes first `queued` → `processing`; second claim returns null while one processing |
+| 6 | `complete` removes item; `pendingBadge().pendingCount` drops |
+| 7 | `fail` with `retryCount===0` re-queues + sets `retryCount=1` |
+| 8 | Second `fail` marks `failed` (stays in list for "Needs attention") |
+| 9 | `requeue` from `failed` → `queued`, `retryCount=0` |
+| 10 | `cancel` removes item and calls injected `onCancel(sessionId)` |
+| 11 | `pendingBadge` counts `queued`+`processing`; `estimatedMinutes` from drain samples (0 until samples) |
+| 12 | Store satisfies `ProcessingEnqueuePort` (`enqueue` + `pendingCount`) for recording-store wiring |
+| 13 | No PHI: persistence payload is session ids + status metadata only (assert shape) |
+
+Out of scope for 3.0: PipelineOrchestrator drain loop, Whisper/LLM, SQLCipher adapter (Slice 4), UI confirm dialog (screen calls `cancel` after confirm), reorder/priority.
 
 ## SLICE 4 — Storage & Sessions
 
