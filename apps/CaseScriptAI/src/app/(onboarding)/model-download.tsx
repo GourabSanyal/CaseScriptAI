@@ -5,7 +5,12 @@ import { Appearance } from 'react-native';
 import { ModelDownloadView } from '@/components/model-download/model-download-view';
 import { modelManager } from '@/services/ai/model-manager-runtime';
 import { buildModelStatusRows } from '@/services/ai/model-status-rows';
+import {
+  deleteModelGroup,
+  type ModelGroupId,
+} from '@/services/download/delete-model-assets';
 import { useDownloadStore } from '@/stores/download-runtime';
+import { useBootStore } from '@/stores/boot-store';
 import { useDeviceStore } from '@/stores/device-store';
 
 import type { ModelReadiness } from '@/types/download';
@@ -20,8 +25,10 @@ export default function ModelDownloadScreen() {
   const machine = useDownloadStore((state) => state.machine);
   const startDownload = useDownloadStore((state) => state.startDownload);
   const retry = useDownloadStore((state) => state.retry);
+  const reset = useDownloadStore((state) => state.reset);
 
   const [readiness, setReadiness] = useState<ModelReadiness | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     const previous = Appearance.getColorScheme();
@@ -46,34 +53,56 @@ export default function ModelDownloadScreen() {
 
   useEffect(() => {
     void refreshReadiness();
-  }, [refreshReadiness, machine.status, progress]);
+  }, [refreshReadiness, machine.status]);
 
-  useEffect(() => {
-    if (!busy) return;
-    const id = setInterval(() => {
-      void refreshReadiness();
-    }, 2000);
-    return () => clearInterval(id);
-  }, [busy, refreshReadiness]);
+  // ponytail: no 2s poll while downloading — progress UI is enough; avoids extra FS work under memory pressure.
 
   const incompleteMessage =
     machine.status === 'complete' && readiness && !readiness.ready
       ? `Download marked complete but files missing: ${[...readiness.missing, ...readiness.corrupt].join(', ') || 'unknown'}`
       : null;
 
+  const handleDeleteModel = useCallback(
+    async (group: ModelGroupId) => {
+      if (busy) return;
+      setDeleteError(null);
+      const result = await deleteModelGroup(group, tier);
+      if (!result.success) {
+        setDeleteError(result.error);
+        return;
+      }
+      reset();
+      await refreshReadiness();
+    },
+    [busy, refreshReadiness, reset, tier],
+  );
+
   return (
     <ModelDownloadView
       percent={progress}
       phaseLabel={phaseLabel}
       modelStatuses={buildModelStatusRows(tier, readiness)}
-      error={error ?? incompleteMessage}
+      error={error ?? incompleteMessage ?? deleteError}
       busy={busy}
       checking={checking}
       complete={complete}
+      onDeleteModel={(id) => {
+        void handleDeleteModel(id);
+      }}
       onPrimaryPress={() => {
         if (checking) return;
+        setDeleteError(null);
         if (complete) {
-          router.replace('/(app)/record');
+          void (async () => {
+            const { initializeExecutorch } = await import('@/services/ai/llm-inference');
+            const init = await initializeExecutorch();
+            if (!init.success) {
+              setDeleteError(init.error);
+              return;
+            }
+            useBootStore.getState().setDestination('app');
+            router.replace('/record');
+          })();
           return;
         }
         if (machine.status === 'failed' || incompleteMessage) {

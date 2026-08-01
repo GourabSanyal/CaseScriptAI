@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { GradientButton } from '@/components/gradient-button';
@@ -10,6 +10,7 @@ import { Layout, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import {
   MODEL_STATUS_COPY,
+  type ModelGroupId,
   type ModelStatusRow,
 } from '@/services/ai/model-status-rows';
 
@@ -27,6 +28,7 @@ export type ModelDownloadViewProps = {
   checking?: boolean;
   complete?: boolean;
   onPrimaryPress: () => void;
+  onDeleteModel?: (id: ModelGroupId) => void;
 };
 
 export function ModelDownloadView({
@@ -38,6 +40,7 @@ export function ModelDownloadView({
   checking = false,
   complete = false,
   onPrimaryPress,
+  onDeleteModel,
 }: ModelDownloadViewProps) {
   const theme = useTheme();
   const { width } = useWindowDimensions();
@@ -105,7 +108,7 @@ export function ModelDownloadView({
               accessibilityRole="summary"
             >
               {modelStatuses.map((row) => (
-                <View key={row.label} style={styles.statusRow}>
+                <View key={row.id} style={styles.statusRow}>
                   <MaterialIcons
                     name={
                       row.state === 'ready'
@@ -126,6 +129,22 @@ export function ModelDownloadView({
                       {row.detail ? ` · ${row.detail}` : ''}
                     </ThemedText>
                   </View>
+                  {row.canDelete && onDeleteModel ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Delete ${row.label}`}
+                      testID={`model-delete-${row.id}`}
+                      disabled={busy}
+                      hitSlop={8}
+                      onPress={() => onDeleteModel(row.id)}
+                      style={({ pressed }) => [
+                        styles.deleteButton,
+                        { opacity: busy ? 0.4 : pressed ? 0.6 : 1 },
+                      ]}
+                    >
+                      <MaterialIcons name="delete-outline" size={22} color={theme.textSecondary} />
+                    </Pressable>
+                  ) : null}
                 </View>
               ))}
             </View>
@@ -202,5 +221,8 @@ const styles = StyleSheet.create({
   statusText: {
     flex: 1,
     gap: 2,
+  },
+  deleteButton: {
+    padding: Spacing.one,
   },
 });
