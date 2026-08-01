@@ -1,15 +1,16 @@
 import { AudioRecorderService } from '@/services/audio/audio-recorder-service';
 import { ForegroundSessionService } from '@/services/audio/foreground-session-service';
-import { createPendingSessionQueue } from '@/services/audio/pending-session-queue';
 import { createWavChunkWriter } from '@/services/audio/wav-chunk-writer';
 import { appStorage } from '@/services/storage/mmkv';
+import { createProcessingQueueStore } from '@/stores/processing-queue-store';
 import { createRecordingStore } from '@/stores/recording-store';
 import { AppErrorCode } from '@/types/result';
 
+import type { ProcessingQueueItem } from '@/types/processing-queue';
 import type { AudioCapturePort } from '@/types/recording';
 import type { Result } from '@/types/result';
 
-const PENDING_KEY = 'processing-pending-sessions';
+const PENDING_KEY = 'processing-queue-items';
 const CHECKPOINT_KEY = 'recording-checkpoint';
 
 /** Native PCM mic adapter is gated on POC_remove_ffmpeg device results (ARCHITECTURE §12). */
@@ -40,18 +41,22 @@ const chunkWriter = createWavChunkWriter(
   (sessionId, sequence) => `recording://${sessionId}/${sequence}.wav`,
 );
 
-const enqueuePort = createPendingSessionQueue({
-  load: () => {
-    const raw = appStorage.getString(PENDING_KEY);
-    if (!raw) return [];
-    try {
-      const parsed = JSON.parse(raw) as unknown;
-      return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : [];
-    } catch {
-      return [];
-    }
+const loadQueueItems = (): ProcessingQueueItem[] => {
+  const raw = appStorage.getString(PENDING_KEY);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed) ? (parsed as ProcessingQueueItem[]) : [];
+  } catch {
+    return [];
+  }
+};
+
+export const useProcessingQueueStore = createProcessingQueueStore({
+  persistence: {
+    load: loadQueueItems,
+    save: (items) => appStorage.set(PENDING_KEY, JSON.stringify(items)),
   },
-  save: (ids) => appStorage.set(PENDING_KEY, JSON.stringify(ids)),
 });
 
 const chunkQueueBySession = new Map<string, { id: string; sequence: number; path: string }[]>();
@@ -107,6 +112,9 @@ export const foregroundSessionService = new ForegroundSessionService({
 export const useRecordingStore = createRecordingStore({
   recorder: audioRecorderService,
   foreground: foregroundSessionService,
-  enqueueSession: enqueuePort,
+  enqueueSession: {
+    enqueue: (sessionId) => useProcessingQueueStore.getState().enqueue(sessionId),
+    pendingCount: () => useProcessingQueueStore.getState().pendingCount(),
+  },
   createSessionId: () => `session-${Date.now()}`,
 });

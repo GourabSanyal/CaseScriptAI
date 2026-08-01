@@ -5,14 +5,19 @@ import { AppHeader } from '@/components/app-header';
 import { ThemedText } from '@/components/themed-text';
 import { Layout, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { useRecordingStore } from '@/stores/recording-runtime';
+import { useProcessingQueueStore } from '@/stores/recording-runtime';
 
 export default function QueueScreen() {
   const theme = useTheme();
   const { width } = useWindowDimensions();
   const horizontalPad =
     width >= Layout.tabletBreakpoint ? Spacing.marginTablet : Spacing.marginMobile;
-  const pendingCount = useRecordingStore((state) => state.pendingCount);
+  const pendingCount = useProcessingQueueStore((state) =>
+    state.items.filter((item) => item.status === 'queued' || item.status === 'processing').length,
+  );
+  const failedCount = useProcessingQueueStore(
+    (state) => state.items.filter((item) => item.status === 'failed').length,
+  );
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]} edges={['top']}>
@@ -28,9 +33,15 @@ export default function QueueScreen() {
               ? `${pendingCount} session${pendingCount === 1 ? '' : 's'} waiting to process.`
               : 'No sessions in the processing queue yet.'}
           </ThemedText>
-          <ThemedText type="labelSm" themeColor="textSecondary">
-            Full session list arrives with Slice 4.
-          </ThemedText>
+          {failedCount > 0 ? (
+            <ThemedText type="labelSm" themeColor="textSecondary">
+              {failedCount} need{failedCount === 1 ? 's' : ''} attention — open Processing to re-run.
+            </ThemedText>
+          ) : (
+            <ThemedText type="labelSm" themeColor="textSecondary">
+              Full session list arrives with Slice 4.
+            </ThemedText>
+          )}
         </View>
       </View>
     </SafeAreaView>
