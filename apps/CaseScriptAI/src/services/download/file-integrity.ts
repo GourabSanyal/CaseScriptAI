@@ -8,24 +8,42 @@ import type { Result } from '@/types/result';
 
 const HASH_SIZE_LIMIT = 16 * 1024 * 1024;
 
-const toHex = (buffer: ArrayBuffer): string =>
-  [...new Uint8Array(buffer)].map((b) => b.toString(16).padStart(2, '0')).join('');
+/** Lookup table — never spread a multi‑MB Uint8Array into a JS array (jetsam risk). */
+const HEX_BYTE = Array.from({ length: 256 }, (_, i) => i.toString(16).padStart(2, '0'));
+
+export const toHex = (bytes: Uint8Array): string => {
+  let out = '';
+  for (let i = 0; i < bytes.length; i += 1) {
+    out += HEX_BYTE[bytes[i]!]!;
+  }
+  return out;
+};
 
 const sha256Bytes = async (bytes: Uint8Array): Promise<string> => {
-  const digest = await crypto.subtle.digest('SHA-256', bytes.buffer as ArrayBuffer);
-  return toHex(digest);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return toHex(new Uint8Array(digest));
 };
 
 const asFileUri = (path: string): string => (path.startsWith('file://') ? path : `file://${path}`);
 
+export type ValidateDownloadedAssetOptions = {
+  /**
+   * When false, only size is checked (safe for frequent readiness polling).
+   * SHA runs after download completes (`hash: true`, default).
+   */
+  hash?: boolean;
+};
+
 /**
- * Verifies size always; SHA-256 for files ≤16MB.
+ * Verifies size always; SHA-256 for files ≤16MB when `hash` is true.
  * ponytail: large .pte size-gated until native streaming SHA lands.
  */
 export const validateDownloadedAsset = async (
   assetId: DownloadAssetId,
   path: string,
+  options: ValidateDownloadedAssetOptions = {},
 ): Promise<Result<void>> => {
+  const hash = options.hash !== false;
   const resolved = await checksumValidator.resolveRecord(assetId);
   if (!resolved.success) return resolved;
 
@@ -48,8 +66,11 @@ export const validateDownloadedAsset = async (
       };
     }
 
+    if (!hash) {
+      return { success: true, data: undefined };
+    }
+
     if (size <= HASH_SIZE_LIMIT && typeof fetch === 'function') {
-      // Read via fetch(file://) when available; skip hash if unsupported in Jest.
       try {
         const response = await fetch(asFileUri(path));
         const buffer = new Uint8Array(await response.arrayBuffer());
