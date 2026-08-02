@@ -17,7 +17,59 @@
 - Storage: op-sqlite/SQLCipher + AES-GCM files + MMKV config; OS-level app lock.
 - Checksums: Worker→MMKV→hardcoded fallback; block on unverifiable.
 - Queue: no hard cap (disk-gated); persist+auto-resume; cancel-with-confirm; fail→retry once→skip+flag.
-- **FFmpeg/audio-conversion PARKED** pending `POC_remove_ffmpeg` device tests.
+- **FFmpeg/audio-conversion PARKED** pending `POC_remove_ffmpeg` device tests — see **Parked & gated ledger** below.
+
+---
+
+## Parked & gated ledger
+
+> Do **not** unpark rows below until their gate clears. `PARKED` = no product code yet. `GATED` = logic/`DONE` with stub/port; native or infra still missing. Canonical decision: [`ARCHITECTURE.md` §12](./ARCHITECTURE.md).
+
+### Gate: `POC_remove_ffmpeg` (ARCHITECTURE §12)
+
+Branch validates **native raw-PCM capture + native decoders** vs keeping FFmpeg. Outcome decides whether 1.6 is implemented or **deleted**.
+
+| ID | Item | Status | Complete in | Notes |
+|---|---|---|---|---|
+| **1.6** | `downloadFFmpeg()` | PARKED | **Slice 1** (unpark) **or delete** | If native path wins → remove row + any FFmpeg download UI. If FFmpeg wins → implement under 1.6 then wire Download Screen. |
+| **2.1 native** | Real `AudioCapturePort` mic adapter | GATED (2.1 logic DONE) | **Slice 2** | Replace `pendingNativeCapture` in `recording-runtime.ts`. Android can ship FG mic without Apple paid account; iOS bg recording needs paid Apple Developer. |
+| **2.2 native** | Real FG / bg-audio notification | GATED (2.2 logic DONE) | **Slice 2** (with 2.1 native) | Stub notification OK until capture lands. |
+| **2.7** | `AudioConversionService` (imports → 16 kHz mono WAV) | PARKED | **Slice 2** | Unpark only after §12 chooses decoder strategy (native vs FFmpeg). Feeds same Whisper→LLM pipeline. |
+
+**Unpark order after POC:** (1) decide FFmpeg keep/delete → (2) 2.1 native adapter → (3) 2.2 real notification → (4) 1.6 only if FFmpeg kept → (5) 2.7 import conversion.
+
+### Gate: ExecuTorch device binding (Slice 3 stubs)
+
+| ID | Item | Status | Complete in | Notes |
+|---|---|---|---|---|
+| **3.RT** | Bind `useSpeechToText` / `useLLM` → `WhisperRuntimePort` / `LlmRuntimePort` | DONE (device bind) | **Slice 3** | [`use-bind-pipeline-runtimes.ts`](../apps/CaseScriptAI/src/hooks/ai/use-bind-pipeline-runtimes.ts) + [`pipeline-runtime-bridge.ts`](../apps/CaseScriptAI/src/services/ai/pipeline-runtime-bridge.ts); mounted in `(app)/_layout`. |
+| **2.7 bridge** | Temp local-file import via POC FFmpeg | TEMP (not 2.7 DONE) | **Slice 2** formal after §12 | [`import-audio-to-queue.ts`](../apps/CaseScriptAI/src/services/audio/import-audio-to-queue.ts) + Home **Import audio** — for ASAP testing only. |
+| **3.SHA** | Streaming SHA for large `.pte` (today size-gated) | GATED (1.10 size-safe DONE) | **Slice 1** follow-up or **Slice 7** | Optional hardening; not blocking Slice 4. |
+
+### Gate: Storage / crypto (intentional Slice 4+)
+
+| ID | Item | Status | Complete in | Notes |
+|---|---|---|---|---|
+| **4.SQL** | SQLCipher adapters for `sessions` / `processing_queue` / `audio_chunks` | GATED (MMKV/in-memory ports today) | **Slice 4** (`4.1` + queue/chunk ports) | Replace MMKV queue/SOAP shortcuts in `pipeline-runtime` / `recording-runtime`. |
+| **4.AES** | AES-GCM encrypted transcript + SOAP files | GATED (plaintext MMKV SOAP ponytail) | **Slice 4** (`4.5`/`4.6`) | Keychain/Keystore key wiring is **4.6**. |
+| **4.PURGE** | Purge temp WAV after pipeline `COMPLETE` | TODO | **Slice 4.5** | Orchestrator deletes per-chunk today; session-level cleanup + SQL rows in 4.5. |
+
+### Gate: Resilience polish (Slice 5)
+
+| ID | Item | Status | Complete in | Notes |
+|---|---|---|---|---|
+| **5.OOM** | Full OOM → tier auto-heal (download downgrade) mid-pipeline | PARTIAL (queue retry-once in Slice 3) | **Slice 5.2** | Slice 3 marks `MODEL_OOM` + queue retry; lasting tier heal + re-download is 5.2. |
+| **5.ORPH** | Broader session/AppState recovery beyond recording orphan | PARTIAL (2.6 + 3.6 DONE) | **Slice 5.5–5.6** | Recording orphan + pipeline foreground drain exist; global handler is 5.1+. |
+
+### Explicitly out of scope / deferred (not PARKED rows)
+
+| Item | When (if ever) |
+|---|---|
+| Session reorder / priority in processing queue | Post-MVP |
+| Hard recording time cap | Post-MVP (disk-gated only) |
+| Live transcription during recording | Post-MVP |
+| App-level PIN lock | OS device lock for MVP |
+| i18n | Post-V1 |
 
 ---
 
@@ -42,7 +94,7 @@
 | 1.3 | `ResumableDownloadManager` + native disk stream to ExecuTorch cache (throttled progress; no JS model buffers) | DONE | [`resumable-download-manager.test.ts`](../apps/CaseScriptAI/src/__tests__/services/download/resumable-download-manager.test.ts), [`streaming-download-transport.test.ts`](../apps/CaseScriptAI/src/__tests__/services/download/streaming-download-transport.test.ts) | [`resumable-download-manager.ts`](../apps/CaseScriptAI/src/services/download/resumable-download-manager.ts), [`streaming-download-transport.ts`](../apps/CaseScriptAI/src/services/download/streaming-download-transport.ts), [`streaming-download-fs.ts`](../apps/CaseScriptAI/src/services/download/streaming-download-fs.ts), [`download-runtime.ts`](../apps/CaseScriptAI/src/stores/download-runtime.ts) |
 | 1.4 | ExecuTorch STT download (`WHISPER_TINY` — progress, retry, readiness) | DONE | [`executorch-model-download.test.ts`](../apps/CaseScriptAI/src/__tests__/services/download/executorch-model-download.test.ts), [`executorch-resource.test.ts`](../apps/CaseScriptAI/src/__tests__/services/download/executorch-resource.test.ts) | [`executorch-model-download.ts`](../apps/CaseScriptAI/src/services/download/executorch-model-download.ts), [`executorch-resource.ts`](../apps/CaseScriptAI/src/services/download/executorch-resource.ts), [`executorch-resource-fetch.ts`](../apps/CaseScriptAI/src/services/download/executorch-resource-fetch.ts), [`model-assets.ts`](../apps/CaseScriptAI/src/services/download/model-assets.ts) |
 | 1.5 | ExecuTorch LLM download (tier `.pte` + tokenizer) | DONE | [`executorch-model-download.test.ts`](../apps/CaseScriptAI/src/__tests__/services/download/executorch-model-download.test.ts) | [`executorch-model-download.ts`](../apps/CaseScriptAI/src/services/download/executorch-model-download.ts), [`model-assets.ts`](../apps/CaseScriptAI/src/services/download/model-assets.ts) |
-| 1.6 | `downloadFFmpeg()` | PARKED | | pending POC |
+| 1.6 | `downloadFFmpeg()` | PARKED | | **Ledger:** complete in Slice 1 after §12, or **delete** if native wins |
 | 1.7 | `download-store` | DONE | [`download-store.test.ts`](../apps/CaseScriptAI/src/__tests__/stores/download-store.test.ts) | [`download-store.ts`](../apps/CaseScriptAI/src/stores/download-store.ts), [`run-model-download.ts`](../apps/CaseScriptAI/src/services/download/run-model-download.ts) |
 | 1.8 | Download Screen (progress, delete all LLM tiers, Continue→init ExecuTorch→`/record`) | DONE | [`download-store.test.ts`](../apps/CaseScriptAI/src/__tests__/stores/download-store.test.ts), [`delete-model-assets.test.ts`](../apps/CaseScriptAI/src/__tests__/services/download/delete-model-assets.test.ts), [`executorch-resource-delete.test.ts`](../apps/CaseScriptAI/src/__tests__/services/download/executorch-resource-delete.test.ts) | [`model-download.tsx`](../apps/CaseScriptAI/src/app/(onboarding)/model-download.tsx), [`model-download-view.tsx`](../apps/CaseScriptAI/src/components/model-download/model-download-view.tsx), [`delete-model-assets.ts`](../apps/CaseScriptAI/src/services/download/delete-model-assets.ts), [`_layout.tsx`](../apps/CaseScriptAI/src/app/_layout.tsx), [`executorch-boot.ts`](../apps/CaseScriptAI/src/services/ai/executorch-boot.ts) |
 | 1.9 | Integration tests (NetInfo/checksum/storage/Range/auto-heal) | DONE | [`slice1-integration.test.ts`](../apps/CaseScriptAI/src/__tests__/services/download/slice1-integration.test.ts) | — |
@@ -54,13 +106,13 @@
 
 | Sub | Description | Status | Tests | Impl |
 |---|---|---|---|---|
-| 2.1 | `AudioRecorderService` (30s chunks→disk, atomic, permissions) | DONE | [`audio-recorder-service.test.ts`](../apps/CaseScriptAI/src/__tests__/services/audio/audio-recorder-service.test.ts), [`wav-chunk-writer.test.ts`](../apps/CaseScriptAI/src/__tests__/services/audio/wav-chunk-writer.test.ts) | [`audio-recorder-service.ts`](../apps/CaseScriptAI/src/services/audio/audio-recorder-service.ts), [`wav-chunk-writer.ts`](../apps/CaseScriptAI/src/services/audio/wav-chunk-writer.ts), [`wav-pcm.ts`](../apps/CaseScriptAI/src/services/audio/wav-pcm.ts) — native `AudioCapturePort` adapter still pending §12 |
-| 2.2 | `ForegroundSessionService` (background alive, notification, checkpoint) | DONE | [`foreground-session-service.test.ts`](../apps/CaseScriptAI/src/__tests__/services/audio/foreground-session-service.test.ts) | [`foreground-session-service.ts`](../apps/CaseScriptAI/src/services/audio/foreground-session-service.ts) — real FG notification pending native capture |
+| 2.1 | `AudioRecorderService` (30s chunks→disk, atomic, permissions) | DONE | [`audio-recorder-service.test.ts`](../apps/CaseScriptAI/src/__tests__/services/audio/audio-recorder-service.test.ts), [`wav-chunk-writer.test.ts`](../apps/CaseScriptAI/src/__tests__/services/audio/wav-chunk-writer.test.ts) | [`audio-recorder-service.ts`](../apps/CaseScriptAI/src/services/audio/audio-recorder-service.ts), [`wav-chunk-writer.ts`](../apps/CaseScriptAI/src/services/audio/wav-chunk-writer.ts), [`wav-pcm.ts`](../apps/CaseScriptAI/src/services/audio/wav-pcm.ts) — **native adapter GATED** → Slice 2 after §12 ([ledger](#parked--gated-ledger)) |
+| 2.2 | `ForegroundSessionService` (background alive, notification, checkpoint) | DONE | [`foreground-session-service.test.ts`](../apps/CaseScriptAI/src/__tests__/services/audio/foreground-session-service.test.ts) | [`foreground-session-service.ts`](../apps/CaseScriptAI/src/services/audio/foreground-session-service.ts) — **real FG notification GATED** → Slice 2 with 2.1 native ([ledger](#parked--gated-ledger)) |
 | 2.3 | `RecordingStateMachine` | DONE | [`recording-state-machine.test.ts`](../apps/CaseScriptAI/src/__tests__/services/audio/recording-state-machine.test.ts) | [`recording-state-machine.ts`](../apps/CaseScriptAI/src/services/audio/recording-state-machine.ts), [`recording.ts`](../apps/CaseScriptAI/src/types/recording.ts) |
 | 2.4 | `recording-store` | DONE | [`recording-store.test.ts`](../apps/CaseScriptAI/src/__tests__/stores/recording-store.test.ts) | [`recording-store.ts`](../apps/CaseScriptAI/src/stores/recording-store.ts), [`recording-runtime.ts`](../apps/CaseScriptAI/src/stores/recording-runtime.ts) |
 | 2.5 | START always enabled; enqueue; processing badge | DONE | [`recording-store.test.ts`](../apps/CaseScriptAI/src/__tests__/stores/recording-store.test.ts) | [`record.tsx`](../apps/CaseScriptAI/src/app/(app)/record.tsx), [`pending-session-queue.ts`](../apps/CaseScriptAI/src/services/audio/pending-session-queue.ts) |
 | 2.6 | Orphaned-session recovery | DONE | [`recording-store.test.ts`](../apps/CaseScriptAI/src/__tests__/stores/recording-store.test.ts), [`recording-state-machine.test.ts`](../apps/CaseScriptAI/src/__tests__/services/audio/recording-state-machine.test.ts) | [`recording-store.ts`](../apps/CaseScriptAI/src/stores/recording-store.ts), [`record.tsx`](../apps/CaseScriptAI/src/app/(app)/record.tsx) |
-| 2.7 | `AudioConversionService` (imports) | PARKED | | pending POC |
+| 2.7 | `AudioConversionService` (imports) | PARKED | | **Ledger:** complete in Slice 2 after §12 decoder choice |
 | 2.8 | Unit tests | DONE | `yarn workspace casescriptai test --runInBand --testPathPattern='(recording-state-machine\|wav-chunk-writer\|audio-recorder-service\|foreground-session-service\|recording-store)'` — 20 passing | — |
 
 ## SLICE 3 — Processing Pipeline
@@ -76,9 +128,11 @@
 | 3.6 | Background continuation | DONE | [`pipeline-background.test.ts`](../apps/CaseScriptAI/src/__tests__/services/ai/pipeline-background.test.ts) | [`pipeline-background.ts`](../apps/CaseScriptAI/src/services/ai/pipeline-background.ts), [`pipeline-runtime.ts`](../apps/CaseScriptAI/src/stores/pipeline-runtime.ts) |
 | 3.7 | Unit tests (mocked models, OOM→auto-heal) | DONE | `yarn workspace casescriptai test --runInBand --testPathPattern='(processing-queue-store\|pipeline-orchestrator\|whisper-service\|llm-service\|pipeline-store\|pipeline-background)'` — 28 passing | — |
 
-> **Slice 3 device note:** Logic + mocked ports are green. Bind real ExecuTorch `useSpeechToText` / `useLLM` into `WhisperRuntimePort` / `LlmRuntimePort` and call `setPipelineRuntimesReady(true)` before draining — stub runtimes must not claim queue sessions (burns retry budget). SOAP file encryption lands in Slice 4.
+> **Slice 3 device note:** ExecuTorch ports bound via `useBindPipelineRuntimes` (3.RT). Live mic still GATED on §12 (2.1). Temp **Import audio** uses FFmpeg (`2.7 bridge`) — do not mark 2.7 DONE. SOAP encryption → Slice 4.
 
 ## SLICE 4 — Storage & Sessions
+
+> Picks up ledger **4.SQL / 4.AES / 4.PURGE** (SQLCipher queue/chunks, encrypted SOAP files, Keychain keys, purge after COMPLETE).
 
 | Sub | Description | Status | Tests | Impl |
 |---|---|---|---|---|
@@ -90,6 +144,8 @@
 | 4.6 | Unit tests + Keychain/Keystore key wiring | TODO | | |
 
 ## SLICE 5 — Error Recovery & Resilience
+
+> Picks up ledger **5.OOM / 5.ORPH** (full tier auto-heal; global AppState/session recovery beyond 2.6 + 3.6).
 
 | Sub | Description | Status | Tests | Impl |
 |---|---|---|---|---|

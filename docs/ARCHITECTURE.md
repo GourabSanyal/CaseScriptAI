@@ -212,7 +212,8 @@ enum AppErrorCode {
 
 ## 12. Parked / Pending Decisions
 
-- **Audio conversion / FFmpeg** — being validated on branch `POC_remove_ffmpeg` (native raw-PCM capture + native decoders vs. FFmpeg). Slices 1.6 / 2.1 / 2.7 gated on the result. FFmpeg download slice may be **deleted** if native path wins.
+- **Audio conversion / FFmpeg** — being validated on branch `POC_remove_ffmpeg` (native raw-PCM capture + native decoders vs. FFmpeg). Slices **1.6 / 2.1 native / 2.7** gated on the result. FFmpeg download slice may be **deleted** if native path wins.
+- **Full parked/gated map** (which slice finishes each item, unpark order, ExecuTorch binding, SQLCipher/AES): [`SLICES_PLAN.md` — Parked & gated ledger](./SLICES_PLAN.md#parked--gated-ledger).
 
 ---
 
