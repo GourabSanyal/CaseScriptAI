@@ -1,9 +1,15 @@
 import { AppState } from 'react-native';
+import { File } from 'expo-file-system';
 
 import { LlmService } from '@/services/ai/llm-service';
 import { memoryManager } from '@/services/ai/memory-manager';
 import { createPipelineBackgroundController } from '@/services/ai/pipeline-background';
 import { PipelineOrchestrator } from '@/services/ai/pipeline-orchestrator';
+import {
+  arePipelineRuntimesReady,
+  llmRuntimeBridge,
+  whisperRuntimeBridge,
+} from '@/services/ai/pipeline-runtime-bridge';
 import { TranscriptQueue } from '@/services/ai/transcript-queue';
 import { WhisperService } from '@/services/ai/whisper-service';
 import { AudioChunkQueue } from '@/services/audio/audio-chunk-queue';
@@ -13,7 +19,6 @@ import { useProcessingQueueStore } from '@/stores/recording-runtime';
 
 import type { AudioChunkRef } from '@/services/audio/audio-chunk-queue';
 import type { TranscriptSegment } from '@/services/ai/transcript-queue';
-import type { Result } from '@/types/result';
 
 const audioKey = (sessionId: string) => `pipeline-audio-chunks:${sessionId}`;
 const transcriptKey = (sessionId: string) => `pipeline-transcript:${sessionId}`;
@@ -29,52 +34,30 @@ const readJson = <T>(key: string): T | null => {
   }
 };
 
-/** Flipped when ExecuTorch STT/LLM ports are bound in a React tree. */
-let pipelineRuntimesReady = false;
-
-export const setPipelineRuntimesReady = (ready: boolean): void => {
-  pipelineRuntimesReady = ready;
-};
-
-export const arePipelineRuntimesReady = (): boolean => pipelineRuntimesReady;
-
-/** Placeholder until ExecuTorch hooks are bound (drain gated so stubs cannot burn retries). */
-const pendingWhisperRuntime = {
-  load: async (): Promise<Result<void>> => ({
-    success: false,
-    error: 'Whisper runtime pending ExecuTorch hook binding',
-  }),
-  transcribe: async (): Promise<Result<string>> => ({
-    success: false,
-    error: 'Whisper runtime pending ExecuTorch hook binding',
-  }),
-  unload: async (): Promise<Result<void>> => ({ success: true, data: undefined }),
-};
-
-const pendingLlmRuntime = {
-  isReady: async (): Promise<Result<void>> => ({
-    success: false,
-    error: 'LLM runtime pending ExecuTorch hook binding',
-  }),
-  generate: async (): Promise<Result<string>> => ({
-    success: false,
-    error: 'LLM runtime pending ExecuTorch hook binding',
-  }),
-  interrupt: async (): Promise<Result<void>> => ({ success: true, data: undefined }),
-  unload: async (): Promise<Result<void>> => ({ success: true, data: undefined }),
-};
+export { arePipelineRuntimesReady, setPipelineRuntimesReady } from '@/services/ai/pipeline-runtime-bridge';
 
 export const whisperService = new WhisperService({
   memory: memoryManager,
-  runtime: pendingWhisperRuntime,
+  runtime: whisperRuntimeBridge,
   deleteChunk: {
-    deletePath: async () => ({ success: true, data: undefined }),
+    deletePath: async (path) => {
+      try {
+        const file = new File(path);
+        if (file.exists) file.delete();
+        return { success: true, data: undefined };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Delete failed',
+        };
+      }
+    },
   },
 });
 
 export const llmService = new LlmService({
   memory: memoryManager,
-  runtime: pendingLlmRuntime,
+  runtime: llmRuntimeBridge,
 });
 
 const queuePort = {
@@ -123,7 +106,7 @@ export const pipelineOrchestrator = new PipelineOrchestrator({
 
 export const usePipelineStore = createPipelineStore({
   runUntilIdle: async () => {
-    if (!pipelineRuntimesReady) {
+    if (!arePipelineRuntimesReady()) {
       return { success: false, error: 'Pipeline runtimes not ready' };
     }
     return pipelineOrchestrator.runUntilIdle();
@@ -132,7 +115,7 @@ export const usePipelineStore = createPipelineStore({
 
 export const pipelineBackground = createPipelineBackgroundController({
   onForeground: () => {
-    if (!pipelineRuntimesReady) return;
+    if (!arePipelineRuntimesReady()) return;
     void usePipelineStore.getState().startDrain();
   },
   subscribe: (listener) => {
