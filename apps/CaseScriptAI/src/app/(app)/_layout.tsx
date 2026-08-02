@@ -3,11 +3,13 @@ import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Colors, FontFamily, Spacing } from '@/constants/theme';
+import { useBindPipelineRuntimes } from '@/hooks/ai/use-bind-pipeline-runtimes';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 const TAB_BAR_CONTENT_HEIGHT = 56;
 
 export default function AppLayout() {
+  useBindPipelineRuntimes();
   const scheme = useColorScheme();
   const theme = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const insets = useSafeAreaInsets();
