@@ -16,6 +16,7 @@ type HomePrimaryActionsProps = {
   onResume: () => void;
   onStop: () => void;
   onRecover: (action: 'resume' | 'discard') => void;
+  onImportAudio?: () => void;
 };
 
 export function HomePrimaryActions({
@@ -26,6 +27,7 @@ export function HomePrimaryActions({
   onResume,
   onStop,
   onRecover,
+  onImportAudio,
 }: HomePrimaryActionsProps) {
   const theme = useTheme();
   const isRecording = machine.status === 'recording';
@@ -88,6 +90,23 @@ export function HomePrimaryActions({
             START
           </ThemedText>
         </GradientButton>
+      ) : null}
+
+      {canStart && onImportAudio ? (
+        <Pressable
+          accessibilityLabel="Import audio file"
+          accessibilityRole="button"
+          testID="home-import-audio"
+          onPress={onImportAudio}
+          style={({ pressed }) => [
+            styles.secondary,
+            { borderColor: theme.outlineVariant, opacity: pressed ? 0.85 : 1 },
+          ]}
+        >
+          <ThemedText type="bodyMd" themeColor="textSecondary">
+            Import audio
+          </ThemedText>
+        </Pressable>
       ) : null}
 
       {isRecording || isPaused ? (

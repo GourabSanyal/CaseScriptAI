@@ -22,6 +22,7 @@ export type HomeRecordViewProps = {
   onResume: () => void;
   onStop: () => void;
   onRecover: (action: 'resume' | 'discard') => void;
+  onImportAudio?: () => void;
 };
 
 const waveformCopy = (machine: RecordingState): string => {
@@ -44,6 +45,7 @@ export function HomeRecordView({
   onResume,
   onStop,
   onRecover,
+  onImportAudio,
 }: HomeRecordViewProps) {
   const theme = useTheme();
   const { width } = useWindowDimensions();
@@ -76,6 +78,7 @@ export function HomeRecordView({
             onResume={onResume}
             onStop={onStop}
             onRecover={onRecover}
+            onImportAudio={onImportAudio}
           />
         </View>
       </View>
