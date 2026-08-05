@@ -31,9 +31,12 @@ export default function ModelDownloadScreen() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
-    const previous = Appearance.getColorScheme();
+    // Download UI is designed for light; force light while mounted.
     Appearance.setColorScheme('light');
-    return () => Appearance.setColorScheme(previous);
+    return () => {
+      // Restore OS preference so main app dark/light toggle works again.
+      Appearance.setColorScheme(null);
+    };
   }, []);
 
   useEffect(() => {
