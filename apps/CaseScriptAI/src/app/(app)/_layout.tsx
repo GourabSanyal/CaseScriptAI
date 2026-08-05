@@ -47,9 +47,9 @@ export default function AppLayout() {
       <Tabs.Screen
         name="queue"
         options={{
-          title: 'Queue',
+          title: 'Records',
           tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="schedule" size={size} color={color} />
+            <MaterialIcons name="list-alt" size={size} color={color} />
           ),
         }}
       />
