@@ -101,4 +101,22 @@ describe('download-store', () => {
     expect(result).toMatchObject({ errorCode: AppErrorCode.DOWNLOAD_NETWORK });
     expect(store.getState().machine.status).toBe('failed');
   });
+
+  it('does not mark complete when disk verifyReady fails', async () => {
+    const store = createDownloadStore({
+      downloadAsset: async () => ({ success: true, data: '/tmp/file' }),
+      warmup: async () => ({ success: true, data: undefined }),
+      downgradeAfterWarmupFailure: () => ({ success: false, error: 'no' }),
+      verifyReady: async () => ({
+        success: false,
+        error: 'Missing models',
+        errorCode: AppErrorCode.MODEL_MISSING,
+      }),
+      stateStorage: memoryStorage(),
+    });
+
+    const result = await store.getState().startDownload('lite');
+    expect(result).toMatchObject({ errorCode: AppErrorCode.MODEL_MISSING });
+    expect(store.getState().machine.status).toBe('failed');
+  });
 });
