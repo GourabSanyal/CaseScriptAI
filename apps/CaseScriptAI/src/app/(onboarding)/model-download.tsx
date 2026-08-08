@@ -55,12 +55,14 @@ export default function ModelDownloadScreen() {
     void refreshReadiness();
   }, [refreshReadiness, machine.status]);
 
-  // ponytail: no 2s poll while downloading — progress UI is enough; avoids extra FS work under memory pressure.
+  // Stale MMKV `complete` + empty disk → reset; ring % must not outrank disk readiness.
+  useEffect(() => {
+    if (machine.status === 'complete' && readiness && !readiness.ready) {
+      reset();
+    }
+  }, [machine.status, readiness, reset]);
 
-  const incompleteMessage =
-    machine.status === 'complete' && readiness && !readiness.ready
-      ? `Download marked complete but files missing: ${[...readiness.missing, ...readiness.corrupt].join(', ') || 'unknown'}`
-      : null;
+  // ponytail: no 2s poll while downloading — progress UI is enough; avoids extra FS work under memory pressure.
 
   const handleDeleteModel = useCallback(
     async (group: ModelGroupId) => {
@@ -82,7 +84,7 @@ export default function ModelDownloadScreen() {
       percent={progress}
       phaseLabel={phaseLabel}
       modelStatuses={buildModelStatusRows(tier, readiness)}
-      error={error ?? incompleteMessage ?? deleteError}
+      error={error ?? deleteError}
       busy={busy}
       checking={checking}
       complete={complete}
@@ -105,7 +107,7 @@ export default function ModelDownloadScreen() {
           })();
           return;
         }
-        if (machine.status === 'failed' || incompleteMessage) {
+        if (machine.status === 'failed') {
           void retry(tier);
           return;
         }
