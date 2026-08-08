@@ -8,6 +8,10 @@ import { File } from 'expo-file-system';
 
 import { convertToWav } from '@/services/audio/audio-processor';
 import { pcmPayloadFromWavBytes } from '@/services/audio/wav-pcm';
+import {
+  CALL_AUDIO_TOAST_MESSAGE,
+  isAudioSessionBusyMessage,
+} from '@/services/device/call-audio-copy';
 import { AppErrorCode, type Result } from '@/types/result';
 
 import type { AudioCapturePort } from '@/types/recording';
@@ -15,6 +19,18 @@ import type { AudioCapturePort } from '@/types/recording';
 type ExpoRecorder = InstanceType<typeof AudioModule.AudioRecorder>;
 
 const SEGMENT_MS = 30_000;
+
+const mapStartError = (error: unknown): Result<void> => {
+  const message = error instanceof Error ? error.message : 'Failed to start mic';
+  if (isAudioSessionBusyMessage(message)) {
+    return {
+      success: false,
+      error: CALL_AUDIO_TOAST_MESSAGE,
+      errorCode: AppErrorCode.AUDIO_SESSION_BUSY,
+    };
+  }
+  return { success: false, error: message };
+};
 
 /**
  * Foreground mic → PCM for AudioRecorderService.
@@ -65,10 +81,7 @@ export const createExpoAudioCapture = (
       recorder.record();
       return { success: true, data: undefined };
     } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to start mic',
-      };
+      return mapStartError(error);
     }
   };
 
