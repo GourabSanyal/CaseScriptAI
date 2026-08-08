@@ -5,11 +5,13 @@ import {
 } from '@react-navigation/native';
 import { Slot } from 'expo-router';
 import * as ExpoSplashScreen from 'expo-splash-screen';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Text, useColorScheme, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { SplashScreenOverlay } from '@/components/splash-screen';
+import { ToastHost } from '@/components/toast/toast-host';
+import { useCallAudioPresenceToast } from '@/hooks/use-call-audio-presence-toast';
 import { useDmSans } from '@/hooks/use-dm-sans';
 import { getExecutorchBootReady } from '@/services/ai/executorch-boot';
 import { modelManager } from '@/services/ai/model-manager-runtime';
@@ -19,6 +21,16 @@ import { useDeviceStore } from '@/stores/device-store';
 ExpoSplashScreen.preventAutoHideAsync().catch(() => {
   // Native splash may already be hidden during fast reload.
 });
+
+function AppChrome({ children }: { children: ReactNode }) {
+  useCallAudioPresenceToast();
+  return (
+    <>
+      {children}
+      <ToastHost />
+    </>
+  );
+}
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -108,13 +120,15 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        {bootReady && !showSplash ? <Slot /> : null}
-        {showSplash ? (
-          <SplashScreenOverlay
-            readyToDismiss={bootReady}
-            onFinish={handleSplashFinish}
-          />
-        ) : null}
+        <AppChrome>
+          {bootReady && !showSplash ? <Slot /> : null}
+          {showSplash ? (
+            <SplashScreenOverlay
+              readyToDismiss={bootReady}
+              onFinish={handleSplashFinish}
+            />
+          ) : null}
+        </AppChrome>
       </ThemeProvider>
     </GestureHandlerRootView>
   );
