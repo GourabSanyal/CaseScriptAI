@@ -3290,6 +3290,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"audio-presence@workspace:*, audio-presence@workspace:packages/audio-presence":
+  version: 0.0.0-use.local
+  resolution: "audio-presence@workspace:packages/audio-presence"
+  peerDependencies:
+    expo: "*"
+    react: "*"
+    react-native: "*"
+  languageName: unknown
+  linkType: soft
+
 "babel-jest@npm:^29.2.1, babel-jest@npm:^29.7.0":
   version: 29.7.0
   resolution: "babel-jest@npm:29.7.0"
@@ -3705,6 +3715,7 @@ __metadata:
     "@react-navigation/native": "npm:^7.1.8"
     "@types/jest": "npm:^29.5.0"
     "@types/react": "npm:~19.1.10"
+    audio-presence: "workspace:*"
     expo: "npm:~54.0.0"
     expo-asset: "npm:~12.0.12"
     expo-audio: "npm:~1.1.1"
