@@ -25,6 +25,8 @@ export const runModelDownload = async (args: {
   warmup: ModelWarmup;
   downgradeAfterWarmupFailure: ModelDowngrade;
   onUpdate: (snapshot: DownloadProgressSnapshot) => void;
+  /** Optional disk gate before marking complete (MMKV progress is not enough). */
+  verifyReady?: (tier: LLMTier) => Promise<Result<void>>;
 }): Promise<Result<void>> => {
   let machine = args.machine;
   if (machine.status === 'failed') {
@@ -77,6 +79,12 @@ export const runModelDownload = async (args: {
     }
   }
   if (!warmup.success) return fail(warmup.error, warmup.errorCode);
+
+  // Disk is source of truth — warmup is currently a no-op and MMKV must not claim complete alone.
+  if (args.verifyReady) {
+    const onDisk = await args.verifyReady(activeTier);
+    if (!onDisk.success) return fail(onDisk.error, onDisk.errorCode ?? AppErrorCode.MODEL_MISSING);
+  }
 
   machine = apply(machine, { type: 'VERIFIED' });
   args.onUpdate({ machine, progress: 1, phaseLabel: 'Complete', error: null });

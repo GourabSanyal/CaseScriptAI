@@ -133,6 +133,8 @@ export type DownloadStoreDeps = {
   downloadAsset: AssetDownloader;
   warmup: ModelWarmup;
   downgradeAfterWarmupFailure: ModelDowngrade;
+  /** Disk check before persisting `complete` (source of truth for Continue). */
+  verifyReady?: (tier: LLMTier) => Promise<Result<void>>;
   stateStorage?: StateStorage;
 };
 export type ModelReadiness = {
