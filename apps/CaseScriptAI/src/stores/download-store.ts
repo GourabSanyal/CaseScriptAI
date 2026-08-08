@@ -11,6 +11,7 @@ export const createDownloadStore = ({
   downloadAsset,
   warmup,
   downgradeAfterWarmupFailure,
+  verifyReady,
   stateStorage = appZustandMMKVStorage,
 }: DownloadStoreDeps) =>
   create<DownloadStore>()(
@@ -31,6 +32,7 @@ export const createDownloadStore = ({
             downloadAsset,
             warmup,
             downgradeAfterWarmupFailure,
+            verifyReady,
             onUpdate: (snapshot) => set(snapshot),
           }),
       }),

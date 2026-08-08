@@ -1,6 +1,8 @@
 import NetInfo from '@react-native-community/netinfo';
 import { AppState } from 'react-native';
 
+import { modelManager } from '@/services/ai/model-manager-runtime';
+import { missingOrCorruptToError } from '@/services/ai/model-manager';
 import { createResumableDownloadManager } from '@/services/download/resumable-download-manager';
 import { createExpoStreamingDownloadTransport } from '@/services/download/streaming-download-fs';
 import { validateDownloadedAsset } from '@/services/download/file-integrity';
@@ -80,4 +82,9 @@ export const useDownloadStore = createDownloadStore({
   downloadAsset: (asset, onProgress) => downloadManager.downloadAsset(asset, onProgress),
   warmup: warmupLlmTier,
   downgradeAfterWarmupFailure: () => useDeviceStore.getState().downgradeAfterWarmupFailure(),
+  verifyReady: async (tier) => {
+    const readiness = await modelManager.checkAllModelsReady(tier);
+    if (!readiness.success) return readiness;
+    return missingOrCorruptToError(readiness.data);
+  },
 });
