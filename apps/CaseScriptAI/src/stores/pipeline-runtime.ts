@@ -13,16 +13,20 @@ import {
 import { TranscriptQueue } from '@/services/ai/transcript-queue';
 import { WhisperService } from '@/services/ai/whisper-service';
 import { AudioChunkQueue } from '@/services/audio/audio-chunk-queue';
+import {
+  createSoapPersistPort,
+  purgeSessionArtifacts,
+} from '@/services/storage/encrypted-soap';
 import { appStorage } from '@/services/storage/mmkv';
 import { createPipelineStore } from '@/stores/pipeline-store';
 import { useProcessingQueueStore } from '@/stores/recording-runtime';
+import { sessionRepository, useSessionStore } from '@/stores/session-runtime';
 
 import type { AudioChunkRef } from '@/services/audio/audio-chunk-queue';
 import type { TranscriptSegment } from '@/services/ai/transcript-queue';
 
 const audioKey = (sessionId: string) => `pipeline-audio-chunks:${sessionId}`;
 const transcriptKey = (sessionId: string) => `pipeline-transcript:${sessionId}`;
-const soapKey = (sessionId: string) => `pipeline-soap:${sessionId}`;
 
 const readJson = <T>(key: string): T | null => {
   const raw = appStorage.getString(key);
@@ -73,13 +77,33 @@ export const pipelineOrchestrator = new PipelineOrchestrator({
   queue: queuePort,
   whisper: whisperService,
   llm: llmService,
-  soap: {
-    // ponytail: plaintext MMKV until Slice 4 AES-GCM file adapter
-    save: async (sessionId, soapNote) => {
-      appStorage.set(soapKey(sessionId), soapNote);
-      return { success: true, data: undefined };
+  soap: createSoapPersistPort({
+    sessions: sessionRepository,
+    purge: async (sessionId) => {
+      const purged = await purgeSessionArtifacts(sessionId, {
+        listChunkPaths: async (id) => {
+          const chunks = readJson<AudioChunkRef[]>(audioKey(id)) ?? [];
+          return chunks.map((c) => c.path);
+        },
+        deletePath: async (path) => {
+          try {
+            const file = new File(path);
+            if (file.exists) file.delete();
+            return { success: true, data: undefined };
+          } catch (error) {
+            return {
+              success: false,
+              error: error instanceof Error ? error.message : 'Delete failed',
+            };
+          }
+        },
+      });
+      if (purged.success) {
+        void useSessionStore.getState().hydrate();
+      }
+      return purged;
     },
-  },
+  }),
   sessions: {
     createAudioQueue: (sessionId) =>
       new AudioChunkQueue(sessionId, {

@@ -32,10 +32,21 @@ export const createPipelineStore = ({ runUntilIdle }: PipelineStoreDeps) =>
       if (get().isActive) {
         return { success: false, error: 'Pipeline already running' };
       }
-      set({ isActive: true, error: null });
+      set({
+        isActive: true,
+        error: null,
+        phase: 'idle',
+        progress: 0,
+        detail: null,
+        sessionId: null,
+      });
       const result = await runUntilIdle();
       if (!result.success) {
         set({ isActive: false, phase: 'failed', error: result.error });
+        return result;
+      }
+      if (result.data === 0 && get().phase === 'idle') {
+        set({ isActive: false, error: 'Nothing queued to process' });
         return result;
       }
       set({ isActive: false });

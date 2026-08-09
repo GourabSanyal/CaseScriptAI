@@ -26,8 +26,13 @@ export default function ProcessingScreen() {
     (s) =>
       s.items.filter((item) => item.status === 'queued' || item.status === 'processing').length,
   );
+  const failedCount = useProcessingQueueStore(
+    (s) => s.items.filter((item) => item.status === 'failed').length,
+  );
   const estimatedMinutes = useProcessingQueueStore((s) => s.pendingBadge().estimatedMinutes);
   const cancel = useProcessingQueueStore((s) => s.cancel);
+  const requeue = useProcessingQueueStore((s) => s.requeue);
+  const items = useProcessingQueueStore((s) => s.items);
 
   const onCancelCurrent = () => {
     if (!sessionId) return;
@@ -57,13 +62,19 @@ export default function ProcessingScreen() {
           sessionId={sessionId}
           error={
             error ??
-            (arePipelineRuntimesReady()
-              ? null
-              : 'On-device models bind on native builds — queue is ready to drain when runtimes attach.')
+            (failedCount > 0 && pendingCount === 0
+              ? `${failedCount} failed session(s) — tap Process queue to retry`
+              : arePipelineRuntimesReady()
+                ? null
+                : 'On-device models bind on native builds — queue is ready to drain when runtimes attach.')
           }
           pendingCount={pendingCount}
           estimatedMinutes={estimatedMinutes}
           onStartDrain={() => {
+            // Failed encrypt leaves items as `failed` — requeue so drain can claim them.
+            for (const item of items) {
+              if (item.status === 'failed') requeue(item.sessionId);
+            }
             void startDrain();
           }}
           onCancelCurrent={onCancelCurrent}
