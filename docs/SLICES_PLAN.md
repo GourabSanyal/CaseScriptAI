@@ -50,9 +50,9 @@ Branch validates **native raw-PCM capture + native decoders** vs keeping FFmpeg.
 
 | ID | Item | Status | Complete in | Notes |
 |---|---|---|---|---|
-| **4.SQL** | SQLCipher adapters for `sessions` / `processing_queue` / `audio_chunks` | GATED (MMKV/in-memory ports today) | **Slice 4** (`4.1` + queue/chunk ports) | Replace MMKV queue/SOAP shortcuts in `pipeline-runtime` / `recording-runtime`. |
-| **4.AES** | AES-GCM encrypted transcript + SOAP files | GATED (plaintext MMKV SOAP ponytail) | **Slice 4** (`4.5`/`4.6`) | Keychain/Keystore key wiring is **4.6**. |
-| **4.PURGE** | Purge temp WAV after pipeline `COMPLETE` | TODO | **Slice 4.5** | Orchestrator deletes per-chunk today; session-level cleanup + SQL rows in 4.5. |
+| **4.SQL** | SQLCipher adapters for `sessions` / `processing_queue` / `audio_chunks` | DONE (sessions runtime; queue/chunks adapters + schema) | **Slice 4** | Sessions via `session-repository` + `initAppStorage`. Queue still MMKV at runtime (sync hydrate); SQL adapters tested for queue/chunks. |
+| **4.AES** | AES-GCM encrypted transcript + SOAP files | DONE (SOAP files) | **Slice 4** (`4.5`/`4.6`) | SOAP encrypted via `encrypted-soap` + Keychain key. Transcript still MMKV segments until file adapter needed. |
+| **4.PURGE** | Purge temp WAV after pipeline `COMPLETE` | DONE | **Slice 4.5** | `purgeSessionArtifacts` in soap persist port. |
 
 ### Gate: Resilience polish (Slice 5)
 
@@ -136,12 +136,12 @@ Branch validates **native raw-PCM capture + native decoders** vs keeping FFmpeg.
 
 | Sub | Description | Status | Tests | Impl |
 |---|---|---|---|---|
-| 4.1 | `SessionRepository` (op-sqlite/SQLCipher, schema, indexes) | TODO | | |
-| 4.2 | `DocumentExporter` (PDF + share) | TODO | | |
-| 4.3 | `session-store` | TODO | | |
-| 4.4 | Sessions Screen | TODO | | |
-| 4.5 | Storage cleanup (purge chunks post-COMPLETE) | TODO | | |
-| 4.6 | Unit tests + Keychain/Keystore key wiring | TODO | | |
+| 4.1 | `SessionRepository` (op-sqlite/SQLCipher, schema, indexes) | DONE | [`session-repository.test.ts`](../apps/CaseScriptAI/src/__tests__/services/storage/session-repository.test.ts), [`sql-persistence.test.ts`](../apps/CaseScriptAI/src/__tests__/services/storage/sql-persistence.test.ts) | [`session-repository.ts`](../apps/CaseScriptAI/src/services/storage/session-repository.ts), [`memory-sql.ts`](../apps/CaseScriptAI/src/services/storage/memory-sql.ts), [`sql-persistence.ts`](../apps/CaseScriptAI/src/services/storage/sql-persistence.ts), [`session-runtime.ts`](../apps/CaseScriptAI/src/stores/session-runtime.ts) |
+| 4.2 | `DocumentExporter` (PDF + share) | DONE | [`document-exporter.test.ts`](../apps/CaseScriptAI/src/__tests__/services/pdf/document-exporter.test.ts) | [`document-exporter.ts`](../apps/CaseScriptAI/src/services/pdf/document-exporter.ts) |
+| 4.3 | `session-store` | DONE | [`session-store.test.ts`](../apps/CaseScriptAI/src/__tests__/stores/session-store.test.ts) | [`session-store.ts`](../apps/CaseScriptAI/src/stores/session-store.ts), [`session.ts`](../apps/CaseScriptAI/src/types/session.ts) |
+| 4.4 | Sessions Screen | DONE | (wired Records tab; coverage via session-store) | [`queue.tsx`](../apps/CaseScriptAI/src/app/(app)/queue.tsx) |
+| 4.5 | Storage cleanup (purge chunks post-COMPLETE) | DONE | [`encrypted-soap.test.ts`](../apps/CaseScriptAI/src/__tests__/services/storage/encrypted-soap.test.ts) | [`encrypted-soap.ts`](../apps/CaseScriptAI/src/services/storage/encrypted-soap.ts), [`pipeline-runtime.ts`](../apps/CaseScriptAI/src/stores/pipeline-runtime.ts) |
+| 4.6 | Unit tests + Keychain/Keystore key wiring | DONE | [`key-store.test.ts`](../apps/CaseScriptAI/src/__tests__/services/storage/key-store.test.ts), [`encrypted-soap.test.ts`](../apps/CaseScriptAI/src/__tests__/services/storage/encrypted-soap.test.ts) | [`key-store.ts`](../apps/CaseScriptAI/src/services/storage/key-store.ts), [`crypto-service.ts`](../apps/CaseScriptAI/src/services/audio/crypto-service.ts), [`_layout.tsx`](../apps/CaseScriptAI/src/app/_layout.tsx) |
 
 ## SLICE 5 — Error Recovery & Resilience
 
