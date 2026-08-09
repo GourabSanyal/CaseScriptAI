@@ -1,16 +1,25 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router } from 'expo-router';
-import { FlatList, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Alert, FlatList, Pressable, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader } from '@/components/app-header';
-import { SessionCard } from '@/components/sessions/session-card';
+import { SessionCard, type SessionCardStatus } from '@/components/sessions/session-card';
 import { ThemedText } from '@/components/themed-text';
 import { Layout, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { documentExporter } from '@/services/pdf/document-exporter';
+import { loadEncryptedSoap } from '@/services/storage/encrypted-soap';
 import { useProcessingQueueStore } from '@/stores/recording-runtime';
+import { useSessionStore } from '@/stores/session-runtime';
 
 import type { ProcessingQueueItem } from '@/types/processing-queue';
+import type { Session } from '@/types/session';
+
+type ListRow =
+  | { kind: 'queue'; item: ProcessingQueueItem }
+  | { kind: 'session'; item: Session };
 
 const formatSessionWhen = (ms: number): string => {
   try {
@@ -31,22 +40,68 @@ export default function QueueScreen() {
   const { width } = useWindowDimensions();
   const horizontalPad =
     width >= Layout.tabletBreakpoint ? Spacing.marginTablet : Spacing.marginMobile;
-  const items = useProcessingQueueStore((state) => state.items);
+  const queueItems = useProcessingQueueStore((state) => state.items);
   const estimatedMinutes = useProcessingQueueStore(
     (state) => state.pendingBadge().estimatedMinutes,
   );
+  const sessions = useSessionStore((state) => state.items);
+  const hydrate = useSessionStore((state) => state.hydrate);
+  const search = useSessionStore((state) => state.search);
+  const [query, setQuery] = useState('');
 
-  const durationFor = (item: ProcessingQueueItem): string => {
+  useEffect(() => {
+    void hydrate();
+  }, [hydrate]);
+
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      void search(query.trim() ? { patientQuery: query } : undefined);
+    }, 200);
+    return () => clearTimeout(handle);
+  }, [query, search]);
+
+  const rows: ListRow[] = useMemo(() => {
+    const queueRows: ListRow[] = queueItems.map((item) => ({ kind: 'queue', item }));
+    const completeRows: ListRow[] = sessions
+      .filter((s) => s.status === 'complete')
+      .filter((s) => !queueItems.some((q) => q.sessionId === s.id))
+      .map((item) => ({ kind: 'session', item }));
+    return [...queueRows, ...completeRows];
+  }, [queueItems, sessions]);
+
+  const durationForQueue = (item: ProcessingQueueItem): string => {
     if (item.status === 'processing' || item.status === 'queued') {
       return estimatedMinutes > 0 ? `~${estimatedMinutes} min` : 'Pending';
     }
     return '—';
   };
 
-  const onOpenItem = (item: ProcessingQueueItem) => {
-    if (item.status === 'processing' || item.status === 'queued' || item.status === 'failed') {
-      router.push('/processing');
+  const onExport = async (session: Session) => {
+    const soap = await loadEncryptedSoap(session);
+    if (!soap.success) {
+      Alert.alert('Export failed', soap.error);
+      return;
     }
+    const pdf = await documentExporter.exportPdf({
+      soapNote: soap.data,
+      fileName: `soap-${session.id}.pdf`,
+    });
+    if (!pdf.success) {
+      Alert.alert('Export failed', pdf.error);
+      return;
+    }
+    const shared = await documentExporter.sharePdf(pdf.data);
+    if (!shared.success) {
+      Alert.alert('PDF saved', pdf.data);
+    }
+  };
+
+  const onOpenRow = (row: ListRow) => {
+    if (row.kind === 'queue') {
+      router.push('/processing');
+      return;
+    }
+    void onExport(row.item);
   };
 
   return (
@@ -80,9 +135,27 @@ export default function QueueScreen() {
           </Pressable>
         </View>
 
+        <TextInput
+          accessibilityLabel="Search patients"
+          placeholder="Search patient name or id"
+          placeholderTextColor={theme.textSecondary}
+          value={query}
+          onChangeText={setQuery}
+          style={[
+            styles.search,
+            {
+              color: theme.text,
+              borderColor: theme.outlineVariant,
+              backgroundColor: theme.backgroundElement,
+            },
+          ]}
+        />
+
         <FlatList
-          data={items}
-          keyExtractor={(item) => item.sessionId}
+          data={rows}
+          keyExtractor={(row) =>
+            row.kind === 'queue' ? `q-${row.item.sessionId}` : `s-${row.item.id}`
+          }
           contentContainerStyle={styles.list}
           ListEmptyComponent={
             <View
@@ -100,14 +173,34 @@ export default function QueueScreen() {
               </ThemedText>
             </View>
           }
-          renderItem={({ item }) => (
-            <SessionCard
-              title={formatSessionWhen(item.enqueuedAt)}
-              durationLabel={durationFor(item)}
-              status={item.status}
-              onPress={() => onOpenItem(item)}
-            />
-          )}
+          renderItem={({ item: row }) => {
+            if (row.kind === 'queue') {
+              return (
+                <SessionCard
+                  title={formatSessionWhen(row.item.enqueuedAt)}
+                  durationLabel={durationForQueue(row.item)}
+                  status={row.item.status as SessionCardStatus}
+                  onPress={() => onOpenRow(row)}
+                />
+              );
+            }
+            return (
+              <SessionCard
+                title={
+                  row.item.patientName?.trim() ||
+                  formatSessionWhen(row.item.completedAt ?? row.item.createdAt)
+                }
+                durationLabel={
+                  row.item.durationMs != null
+                    ? `${Math.round(row.item.durationMs / 1000)}s`
+                    : 'Done'
+                }
+                status="done"
+                onPress={() => onOpenRow(row)}
+                onMenuPress={() => void onExport(row.item)}
+              />
+            );
+          }}
         />
       </View>
     </SafeAreaView>
@@ -139,6 +232,13 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
     borderRadius: Radius.full,
     marginTop: Spacing.one,
+  },
+  search: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    fontSize: 16,
   },
   list: {
     gap: Spacing.three,

@@ -17,6 +17,7 @@ import { getExecutorchBootReady } from '@/services/ai/executorch-boot';
 import { modelManager } from '@/services/ai/model-manager-runtime';
 import { useBootStore } from '@/stores/boot-store';
 import { useDeviceStore } from '@/stores/device-store';
+import { initAppStorage } from '@/stores/session-runtime';
 
 ExpoSplashScreen.preventAutoHideAsync().catch(() => {
   // Native splash may already be hidden during fast reload.
@@ -40,6 +41,12 @@ export default function RootLayout() {
   const [showSplash, setShowSplash] = useState(true);
   const destination = useBootStore((state) => state.destination);
   const setDestination = useBootStore((state) => state.setDestination);
+
+  // Always wire Keychain/AES + SQL — do not gate on destination (persisted `app` skipped init before).
+  useEffect(() => {
+    if (!fontsLoaded) return;
+    void initAppStorage();
+  }, [fontsLoaded]);
 
   // ponytail: resolve download vs app from disk only — do not load ExecuTorch during download.
   useEffect(() => {
