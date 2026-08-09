@@ -1,33 +1,85 @@
-import AesGcmCrypto from "react-native-aes-gcm-crypto";
-import type { Result } from "@/types/result";
+import AesGcmCrypto from 'react-native-aes-gcm-crypto';
 
-// placeholder key - will be moved to Keychain in future
-const KEY = "01234567890123456789012345678901"; // 32 bytes for AES-256
+import type { Result } from '@/types/result';
 
 export type EncryptionResult = {
-  path: string;
+  ciphertext: string;
   iv: string;
   tag: string;
+};
+
+export type CryptoKeyProvider = () => Promise<Result<string>>;
+
+let keyProvider: CryptoKeyProvider | null = null;
+
+/** Wire once at app boot (Keychain-backed). Tests inject via setCryptoKeyProvider. */
+export const setCryptoKeyProvider = (provider: CryptoKeyProvider | null): void => {
+  keyProvider = provider;
+};
+
+const resolveKey = async (): Promise<Result<string>> => {
+  if (!keyProvider) {
+    return { success: false, error: 'Crypto key provider not configured' };
+  }
+  const key = await keyProvider();
+  if (!key.success) return key;
+  // Native force-unwraps Data(base64Encoded:) — reject bad keys before the bridge.
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(key.data) || key.data.length % 4 !== 0) {
+    return { success: false, error: 'AES key must be Base64' };
+  }
+  return key;
+};
+
+export const encryptText = async (plainText: string): Promise<Result<EncryptionResult>> => {
+  const key = await resolveKey();
+  if (!key.success) return key;
+  try {
+    const { iv, tag, content } = await AesGcmCrypto.encrypt(plainText, false, key.data);
+    return { success: true, data: { ciphertext: content, iv, tag } };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Encryption failed',
+    };
+  }
+};
+
+export const decryptText = async (
+  ciphertext: string,
+  iv: string,
+  tag: string,
+): Promise<Result<string>> => {
+  const key = await resolveKey();
+  if (!key.success) return key;
+  try {
+    const plain = await AesGcmCrypto.decrypt(ciphertext, key.data, iv, tag, false);
+    return { success: true, data: plain };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Decryption failed',
+    };
+  }
 };
 
 export const encryptFile = async (
   inputPath: string,
   outputPath: string,
-): Promise<Result<EncryptionResult>> => {
+): Promise<Result<{ path: string; iv: string; tag: string }>> => {
+  const key = await resolveKey();
+  if (!key.success) return key;
   try {
-    console.log(`[Crypto] Encrypting: ${inputPath}`);
-    // Signature: encryptFile(inputFilePath, outputFilePath, key)
     const { iv, tag } = await AesGcmCrypto.encryptFile(
-      inputPath.replace("file://", ""),
-      outputPath.replace("file://", ""),
-      KEY,
+      inputPath.replace('file://', ''),
+      outputPath.replace('file://', ''),
+      key.data,
     );
-    console.log(`[Crypto] Encrypted. IV: ${iv}, Tag: ${tag}`);
     return { success: true, data: { path: outputPath, iv, tag } };
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Encryption failed";
-    console.error(`[Crypto] Encryption error: ${message}`);
-    return { success: false, error: message };
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Encryption failed',
+    };
   }
 };
 
@@ -37,21 +89,21 @@ export const decryptFile = async (
   iv: string,
   tag: string,
 ): Promise<Result<string>> => {
+  const key = await resolveKey();
+  if (!key.success) return key;
   try {
-    console.log(`[Crypto] Decrypting: ${inputPath}`);
-    // Signature: decryptFile(inputFilePath, outputFilePath, key, iv, tag)
     await AesGcmCrypto.decryptFile(
-      inputPath.replace("file://", ""),
-      outputPath.replace("file://", ""),
-      KEY,
+      inputPath.replace('file://', ''),
+      outputPath.replace('file://', ''),
+      key.data,
       iv,
       tag,
     );
-    console.log(`[Crypto] Decrypted to: ${outputPath}`);
     return { success: true, data: outputPath };
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Decryption failed";
-    console.error(`[Crypto] Decryption error: ${message}`);
-    return { success: false, error: message };
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Decryption failed',
+    };
   }
 };
