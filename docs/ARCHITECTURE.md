@@ -25,13 +25,13 @@
 ```
 UI (Expo Router screens)      app/(app|auth|onboarding)
         │
-Stores (Zustand)              device / download / recording / processing-queue / pipeline / session / auth
+Stores (Zustand)              device / download / recording / processing-queue / pipeline / session / auth / toast
         │
-Services (no UI)              ai/  audio/  storage/  pdf/  subscription/
+Services (no UI)              ai/  audio/  storage/  pdf/  subscription/  device/
         │
 Foundation (contracts)        Result<T>, AppErrorCode, MemoryManager, Queues, State Machines
         │
-Native modules                react-native-executorch, op-sqlite, MMKV, expo-device
+Native modules                react-native-executorch, op-sqlite, MMKV, expo-device, audio-presence
 ```
 
 **Rules:** UI → Stores → Services → Foundation. Services never import UI. Screens never call native modules directly.
@@ -62,6 +62,8 @@ Native modules                react-native-executorch, op-sqlite, MMKV, expo-dev
 | **SessionRepository** | op-sqlite/SQLCipher CRUD; indexes; date/patient search. |
 | **DocumentExporter** | SOAP → PDF → share sheet. |
 | **Storage (MMKV)** | Config, download state, checksums, feature flags. |
+| **toast-store** + **ToastHost** | App-wide ephemeral notices (`showToast` / `dismissToast`). Host mounts once in root layout; screens/services never invent local banners. |
+| **CallAudioPresence** (`audio-presence`) | Read-only: other app holds audio / in-call modes (cellular, FaceTime, VoIP). Used to warn before mic START; no PHI. |
 
 ---
 
@@ -203,7 +205,7 @@ type Result<T> =
 enum AppErrorCode {
   MODEL_OOM, MODEL_CORRUPT, MODEL_MISSING,
   DOWNLOAD_NETWORK, DOWNLOAD_STORAGE, DOWNLOAD_CHECKSUM,
-  AUDIO_PERMISSION, AUDIO_BUFFER_OVERFLOW,
+  AUDIO_PERMISSION, AUDIO_SESSION_BUSY, AUDIO_BUFFER_OVERFLOW,
   LLM_GENERATION_FAILED, SESSION_ORPHANED
 }
 ```

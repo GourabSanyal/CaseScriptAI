@@ -7,8 +7,6 @@ import {
 
 import type { Result } from '@/types/result';
 
-const RNE_DIR = `${documentDirectory ?? ''}react-native-executorch/`;
-
 const asFileUri = (path: string): string =>
   path.startsWith('file://') ? path : `file://${path}`;
 
@@ -17,9 +15,13 @@ export const filenameFromUrl = (url: string): string => {
   return clean.replace(/[^a-zA-Z0-9._-]/g, '_');
 };
 
-export const localPathForUrl = (url: string): string => `${RNE_DIR}${filenameFromUrl(url)}`;
+/** Resolve at call time — `documentDirectory` can be null during early module init. */
+const rneDir = (): string => `${documentDirectory ?? ''}react-native-executorch/`;
 
-export const executorchCacheDirectoryUri = (): string => asFileUri(RNE_DIR);
+export const localPathForUrl = (url: string): string => `${rneDir()}${filenameFromUrl(url)}`;
+
+export const executorchCacheDirectoryUri = (): string => asFileUri(rneDir());
+
 
 export const executorchFileExists = async (url: string): Promise<boolean> => {
   try {

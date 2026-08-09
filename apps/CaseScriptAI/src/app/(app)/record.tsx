@@ -4,8 +4,26 @@ import { router } from 'expo-router';
 import { HomeRecordView } from '@/components/home/home-record-view';
 import { useSessionElapsed } from '@/hooks/use-session-elapsed';
 import { importAudioToProcessingQueue } from '@/services/audio/import-audio-to-queue';
+import {
+  CALL_AUDIO_TOAST_MESSAGE,
+  isAudioSessionBusyMessage,
+} from '@/services/device/call-audio-copy';
+import {
+  guardRecordingAgainstCallAudio,
+  notifyRecordingStartFailure,
+} from '@/services/device/call-audio-presence';
 import { usePipelineStore } from '@/stores/pipeline-runtime';
 import { useRecordingStore } from '@/stores/recording-runtime';
+import { AppErrorCode } from '@/types/result';
+
+const isCallBusyUi = (message: string | null, code?: AppErrorCode): boolean => {
+  if (!message) return false;
+  return (
+    code === AppErrorCode.AUDIO_SESSION_BUSY ||
+    message === CALL_AUDIO_TOAST_MESSAGE ||
+    isAudioSessionBusyMessage(message)
+  );
+};
 
 export default function RecordScreen() {
   const machine = useRecordingStore((state) => state.machine);
@@ -33,13 +51,27 @@ export default function RecordScreen() {
     void startDrain();
   };
 
+  const onStart = async () => {
+    setImportError(null);
+    const guard = guardRecordingAgainstCallAudio();
+    if (!guard.success) return;
+    const result = await start();
+    if (!result.success) {
+      notifyRecordingStartFailure(result.error, result.errorCode);
+    }
+  };
+
+  const rawError = importError ?? error;
+  // Call conflicts use the global toast — hide the raw / duplicate inline dump.
+  const displayError = isCallBusyUi(rawError) ? null : rawError;
+
   return (
     <HomeRecordView
       machine={machine}
-      error={importError ?? error}
+      error={displayError}
       elapsedMs={elapsedMs}
       pendingCount={pendingCount}
-      onStart={() => void start()}
+      onStart={() => void onStart()}
       onPause={() => void pause()}
       onResume={() => void resume()}
       onStop={() => void stop()}
