@@ -20,6 +20,7 @@ import {
 import { appStorage } from '@/services/storage/mmkv';
 import { createPipelineStore } from '@/stores/pipeline-store';
 import { useProcessingQueueStore } from '@/stores/recording-runtime';
+import { notifyAppError } from '@/stores/recovery-runtime';
 import { sessionRepository, useSessionStore } from '@/stores/session-runtime';
 
 import type { AudioChunkRef } from '@/services/audio/audio-chunk-queue';
@@ -133,7 +134,9 @@ export const usePipelineStore = createPipelineStore({
     if (!arePipelineRuntimesReady()) {
       return { success: false, error: 'Pipeline runtimes not ready' };
     }
-    return pipelineOrchestrator.runUntilIdle();
+    const result = await pipelineOrchestrator.runUntilIdle();
+    if (!result.success) notifyAppError(result);
+    return result;
   },
 });
 

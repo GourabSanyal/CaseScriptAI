@@ -7,6 +7,8 @@ import type {
   PipelineSessionResult,
   SoapPersistPort,
 } from '@/types/pipeline';
+import { AppErrorCode } from '@/types/result';
+
 import type { ProcessingQueueStore } from '@/types/processing-queue';
 import type { Result } from '@/types/result';
 
@@ -119,12 +121,15 @@ export class PipelineOrchestrator {
     }
   };
 
-  /** Drain until empty or stop()/failure that requeues. */
+  /** Drain until empty. Session failures retry-once via the queue; OOM aborts so heal can run. */
   runUntilIdle = async (): Promise<Result<number>> => {
     let processed = 0;
     for (;;) {
       const step = await this.tick();
-      if (!step.success) return step;
+      if (!step.success) {
+        if (step.errorCode === AppErrorCode.MODEL_OOM) return step;
+        continue;
+      }
       if (!step.data) return { success: true, data: processed };
       processed += 1;
     }

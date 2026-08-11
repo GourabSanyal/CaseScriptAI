@@ -263,4 +263,60 @@ describe('PipelineOrchestrator', () => {
       failureReason: 'native OOM while generating',
     });
   });
+
+  it('runUntilIdle retries a non-OOM failure then continues the queue', async () => {
+    const queueStore = createProcessingQueueStore({
+      persistence: memoryPersistence(),
+      now: () => 1,
+    });
+    await queueStore.getState().enqueue('s1');
+    const memory = new MemoryManager();
+    const audioQueue = new AudioChunkQueue('s1', audioPersistence());
+    await audioQueue.enqueue({
+      id: 'c0',
+      sessionId: 's1',
+      sequence: 0,
+      path: 'file://a.wav',
+    });
+
+    let generates = 0;
+    const transcripts = transcriptPersistence();
+    const orchestrator = new PipelineOrchestrator({
+      queue: queueStore.getState(),
+      whisper: new WhisperService({
+        memory,
+        runtime: {
+          load: async () => ({ success: true, data: undefined }),
+          transcribe: async () => ({ success: true, data: 'transcript words for soap' }),
+          unload: async () => ({ success: true, data: undefined }),
+        },
+        deleteChunk: { deletePath: async () => ({ success: true, data: undefined }) },
+      }),
+      llm: new LlmService({
+        memory,
+        runtime: {
+          isReady: async () => ({ success: true, data: undefined }),
+          generate: async () => {
+            generates += 1;
+            if (generates === 1) {
+              return { success: false, error: 'SOAP missing sections: Plan' };
+            }
+            return { success: true, data: soapBody };
+          },
+          interrupt: async () => ({ success: true, data: undefined }),
+          unload: async () => ({ success: true, data: undefined }),
+        },
+      }),
+      soap: { save: async () => ({ success: true, data: undefined }) },
+      sessions: {
+        createAudioQueue: () => audioQueue,
+        createTranscriptQueue: (id) => new TranscriptQueue(id, transcripts),
+      },
+    });
+
+    const result = await orchestrator.runUntilIdle();
+    expect(result).toEqual({ success: true, data: 1 });
+    expect(generates).toBe(2);
+    expect(queueStore.getState().items).toEqual([]);
+  });
 });
