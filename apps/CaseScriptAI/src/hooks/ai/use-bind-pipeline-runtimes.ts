@@ -10,6 +10,8 @@ import {
 } from '@/services/ai/pipeline-runtime-bridge';
 import { parseWavData } from '@/services/audio/wav-parser';
 import { useDeviceStore } from '@/stores/device-store';
+import { usePipelineStore } from '@/stores/pipeline-runtime';
+import { useProcessingQueueStore } from '@/stores/recording-runtime';
 
 import type { Result } from '@/types/result';
 
@@ -32,7 +34,9 @@ const waitReady = async (
 
 /** Mount once under (app). Owns ExecuTorch hooks and plugs them into pipeline services. */
 export const useBindPipelineRuntimes = (): void => {
-  const tier = useDeviceStore((s) => s.selection?.tier ?? 'lite');
+  const persistedTier = useDeviceStore((s) => s.selection?.tier ?? 'lite');
+  // Freeze the loaded LLM until (app) remounts — OOM heal must not swap models mid-session.
+  const [tier] = useState(persistedTier);
   const [whisperOn, setWhisperOn] = useState(false);
   const [llmOn, setLlmOn] = useState(false);
 
@@ -123,7 +127,12 @@ export const useBindPipelineRuntimes = (): void => {
         },
       });
 
+      if (cancelled) return;
       setPipelineRuntimesReady(true);
+      const hasWork = useProcessingQueueStore
+        .getState()
+        .items.some((item) => item.status === 'queued' || item.status === 'processing');
+      if (hasWork) void usePipelineStore.getState().startDrain();
     };
 
     void boot();
