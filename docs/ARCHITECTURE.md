@@ -64,6 +64,9 @@ Native modules                react-native-executorch, op-sqlite, MMKV, expo-dev
 | **Storage (MMKV)** | Config, download state, checksums, feature flags. |
 | **toast-store** + **ToastHost** | App-wide ephemeral notices (`showToast` / `dismissToast`). Host mounts once in root layout; screens/services never invent local banners. |
 | **CallAudioPresence** (`audio-presence`) | Read-only: other app holds audio / in-call modes (cellular, FaceTime, VoIP). Used to warn before mic START; no PHI. |
+| **GlobalErrorHandler** | Maps `AppErrorCode` → recovery action (OOM heal, re-download, retry-when-online, session recover, toast). Never logs PHI; toasts are generic. |
+| **OomHeal** | After pipeline `MODEL_OOM` (lock already released): persist one-tier downgrade and route to Download Screen. Already-Lite → no swap; queue retry-once then `failed`. Never swap a loaded LLM mid-generate. |
+| **AppRecovery** | Launch + AppState foreground: clear stale `MemoryManager` lock if pipeline idle; re-check model integrity; retry network-failed downloads when online; inspect orphan recording / failed queue. Does not interrupt an active recording. |
 
 ---
 
@@ -118,7 +121,9 @@ next session ← processing_queue
 | Pro | > 6GB + healthy compute | Qwen3 4B | ~2.5–3GB |
 | < 3GB | served **Lite**, gentle "may be slower" notice — never blocked | Qwen3 0.6B | — |
 
-**Selection flow:** Assess (total RAM + versioned micro-benchmark) → Commit (`device-store` persists tier) → Verify (warmup load + short generate) → **Auto-heal** (downgrade + re-download during setup only, never mid-session). Rule: **RAM caps tier up; compute/benchmark can only downgrade.** Missing RAM safely selects Lite. Cross-platform available RAM is not part of the contract because Expo does not expose a reliable value. Whisper runtime/model = **ExecuTorch `useSpeechToText` + `WHISPER_TINY`**, matching the validated POC.
+**Selection flow:** Assess (total RAM + versioned micro-benchmark) → Commit (`device-store` persists tier) → Verify (warmup load + short generate) → **Auto-heal** (downgrade + re-download). Rule: **RAM caps tier up; compute/benchmark can only downgrade.** Missing RAM safely selects Lite. Cross-platform available RAM is not part of the contract because Expo does not expose a reliable value. Whisper runtime/model = **ExecuTorch `useSpeechToText` + `WHISPER_TINY`**, matching the validated POC.
+
+**OOM auto-heal timing:** Download warmup may downgrade + re-fetch immediately. Mid-pipeline `MODEL_OOM` must **not** swap the loaded LLM during generate. After generate returns and the lock is released, persist the lower tier and send the user to Download Screen. Already-Lite: no further downgrade; processing-queue retry-once then `failed`.
 
 ---
 
@@ -178,7 +183,7 @@ App-level lock deferred to OS device lock (MVP). Rule: queryable → SQLite; sin
 - **No hard recording cap** — disk-gated + soft "N pending (~M min)" badge.
 - Persist + **auto-resume** on launch (background, non-blocking indicator).
 - **Cancel-with-confirm** (deletes recording). Reorder/priority deferred.
-- Failure → **auto-retry once** (OOM → tier auto-heal downgrade lives in LLM/orchestrator) → skip + mark `failed` ("Needs attention", manual re-run).
+- Failure → **auto-retry once** (OOM → `GlobalErrorHandler` + `OomHeal` after the failed generate) → skip + mark `failed` ("Needs attention", manual re-run).
 
 ---
 
@@ -209,6 +214,18 @@ enum AppErrorCode {
   LLM_GENERATION_FAILED, SESSION_ORPHANED
 }
 ```
+
+**Recovery map (Slice 5):**
+
+| Code | Action |
+|---|---|
+| `MODEL_OOM` | Persist lower tier + Download Screen (or toast if already Lite) |
+| `MODEL_CORRUPT` / `MODEL_MISSING` / `DOWNLOAD_CHECKSUM` | Targeted re-download (boot → Download Screen) |
+| `DOWNLOAD_NETWORK` | Retry download when connectivity returns |
+| `SESSION_ORPHANED` | Home Resume/Discard (do not auto-resume) |
+| Other / missing code | Generic toast — never echo raw error text (may contain PHI) |
+
+Foreground AppState re-checks: stale model lock (only if pipeline not running), model readiness, network-failed download retry. Recording orphan UI stays on Home (Slice 2.6). Pipeline drain stays in `pipeline-background` (Slice 3.6).
 
 ---
 

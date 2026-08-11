@@ -58,8 +58,8 @@ Branch validates **native raw-PCM capture + native decoders** vs keeping FFmpeg.
 
 | ID | Item | Status | Complete in | Notes |
 |---|---|---|---|---|
-| **5.OOM** | Full OOM → tier auto-heal (download downgrade) mid-pipeline | PARTIAL (queue retry-once in Slice 3) | **Slice 5.2** | Slice 3 marks `MODEL_OOM` + queue retry; lasting tier heal + re-download is 5.2. |
-| **5.ORPH** | Broader session/AppState recovery beyond recording orphan | PARTIAL (2.6 + 3.6 DONE) | **Slice 5.5–5.6** | Recording orphan + pipeline foreground drain exist; global handler is 5.1+. |
+| **5.OOM** | Full OOM → tier auto-heal (download downgrade) mid-pipeline | DONE | **Slice 5.2** | Queue retry-once remains Slice 3; lasting tier persist + Download Screen is `OomHeal` after lock release. |
+| **5.ORPH** | Broader session/AppState recovery beyond recording orphan | DONE | **Slice 5.5–5.6** | Recording Resume/Discard stays Slice 2.6; `AppRecovery` adds stale-lock, integrity, network retry. |
 
 ### Explicitly out of scope / deferred (not PARKED rows)
 
@@ -149,13 +149,13 @@ Branch validates **native raw-PCM capture + native decoders** vs keeping FFmpeg.
 
 | Sub | Description | Status | Tests | Impl |
 |---|---|---|---|---|
-| 5.1 | GlobalErrorHandler | TODO | | |
-| 5.2 | OOM recovery + auto-heal | TODO | | |
-| 5.3 | Corruption recovery → re-download | TODO | | |
-| 5.4 | Network recovery / retry queue | TODO | | |
-| 5.5 | Session recovery (resume/discard) | TODO | | |
-| 5.6 | AppState recovery (re-check invariants) | TODO | | |
-| 5.7 | Regression suite (all edge cases) | TODO | | |
+| 5.1 | GlobalErrorHandler | DONE | [`global-error-handler.test.ts`](../apps/CaseScriptAI/src/__tests__/services/recovery/global-error-handler.test.ts) | [`global-error-handler.ts`](../apps/CaseScriptAI/src/services/recovery/global-error-handler.ts) |
+| 5.2 | OOM recovery + auto-heal | DONE | [`oom-heal.test.ts`](../apps/CaseScriptAI/src/__tests__/services/recovery/oom-heal.test.ts) | [`oom-heal.ts`](../apps/CaseScriptAI/src/services/recovery/oom-heal.ts), [`pipeline-runtime.ts`](../apps/CaseScriptAI/src/stores/pipeline-runtime.ts), [`recovery-runtime.ts`](../apps/CaseScriptAI/src/stores/recovery-runtime.ts) |
+| 5.3 | Corruption recovery → re-download | DONE | [`global-error-handler.test.ts`](../apps/CaseScriptAI/src/__tests__/services/recovery/global-error-handler.test.ts), [`app-recovery.test.ts`](../apps/CaseScriptAI/src/__tests__/services/recovery/app-recovery.test.ts) | [`app-recovery.ts`](../apps/CaseScriptAI/src/services/recovery/app-recovery.ts) |
+| 5.4 | Network recovery / retry queue | DONE | [`app-recovery.test.ts`](../apps/CaseScriptAI/src/__tests__/services/recovery/app-recovery.test.ts) | [`app-recovery.ts`](../apps/CaseScriptAI/src/services/recovery/app-recovery.ts), [`use-app-recovery.ts`](../apps/CaseScriptAI/src/hooks/use-app-recovery.ts) |
+| 5.5 | Session recovery (resume/discard) | DONE | [`app-recovery.test.ts`](../apps/CaseScriptAI/src/__tests__/services/recovery/app-recovery.test.ts) | [`app-recovery.ts`](../apps/CaseScriptAI/src/services/recovery/app-recovery.ts) — inspect only; Resume/Discard remains recording-store |
+| 5.6 | AppState recovery (re-check invariants) | DONE | [`app-recovery.test.ts`](../apps/CaseScriptAI/src/__tests__/services/recovery/app-recovery.test.ts), [`memory-manager.test.ts`](../apps/CaseScriptAI/src/__tests__/services/ai/memory-manager.test.ts) | [`memory-manager.ts`](../apps/CaseScriptAI/src/services/ai/memory-manager.ts), [`use-app-recovery.ts`](../apps/CaseScriptAI/src/hooks/use-app-recovery.ts), [`_layout.tsx`](../apps/CaseScriptAI/src/app/_layout.tsx) |
+| 5.7 | Regression suite (all edge cases) | DONE | [`slice5-regression.test.ts`](../apps/CaseScriptAI/src/__tests__/services/recovery/slice5-regression.test.ts) — `yarn workspace casescriptai test --runInBand --testPathPattern='(global-error-handler\\|oom-heal\\|app-recovery\\|slice5-regression\\|memory-manager)'` — 24 passing | — |
 
 ## SLICE 6 — Test Suite Completion
 
