@@ -11,6 +11,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { SplashScreenOverlay } from '@/components/splash-screen';
 import { ToastHost } from '@/components/toast/toast-host';
+import { useAppRecovery } from '@/hooks/use-app-recovery';
 import { useCallAudioPresenceToast } from '@/hooks/use-call-audio-presence-toast';
 import { useDmSans } from '@/hooks/use-dm-sans';
 import { getExecutorchBootReady } from '@/services/ai/executorch-boot';
@@ -18,6 +19,7 @@ import { modelManager } from '@/services/ai/model-manager-runtime';
 import { useBootStore } from '@/stores/boot-store';
 import { useDeviceStore } from '@/stores/device-store';
 import { initAppStorage } from '@/stores/session-runtime';
+import { setToastsReady } from '@/stores/toast-store';
 
 ExpoSplashScreen.preventAutoHideAsync().catch(() => {
   // Native splash may already be hidden during fast reload.
@@ -25,6 +27,7 @@ ExpoSplashScreen.preventAutoHideAsync().catch(() => {
 
 function AppChrome({ children }: { children: ReactNode }) {
   useCallAudioPresenceToast();
+  useAppRecovery();
   return (
     <>
       {children}
@@ -98,6 +101,7 @@ export default function RootLayout() {
 
   const handleSplashFinish = useCallback(() => {
     setShowSplash(false);
+    setToastsReady(true);
   }, []);
 
   if (fontError) {
