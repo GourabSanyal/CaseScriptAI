@@ -74,7 +74,12 @@ export default function RecordScreen() {
       onStart={() => void onStart()}
       onPause={() => void pause()}
       onResume={() => void resume()}
-      onStop={() => void stop()}
+      onStop={() => {
+        void (async () => {
+          const result = await stop();
+          if (result.success) void startDrain();
+        })();
+      }}
       onRecover={(action) => void recoverOrphan(action)}
       onImportAudio={() => void onImportAudio()}
     />
