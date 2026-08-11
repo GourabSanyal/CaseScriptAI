@@ -35,6 +35,14 @@ describe('MemoryManager', () => {
     expect(manager.modelLoadLock).toBeNull();
   });
 
+  it('clears a stale lock only when the pipeline is idle', () => {
+    manager.acquireLock('whisper');
+    expect(manager.clearStaleLock(true)).toBe(false);
+    expect(manager.modelLoadLock).toBe('whisper');
+    expect(manager.clearStaleLock(false)).toBe(true);
+    expect(manager.modelLoadLock).toBeNull();
+  });
+
   it('runs optional garbage collection without requiring it', () => {
     const globalWithGc = globalThis as typeof globalThis & { gc?: jest.Mock };
     const previous = globalWithGc.gc;

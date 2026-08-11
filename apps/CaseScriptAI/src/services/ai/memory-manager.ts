@@ -41,6 +41,14 @@ export class MemoryManager {
     const gc = (globalThis as typeof globalThis & { gc?: () => void }).gc;
     gc?.();
   };
+
+  /** Drop a lock left behind after a crash path. Never call while the pipeline is running. */
+  clearStaleLock = (pipelineRunning: boolean): boolean => {
+    if (pipelineRunning || this.lock === null) return false;
+    this.lock = null;
+    this.forceGC();
+    return true;
+  };
 }
 
 export const memoryManager = new MemoryManager();
