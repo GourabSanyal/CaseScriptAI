@@ -11,6 +11,7 @@ import { Layout, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { documentExporter } from '@/services/pdf/document-exporter';
 import { loadEncryptedSoap } from '@/services/storage/encrypted-soap';
+import { usePipelineStore } from '@/stores/pipeline-runtime';
 import { useProcessingQueueStore } from '@/stores/recording-runtime';
 import { useSessionStore } from '@/stores/session-runtime';
 
@@ -47,6 +48,11 @@ export default function QueueScreen() {
   const sessions = useSessionStore((state) => state.items);
   const hydrate = useSessionStore((state) => state.hydrate);
   const search = useSessionStore((state) => state.search);
+  const pipelineSessionId = usePipelineStore((state) => state.sessionId);
+  const pipelineProgress = usePipelineStore((state) => state.progress);
+  const startDrain = usePipelineStore((state) => state.startDrain);
+  const cancel = useProcessingQueueStore((state) => state.cancel);
+  const requeue = useProcessingQueueStore((state) => state.requeue);
   const [query, setQuery] = useState('');
 
   useEffect(() => {
@@ -73,6 +79,7 @@ export default function QueueScreen() {
     if (item.status === 'processing' || item.status === 'queued') {
       return estimatedMinutes > 0 ? `~${estimatedMinutes} min` : 'Pending';
     }
+    if (item.failureReason) return item.failureReason;
     return '—';
   };
 
@@ -96,12 +103,26 @@ export default function QueueScreen() {
     }
   };
 
-  const onOpenRow = (row: ListRow) => {
-    if (row.kind === 'queue') {
-      router.push('/processing');
-      return;
-    }
-    void onExport(row.item);
+  const onStop = (sessionId: string) => {
+    Alert.alert(
+      'Cancel processing?',
+      'This removes the session from the queue and deletes the recording.',
+      [
+        { text: 'Keep', style: 'cancel' },
+        {
+          text: 'Cancel session',
+          style: 'destructive',
+          onPress: () => {
+            void cancel(sessionId);
+          },
+        },
+      ],
+    );
+  };
+
+  const onRetry = (sessionId: string) => {
+    requeue(sessionId);
+    void startDrain();
   };
 
   return (
@@ -175,12 +196,25 @@ export default function QueueScreen() {
           }
           renderItem={({ item: row }) => {
             if (row.kind === 'queue') {
+              const item = row.item;
               return (
                 <SessionCard
-                  title={formatSessionWhen(row.item.enqueuedAt)}
-                  durationLabel={durationForQueue(row.item)}
-                  status={row.item.status as SessionCardStatus}
-                  onPress={() => onOpenRow(row)}
+                  title={formatSessionWhen(item.enqueuedAt)}
+                  durationLabel={durationForQueue(item)}
+                  status={item.status as SessionCardStatus}
+                  progress={
+                    item.status === 'processing' && pipelineSessionId === item.sessionId
+                      ? pipelineProgress
+                      : undefined
+                  }
+                  onStart={item.status === 'queued' ? () => void startDrain() : undefined}
+                  onStop={item.status === 'processing' ? () => onStop(item.sessionId) : undefined}
+                  onRetry={item.status === 'failed' ? () => onRetry(item.sessionId) : undefined}
+                  onMenuPress={
+                    item.status === 'queued' || item.status === 'failed'
+                      ? () => onStop(item.sessionId)
+                      : undefined
+                  }
                 />
               );
             }
@@ -196,7 +230,7 @@ export default function QueueScreen() {
                     : 'Done'
                 }
                 status="done"
-                onPress={() => onOpenRow(row)}
+                onExport={() => void onExport(row.item)}
                 onMenuPress={() => void onExport(row.item)}
               />
             );

@@ -13,7 +13,11 @@ export type SessionCardProps = {
   title: string;
   durationLabel: string;
   status: SessionCardStatus;
-  onPress?: () => void;
+  progress?: number;
+  onStart?: () => void;
+  onStop?: () => void;
+  onRetry?: () => void;
+  onExport?: () => void;
   onMenuPress?: () => void;
 };
 
@@ -24,11 +28,39 @@ const statusCopy = (status: SessionCardStatus): string => {
   return 'Done';
 };
 
+function IconHit({
+  name,
+  label,
+  color,
+  onPress,
+}: {
+  name: keyof typeof MaterialIcons.glyphMap;
+  label: string;
+  color: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityLabel={label}
+      accessibilityRole="button"
+      hitSlop={8}
+      onPress={onPress}
+      style={styles.iconHit}
+    >
+      <MaterialIcons name={name} size={22} color={color} />
+    </Pressable>
+  );
+}
+
 export function SessionCard({
   title,
   durationLabel,
   status,
-  onPress,
+  progress,
+  onStart,
+  onStop,
+  onRetry,
+  onExport,
   onMenuPress,
 }: SessionCardProps) {
   const theme = useTheme();
@@ -40,17 +72,15 @@ export function SessionCard({
         : status === 'failed'
           ? { bg: theme.statusFailedBg, fg: theme.statusFailedFg, icon: null }
           : { bg: theme.statusDoneBg, fg: theme.statusDoneFg, icon: null };
+  const pct = Math.round(Math.min(1, Math.max(0, progress ?? 0)) * 100);
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => [
+    <View
+      style={[
         styles.card,
         {
           backgroundColor: theme.backgroundElement,
           borderColor: theme.outlineVariant,
-          opacity: pressed ? 0.92 : 1,
         },
       ]}
     >
@@ -58,22 +88,30 @@ export function SessionCard({
         <ThemedText type="bodyMd" style={styles.title}>
           {title}
         </ThemedText>
-        <Pressable
-          accessibilityLabel="Session actions"
-          accessibilityRole="button"
-          hitSlop={8}
-          onPress={onMenuPress}
-          style={styles.menuHit}
-        >
-          <MaterialIcons name="more-vert" size={20} color={theme.textSecondary} />
-        </Pressable>
+        <View style={styles.actions}>
+          {status === 'queued' && onStart ? (
+            <IconHit name="play-arrow" label="Start processing" color={theme.primary} onPress={onStart} />
+          ) : null}
+          {status === 'processing' && onStop ? (
+            <IconHit name="stop" label="Stop processing" color={theme.text} onPress={onStop} />
+          ) : null}
+          {status === 'failed' && onRetry ? (
+            <IconHit name="replay" label="Retry processing" color={theme.primary} onPress={onRetry} />
+          ) : null}
+          {status === 'done' && onExport ? (
+            <IconHit name="note-add" label="Export note" color={theme.primary} onPress={onExport} />
+          ) : null}
+          {onMenuPress ? (
+            <IconHit name="more-vert" label="Session actions" color={theme.textSecondary} onPress={onMenuPress} />
+          ) : null}
+        </View>
       </View>
 
       <View style={styles.bottomRow}>
         <View style={styles.duration}>
           <MaterialIcons name="schedule" size={16} color={theme.textSecondary} />
           <ThemedText type="labelSm" themeColor="textSecondary">
-            {durationLabel}
+            {status === 'processing' && progress != null ? `${pct}%` : durationLabel}
           </ThemedText>
         </View>
         <View style={[styles.pill, { backgroundColor: pill.bg }]}>
@@ -85,7 +123,13 @@ export function SessionCard({
           </ThemedText>
         </View>
       </View>
-    </Pressable>
+
+      {status === 'processing' && progress != null ? (
+        <View style={[styles.track, { backgroundColor: theme.outlineVariant }]}>
+          <View style={[styles.fill, { width: `${pct}%`, backgroundColor: theme.primary }]} />
+        </View>
+      ) : null}
+    </View>
   );
 }
 
@@ -106,8 +150,15 @@ const styles = StyleSheet.create({
     flex: 1,
     fontWeight: '500',
   },
-  menuHit: {
-    padding: Spacing.half,
+  actions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  iconHit: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   bottomRow: {
     flexDirection: 'row',
@@ -118,6 +169,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.one,
+    flex: 1,
+    paddingRight: Spacing.two,
   },
   pill: {
     flexDirection: 'row',
@@ -125,6 +178,15 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
     paddingHorizontal: Spacing.two,
     paddingVertical: Spacing.one,
+    borderRadius: Radius.full,
+  },
+  track: {
+    height: 6,
+    borderRadius: Radius.full,
+    overflow: 'hidden',
+  },
+  fill: {
+    height: '100%',
     borderRadius: Radius.full,
   },
 });
