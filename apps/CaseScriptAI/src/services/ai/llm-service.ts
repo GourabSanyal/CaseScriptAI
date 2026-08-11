@@ -12,7 +12,7 @@ export type LlmServiceDeps = {
 };
 
 const isOom = (error: string): boolean =>
-  /oom|out of memory|memory/i.test(error);
+  /\boom\b|out of memory/i.test(error);
 
 /** LLM stage: lock → pre-check → generate SOAP → validate → interrupt+unload+GC. */
 export class LlmService {

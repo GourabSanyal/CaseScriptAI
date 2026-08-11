@@ -73,6 +73,24 @@ Plan: hydration, OTC analgesic, follow up if worsens or new neurological signs.
     expect(memory.modelLoadLock).toBeNull();
   });
 
+  it('does not treat generic memory wording as OOM', async () => {
+    const memory = new MemoryManager();
+    const service = new LlmService({
+      memory,
+      runtime: {
+        isReady: async () => ({ success: true, data: undefined }),
+        generate: async () => ({ success: false, error: 'KV memory map failed' }),
+        interrupt: async () => ({ success: true, data: undefined }),
+        unload: async () => ({ success: true, data: undefined }),
+      },
+    });
+    const result = await service.generateSoap('transcript text here');
+    expect(result).toMatchObject({
+      success: false,
+      errorCode: AppErrorCode.LLM_GENERATION_FAILED,
+    });
+  });
+
   it('fails pre-check when runtime not ready', async () => {
     const memory = new MemoryManager();
     const service = new LlmService({
