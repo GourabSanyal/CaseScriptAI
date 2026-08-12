@@ -26,6 +26,8 @@ export default function ModelDownloadScreen() {
   const startDownload = useDownloadStore((state) => state.startDownload);
   const retry = useDownloadStore((state) => state.retry);
   const reset = useDownloadStore((state) => state.reset);
+  const markComplete = useDownloadStore((state) => state.markComplete);
+  const hasHydrated = useDownloadStore((state) => state.hasHydrated);
 
   const [readiness, setReadiness] = useState<ModelReadiness | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -44,10 +46,12 @@ export default function ModelDownloadScreen() {
   }, [assessAndSelect, selection]);
 
   const tier = selection?.tier ?? 'lite';
-  const busy = ['checking-storage', 'downloading', 'verifying'].includes(machine.status);
   const checking = readiness === null;
-  // Continue only when Whisper + LLM files are actually on disk (not store phase alone).
+  // Disk is source of truth — MMKV can be idle/0% after a kill while files are already there.
   const complete = readiness?.ready === true;
+  const busy =
+    !complete &&
+    ['checking-storage', 'downloading', 'verifying', 'paused'].includes(machine.status);
 
   const refreshReadiness = useCallback(async () => {
     const result = await modelManager.checkAllModelsReady(tier);
@@ -57,6 +61,15 @@ export default function ModelDownloadScreen() {
   useEffect(() => {
     void refreshReadiness();
   }, [refreshReadiness, machine.status]);
+
+  useEffect(() => {
+    if (!hasHydrated || !readiness) return;
+    if (readiness.ready) {
+      if (machine.status !== 'complete') markComplete();
+      return;
+    }
+    if (machine.status === 'paused') void startDownload(tier);
+  }, [hasHydrated, markComplete, machine.status, readiness, startDownload, tier]);
 
   // Stale MMKV `complete` + empty disk → reset; ring % must not outrank disk readiness.
   useEffect(() => {
@@ -84,7 +97,7 @@ export default function ModelDownloadScreen() {
 
   return (
     <ModelDownloadView
-      percent={progress}
+      percent={complete ? 1 : progress}
       phaseLabel={phaseLabel}
       modelStatuses={buildModelStatusRows(tier, readiness)}
       error={error ?? deleteError}
