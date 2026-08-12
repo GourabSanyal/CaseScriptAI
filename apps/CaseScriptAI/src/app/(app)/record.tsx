@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { router } from 'expo-router';
 
 import { HomeRecordView } from '@/components/home/home-record-view';
@@ -12,6 +12,9 @@ import {
   guardRecordingAgainstCallAudio,
   notifyRecordingStartFailure,
 } from '@/services/device/call-audio-presence';
+import { isDownloadInFlight } from '@/services/download/download-state-machine';
+import { useBootStore } from '@/stores/boot-store';
+import { useDownloadStore } from '@/stores/download-runtime';
 import { usePipelineStore } from '@/stores/pipeline-runtime';
 import { useRecordingStore } from '@/stores/recording-runtime';
 import { AppErrorCode } from '@/types/result';
@@ -38,6 +41,15 @@ export default function RecordScreen() {
   const startDrain = usePipelineStore((state) => state.startDrain);
   const elapsedMs = useSessionElapsed(machine);
   const [importError, setImportError] = useState<string | null>(null);
+  const downloadHydrated = useDownloadStore((state) => state.hasHydrated);
+  const downloadMachine = useDownloadStore((state) => state.machine);
+  const modelsReady = downloadHydrated && !isDownloadInFlight(downloadMachine);
+
+  useEffect(() => {
+    if (!downloadHydrated || modelsReady) return;
+    useBootStore.getState().setDestination('download');
+    router.replace('/(onboarding)/model-download');
+  }, [downloadHydrated, modelsReady]);
 
   const onImportAudio = async () => {
     setImportError(null);
@@ -71,6 +83,7 @@ export default function RecordScreen() {
       error={displayError}
       elapsedMs={elapsedMs}
       pendingCount={pendingCount}
+      modelsReady={modelsReady}
       onStart={() => void onStart()}
       onPause={() => void pause()}
       onResume={() => void resume()}

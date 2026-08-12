@@ -11,6 +11,7 @@ import type { RecordingState } from '@/types/recording';
 type HomePrimaryActionsProps = {
   machine: RecordingState;
   error: string | null;
+  modelsReady?: boolean;
   onStart: () => void;
   onPause: () => void;
   onResume: () => void;
@@ -22,6 +23,7 @@ type HomePrimaryActionsProps = {
 export function HomePrimaryActions({
   machine,
   error,
+  modelsReady = true,
   onStart,
   onPause,
   onResume,
@@ -34,7 +36,8 @@ export function HomePrimaryActions({
   const isPaused = machine.status === 'paused';
   const isOrphaned = machine.status === 'orphaned';
   const canStart =
-    machine.status === 'idle' || machine.status === 'queued' || machine.status === 'failed';
+    modelsReady &&
+    (machine.status === 'idle' || machine.status === 'queued' || machine.status === 'failed');
 
   if (isOrphaned) {
     return (
@@ -75,6 +78,11 @@ export function HomePrimaryActions({
       {error ? (
         <ThemedText type="labelSm" themeColor="textSecondary" style={styles.error}>
           {error}
+        </ThemedText>
+      ) : null}
+      {!modelsReady ? (
+        <ThemedText type="labelSm" themeColor="textSecondary" style={styles.error}>
+          Finish downloading models before recording.
         </ThemedText>
       ) : null}
 

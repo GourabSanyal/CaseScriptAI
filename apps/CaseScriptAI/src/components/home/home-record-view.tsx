@@ -17,6 +17,7 @@ export type HomeRecordViewProps = {
   error: string | null;
   elapsedMs: number;
   pendingCount: number;
+  modelsReady?: boolean;
   onStart: () => void;
   onPause: () => void;
   onResume: () => void;
@@ -40,6 +41,7 @@ export function HomeRecordView({
   error,
   elapsedMs,
   pendingCount,
+  modelsReady = true,
   onStart,
   onPause,
   onResume,
@@ -73,6 +75,7 @@ export function HomeRecordView({
           <HomePrimaryActions
             machine={machine}
             error={error}
+            modelsReady={modelsReady}
             onStart={onStart}
             onPause={onPause}
             onResume={onResume}
