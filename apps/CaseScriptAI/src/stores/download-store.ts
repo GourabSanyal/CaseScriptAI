@@ -24,6 +24,13 @@ export const createDownloadStore = ({
         hasHydrated: false,
         reset: () =>
           set({ machine: { status: 'idle' }, progress: 0, phaseLabel: 'Idle', error: null }),
+        markComplete: () =>
+          set({
+            machine: { status: 'complete' },
+            progress: 1,
+            phaseLabel: 'Complete',
+            error: null,
+          }),
         retry: (tier) => get().startDownload(tier),
         startDownload: (tier) =>
           runModelDownload({

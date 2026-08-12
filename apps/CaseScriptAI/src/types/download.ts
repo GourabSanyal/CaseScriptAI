@@ -128,6 +128,8 @@ export type DownloadStore = {
   startDownload: (tier: LLMTier) => Promise<Result<void>>;
   retry: (tier: LLMTier) => Promise<Result<void>>;
   reset: () => void;
+  /** Disk already has assets — persist complete so the ring/Continue match. */
+  markComplete: () => void;
 };
 export type DownloadStoreDeps = {
   downloadAsset: AssetDownloader;

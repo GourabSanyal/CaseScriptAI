@@ -119,4 +119,19 @@ describe('download-store', () => {
     expect(result).toMatchObject({ errorCode: AppErrorCode.MODEL_MISSING });
     expect(store.getState().machine.status).toBe('failed');
   });
+
+  it('markComplete syncs a stale idle machine when files are already on disk', () => {
+    const store = createDownloadStore({
+      downloadAsset: async () => ({ success: true, data: '/tmp/file' }),
+      warmup: async () => ({ success: true, data: undefined }),
+      downgradeAfterWarmupFailure: () => ({ success: false, error: 'no' }),
+      stateStorage: memoryStorage(),
+    });
+    store.getState().markComplete();
+    expect(store.getState()).toMatchObject({
+      machine: { status: 'complete' },
+      progress: 1,
+      error: null,
+    });
+  });
 });
