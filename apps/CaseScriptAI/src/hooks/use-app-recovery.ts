@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { useRouter } from 'expo-router';
@@ -21,15 +21,17 @@ const isOnlineState = (connected: boolean | null, reachable: boolean | null): bo
   Boolean(connected && reachable !== false);
 
 /** Mount once in root chrome. Services stay RN-free; this hook is the adapter. */
-export const useAppRecovery = (): void => {
+export const useAppRecovery = (navigationReady: boolean): void => {
   const router = useRouter();
   const destination = useBootStore((state) => state.destination);
+  const sawApp = useRef(destination === 'app');
+  if (destination === 'app') sawApp.current = true;
 
+  // Boot uses index Redirect. REPLACE only after (app) was mounted — Slot is gone during splash.
   useEffect(() => {
-    if (destination === 'download') {
-      router.replace('/(onboarding)/model-download');
-    }
-  }, [destination, router]);
+    if (!navigationReady || destination !== 'download' || !sawApp.current) return;
+    router.replace('/(onboarding)/model-download');
+  }, [destination, navigationReady, router]);
 
   useEffect(() => {
     let online = true;

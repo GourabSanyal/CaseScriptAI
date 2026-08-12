@@ -16,8 +16,10 @@ import { useCallAudioPresenceToast } from '@/hooks/use-call-audio-presence-toast
 import { useDmSans } from '@/hooks/use-dm-sans';
 import { getExecutorchBootReady } from '@/services/ai/executorch-boot';
 import { modelManager } from '@/services/ai/model-manager-runtime';
+import { resolveLaunchDestination } from '@/services/download/download-state-machine';
 import { useBootStore } from '@/stores/boot-store';
 import { useDeviceStore } from '@/stores/device-store';
+import { useDownloadStore } from '@/stores/download-runtime';
 import { initAppStorage } from '@/stores/session-runtime';
 import { setToastsReady } from '@/stores/toast-store';
 
@@ -25,9 +27,15 @@ ExpoSplashScreen.preventAutoHideAsync().catch(() => {
   // Native splash may already be hidden during fast reload.
 });
 
-function AppChrome({ children }: { children: ReactNode }) {
+function AppChrome({
+  children,
+  navigationReady,
+}: {
+  children: ReactNode;
+  navigationReady: boolean;
+}) {
   useCallAudioPresenceToast();
-  useAppRecovery();
+  useAppRecovery(navigationReady);
   return (
     <>
       {children}
@@ -44,6 +52,7 @@ export default function RootLayout() {
   const [showSplash, setShowSplash] = useState(true);
   const destination = useBootStore((state) => state.destination);
   const setDestination = useBootStore((state) => state.setDestination);
+  const downloadHydrated = useDownloadStore((state) => state.hasHydrated);
 
   // Always wire Keychain/AES + SQL — do not gate on destination (persisted `app` skipped init before).
   useEffect(() => {
@@ -51,9 +60,9 @@ export default function RootLayout() {
     void initAppStorage();
   }, [fontsLoaded]);
 
-  // ponytail: resolve download vs app from disk only — do not load ExecuTorch during download.
+  // ponytail: disk + in-flight download machine — do not load ExecuTorch during download.
   useEffect(() => {
-    if (!fontsLoaded || destination) return;
+    if (!fontsLoaded || !downloadHydrated || destination) return;
 
     ExpoSplashScreen.hideAsync().catch(() => undefined);
 
@@ -68,14 +77,17 @@ export default function RootLayout() {
 
       const readiness = await modelManager.checkAllModelsReady(tier);
       if (cancelled) return;
-      setDestination(readiness.success && readiness.data.ready ? 'app' : 'download');
+      const diskReady = readiness.success && readiness.data.ready;
+      setDestination(
+        resolveLaunchDestination(diskReady, useDownloadStore.getState().machine),
+      );
     };
 
     void run();
     return () => {
       cancelled = true;
     };
-  }, [destination, fontsLoaded, setDestination]);
+  }, [destination, downloadHydrated, fontsLoaded, setDestination]);
 
   // Load ExecuTorch only when entering the main app (models already on disk).
   useEffect(() => {
@@ -131,7 +143,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <AppChrome>
+        <AppChrome navigationReady={bootReady && !showSplash}>
           {bootReady && !showSplash ? <Slot /> : null}
           {showSplash ? (
             <SplashScreenOverlay
