@@ -83,3 +83,19 @@ export const normalizeRestoredDownloadState = (state: DownloadState): DownloadSt
   }
   return state;
 };
+
+/** Interrupted or failed download must not boot into Home. */
+export const isDownloadInFlight = (state: DownloadState): boolean =>
+  state.status === 'paused' ||
+  state.status === 'downloading' ||
+  state.status === 'verifying' ||
+  state.status === 'checking-storage' ||
+  state.status === 'failed';
+
+export const resolveLaunchDestination = (
+  diskReady: boolean,
+  machine: DownloadState,
+): 'app' | 'download' => {
+  if (!diskReady || isDownloadInFlight(machine)) return 'download';
+  return 'app';
+};

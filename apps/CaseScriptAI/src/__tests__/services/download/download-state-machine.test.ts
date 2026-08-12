@@ -1,5 +1,7 @@
 import {
+  isDownloadInFlight,
   normalizeRestoredDownloadState,
+  resolveLaunchDestination,
   transitionDownloadState,
 } from '@/services/download/download-state-machine';
 import { AppErrorCode } from '@/types/result';
@@ -52,6 +54,18 @@ describe('DownloadStateMachine', () => {
       status: 'checking-storage',
       attempt: 2,
     });
+  });
+
+  it('keeps interrupted downloads on the download screen even if files look present', () => {
+    const paused = normalizeRestoredDownloadState({
+      status: 'verifying',
+      progress: 0.9,
+      attempt: 1,
+    });
+    expect(isDownloadInFlight(paused)).toBe(true);
+    expect(resolveLaunchDestination(true, paused)).toBe('download');
+    expect(resolveLaunchDestination(true, { status: 'complete' })).toBe('app');
+    expect(resolveLaunchDestination(false, { status: 'idle' })).toBe('download');
   });
 
   it('normalizes an interrupted active download to paused', () => {
