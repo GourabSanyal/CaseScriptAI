@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
+  cancelAnimation,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
@@ -34,7 +35,7 @@ function WaveBar({
   useEffect(() => {
     if (!active) {
       height.value = withTiming(8 + BAR_PATTERN[index]! * 12, { duration: 280 });
-      return;
+      return () => cancelAnimation(height);
     }
     height.value = withRepeat(
       withTiming(14 + BAR_PATTERN[index]! * 36, {
@@ -44,6 +45,7 @@ function WaveBar({
       -1,
       true,
     );
+    return () => cancelAnimation(height);
   }, [active, height, index]);
 
   const style = useAnimatedStyle(() => ({
