@@ -6,6 +6,7 @@ import { LLM_MODELS, WHISPER_MODEL } from '@/constants/models';
 import { initializeExecutorch } from '@/services/ai/llm-inference';
 import {
   bindPipelinePorts,
+  clearPipelinePorts,
   setPipelineRuntimesReady,
 } from '@/services/ai/pipeline-runtime-bridge';
 import { parseWavData } from '@/services/audio/wav-parser';
@@ -30,6 +31,15 @@ const waitReady = async (
     delay = Math.min(delay * 1.5, 1000);
   }
   return { success: false, error: 'Model load timed out' };
+};
+
+/** Wait until preventLoad has dropped native readiness (soft unload is async). */
+const waitUnloaded = async (isReady: () => boolean): Promise<void> => {
+  for (let i = 0; i < 50; i++) {
+    if (!isReady()) return;
+    await sleep(100);
+  }
+  // ponytail: ExecuTorch has no hard unload API; ceiling is ~5s wait then proceed
 };
 
 /** Mount once under (app). Owns ExecuTorch hooks and plugs them into pipeline services. */
@@ -77,6 +87,7 @@ export const useBindPipelineRuntimes = (): void => {
               if (!file.exists) {
                 return { success: false, error: 'Audio file missing' };
               }
+              // ponytail: ExecuTorch STT needs Float32 in JS; release after call
               const samples = parseWavData(await file.bytes());
               const result = await whisperRef.current.transcribe(samples, { language: 'en' });
               const text = result?.text?.trim() ?? '';
@@ -91,7 +102,7 @@ export const useBindPipelineRuntimes = (): void => {
           },
           unload: async () => {
             setWhisperOn(false);
-            await sleep(400);
+            await waitUnloaded(() => Boolean(whisperRef.current.isReady));
             return { success: true, data: undefined };
           },
         },
@@ -118,10 +129,20 @@ export const useBindPipelineRuntimes = (): void => {
               };
             }
           },
-          interrupt: async () => ({ success: true, data: undefined }),
+          interrupt: async () => {
+            try {
+              llmRef.current.interrupt();
+              return { success: true, data: undefined };
+            } catch (error) {
+              return {
+                success: false,
+                error: error instanceof Error ? error.message : 'Interrupt failed',
+              };
+            }
+          },
           unload: async () => {
             setLlmOn(false);
-            await sleep(400);
+            await waitUnloaded(() => Boolean(llmRef.current.isReady));
             return { success: true, data: undefined };
           },
         },
@@ -138,7 +159,7 @@ export const useBindPipelineRuntimes = (): void => {
     void boot();
     return () => {
       cancelled = true;
-      setPipelineRuntimesReady(false);
+      clearPipelinePorts();
     };
   }, [tier]);
 };

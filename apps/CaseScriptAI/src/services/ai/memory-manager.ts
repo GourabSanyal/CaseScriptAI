@@ -38,6 +38,7 @@ export class MemoryManager {
   };
 
   forceGC = (): void => {
+    // ponytail: Hermes rarely exposes gc(); real reclaim is unload wait in bind ports
     const gc = (globalThis as typeof globalThis & { gc?: () => void }).gc;
     gc?.();
   };
