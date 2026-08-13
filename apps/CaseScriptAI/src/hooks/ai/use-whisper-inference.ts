@@ -14,6 +14,7 @@ export const useWhisperInference = () => {
   const [transcript, setTranscript] = useState("");
   const [error, setError] = useState<string | null>(null);
   const contextRef = useRef<WhisperContext | null>(null);
+  const aliveRef = useRef(true);
 
   const initModel = useCallback(async (): Promise<Result<WhisperContext>> => {
     if (contextRef.current) {
@@ -42,6 +43,12 @@ export const useWhisperInference = () => {
       const context = await initWhisper({
         filePath: modelPath,
       });
+
+      if (!aliveRef.current) {
+        await context.release();
+        setIsLoading(false);
+        return { success: false, error: "Whisper released on unmount" };
+      }
 
       contextRef.current = context;
       console.log("[Whisper] Model initialized successfully");
@@ -110,8 +117,10 @@ export const useWhisperInference = () => {
   }, []);
 
   useEffect(() => {
+    aliveRef.current = true;
     return () => {
-      release();
+      aliveRef.current = false;
+      void release();
     };
   }, [release]);
 
