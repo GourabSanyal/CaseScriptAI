@@ -19,6 +19,12 @@ export const bindPipelinePorts = (next: Ports): void => {
   ports = next;
 };
 
+/** Drop module bridges when (app) unmounts so hooks cannot be called after teardown. */
+export const clearPipelinePorts = (): void => {
+  ports = null;
+  ready = false;
+};
+
 export const setPipelineRuntimesReady = (value: boolean): void => {
   ready = value;
 };
