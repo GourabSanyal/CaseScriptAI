@@ -13,4 +13,13 @@ describe('pcmPayloadFromWavBytes', () => {
   it('returns empty for tiny buffers', () => {
     expect(pcmPayloadFromWavBytes(new Uint8Array(10)).byteLength).toBe(0);
   });
+
+  it('copies pcm so the source WAV buffer can be GC’d', () => {
+    const wav = new Uint8Array(44 + 2);
+    wav[44] = 7;
+    wav[45] = 8;
+    const pcm = pcmPayloadFromWavBytes(wav);
+    pcm[0] = 99;
+    expect(wav[44]).toBe(7);
+  });
 });

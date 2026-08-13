@@ -54,10 +54,10 @@ export const concatBytes = (parts: readonly Uint8Array[]): Uint8Array => {
 export const wrapPcmAsWav = (pcm: Uint8Array): Uint8Array =>
   concatBytes([buildWavHeader(pcm.byteLength), pcm]);
 
-/** Strip standard 44-byte WAV header → raw 16-bit PCM. */
+/** Strip standard 44-byte WAV header → raw 16-bit PCM (copy so WAV buffer can GC). */
 export const pcmPayloadFromWavBytes = (wav: Uint8Array): Uint8Array => {
   if (wav.byteLength <= 44) return new Uint8Array();
-  return wav.subarray(44);
+  return wav.slice(44);
 };
 
 export const WAV_TARGET = {

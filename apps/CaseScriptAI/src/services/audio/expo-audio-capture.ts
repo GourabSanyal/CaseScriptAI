@@ -62,9 +62,16 @@ export const createExpoAudioCapture = (
     const wav = await convertToWav(uri);
     if (!wav.success) return wav;
     try {
-      const bytes = await new File(wav.data).bytes();
+      const wavFile = new File(wav.data);
+      const bytes = await wavFile.bytes();
       const pcm = pcmPayloadFromWavBytes(bytes);
       if (pcm.byteLength > 0) await onPcm(pcm);
+      // Drop temp decode artifacts so RAM/disk don't stack across rotates
+      if (wavFile.exists) wavFile.delete();
+      if (uri !== wav.data) {
+        const src = new File(uri);
+        if (src.exists) src.delete();
+      }
       return { success: true, data: undefined };
     } catch (error) {
       return {
