@@ -1,0 +1,31 @@
+# ponytail: one smoke, not Detox. Android: change appId to com.casescriptai.app
+appId: com.g.casescriptai
+---
+- launchApp
+- runFlow:
+    when:
+      visible:
+        id: model-download-start
+    commands:
+      - tapOn:
+          id: model-download-start
+      - extendedWaitUntil:
+          visible:
+            id: home-start
+          timeout: 600000
+- extendedWaitUntil:
+    visible:
+      id: home-start
+    timeout: 120000
+- tapOn:
+    id: home-start
+- extendedWaitUntil:
+    visible:
+      id: home-stop
+    timeout: 15000
+- tapOn:
+    id: home-stop
+- extendedWaitUntil:
+    visible:
+      id: home-start
+    timeout: 30000
