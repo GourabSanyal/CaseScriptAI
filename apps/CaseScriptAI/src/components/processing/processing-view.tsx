@@ -77,6 +77,8 @@ export function ProcessingView({
         {!active ? (
           <Pressable
             accessibilityRole="button"
+            accessibilityLabel="Process queue"
+            testID="processing-drain"
             onPress={onStartDrain}
             style={[styles.btn, { backgroundColor: theme.primary }]}
           >
