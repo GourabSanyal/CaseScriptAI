@@ -159,12 +159,14 @@ Branch validates **native raw-PCM capture + native decoders** vs keeping FFmpeg.
 
 ## SLICE 6 — Test Suite Completion
 
+> Existing Slice 0–5 units kept (no second suite). Detox skipped. Live &lt;2GB peak is Xcode Instruments / Android Profiler on a ~3GB phone.
+
 | Sub | Description | Status | Tests | Impl |
 |---|---|---|---|---|
-| 6.1 | Unit tests (services/machines/stores) | TODO | | |
-| 6.2 | Integration tests (full pipeline, resumption) | TODO | | |
-| 6.3 | E2E (Maestro/Detox) | TODO | | |
-| 6.4 | Performance benchmarks (<2GB peak, frame drops) | TODO | | |
+| 6.1 | Unit tests (services/machines/stores) | DONE | `yarn workspace casescriptai test --runInBand` — 53 suites / 199 passing; gap fill [`wav-parser.test.ts`](../apps/CaseScriptAI/src/__tests__/services/audio/wav-parser.test.ts) | existing services / machines / stores |
+| 6.2 | Integration tests (full pipeline, resumption) | DONE | [`slice6-pipeline.test.ts`](../apps/CaseScriptAI/src/__tests__/services/ai/slice6-pipeline.test.ts) | [`pipeline-orchestrator.ts`](../apps/CaseScriptAI/src/services/ai/pipeline-orchestrator.ts), [`whisper-service.ts`](../apps/CaseScriptAI/src/services/ai/whisper-service.ts), [`pipeline-background.ts`](../apps/CaseScriptAI/src/services/ai/pipeline-background.ts) |
+| 6.3 | E2E (Maestro; Detox skipped) | DONE | [`.maestro/smoke.yaml`](../.maestro/smoke.yaml) — `maestro test .maestro/smoke.yaml` (Android: `appId` `com.casescriptai.app`) | [`home-primary-actions.tsx`](../apps/CaseScriptAI/src/components/home/home-primary-actions.tsx), [`model-download-view.tsx`](../apps/CaseScriptAI/src/components/model-download/model-download-view.tsx), [`processing-view.tsx`](../apps/CaseScriptAI/src/components/processing/processing-view.tsx) |
+| 6.4 | Performance benchmarks (<2GB peak, frame drops) | DONE | [`peak-ram-invariants.test.ts`](../apps/CaseScriptAI/src/__tests__/perf/peak-ram-invariants.test.ts) — Jest invariants; **device peak still you**: Instruments Allocations / Android Profiler | [`audio-chunk-queue.ts`](../apps/CaseScriptAI/src/services/audio/audio-chunk-queue.ts), [`memory-manager.ts`](../apps/CaseScriptAI/src/services/ai/memory-manager.ts) |
 
 ## SLICE 7 — Checksum Infra
 
