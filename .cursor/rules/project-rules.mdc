@@ -9,7 +9,7 @@ alwaysApply: true
 
 Also read before implementing:
 
-- [`docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md) — what to build
+- [`docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md) — what to build (**§15 → OWASP Mobile Top 10** for security-touching work)
 - [`docs/SLICES_PLAN.md`](../../docs/SLICES_PLAN.md) — slice status & TDD workflow
 
 Quick enforcers:
@@ -23,4 +23,4 @@ Quick enforcers:
 
 File-scoped detail: `ai-pipeline.mdc`, `typescript-standards.mdc`, `react-native-ui.mdc`, `navigation.mdc`.
 
-Skills (memory/R8 + legacy POC only): `.ai/skills/` — model memory always defers to `ai-pipeline.mdc`. Canonical docs: `ARCHITECTURE.md`, `SLICES_PLAN.md`, `PROJECT_RULES.md`.
+Skills (memory/R8 + legacy POC only): `.ai/skills/` — model memory always defers to `ai-pipeline.mdc`. Canonical docs: `ARCHITECTURE.md` (incl. §15 → `OWASP_MOBILE_TOP_10.md`), `SLICES_PLAN.md`, `PROJECT_RULES.md`.
