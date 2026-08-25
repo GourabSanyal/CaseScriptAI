@@ -63,6 +63,7 @@ Trial-gated features must navigate via `router.push('/paywall')`. Never use cond
 - `EXPO_PUBLIC_*` for non-sensitive config only — never secrets
 - Release builds: R8/ProGuard on Android; strip `console.log` in production
 - Hermes bytecode provides baseline JS protection; no extra obfuscation library until V1 hardening
+- OWASP Mobile Top 10 (2024): read [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) §15 → [`docs/OWASP_MOBILE_TOP_10.md`](docs/OWASP_MOBILE_TOP_10.md) before auth/storage/crypto/network/logging changes
 
 ## LLM Guardrails (summary)
 
@@ -79,6 +80,7 @@ Workflow skills live in `.ai/skills/` (symlinked from `.cursor/skills/`). Canoni
 | Task | Location |
 |------|----------|
 | Product flow / invariants | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
+| Mobile security (OWASP) | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) §15 → [`docs/OWASP_MOBILE_TOP_10.md`](docs/OWASP_MOBILE_TOP_10.md) |
 | Slice status / TDD | [`docs/SLICES_PLAN.md`](docs/SLICES_PLAN.md) |
 | Dev practices | [`PROJECT_RULES.md`](PROJECT_RULES.md) |
 | AI / model memory (Whisper↔LLM) | [`.cursor/rules/ai-pipeline.mdc`](.cursor/rules/ai-pipeline.mdc) |
