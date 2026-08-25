@@ -5,6 +5,8 @@
 >
 > **Read this file first** at the start of every new chat/tab. Keep it in sync **before** changing code
 > (see "Change Control" at the bottom). Companions: [`SLICES_PLAN.md`](./SLICES_PLAN.md), [`PROJECT_RULES.md`](../PROJECT_RULES.md).
+> **Mobile security:** for auth, storage, crypto, networking, native modules, or logging work, also read
+> [`OWASP_MOBILE_TOP_10.md`](./OWASP_MOBILE_TOP_10.md) (via §15 below).
 
 ---
 
@@ -245,3 +247,15 @@ For every slice/sub-slice: **test plan → test skeleton + core cases → user a
 1. New chat/tab → read this file + `SLICES_PLAN.md` first.
 2. Architecture change → **update this file BEFORE code**.
 3. Never introduce a new service/pattern/flow without recording it here first.
+4. Security-touching change (auth, storage, crypto, network, logging, native modules) → also read §15 / [`OWASP_MOBILE_TOP_10.md`](./OWASP_MOBILE_TOP_10.md) before coding.
+
+---
+
+## 15. Mobile security (OWASP)
+
+CaseScriptAI targets **iOS + Android** with on-device PHI. Use the project mapping of **OWASP Mobile Top 10 (2024)** as the security checklist:
+
+→ **[`OWASP_MOBILE_TOP_10.md`](./OWASP_MOBILE_TOP_10.md)** — M1–M10 risks mapped to our services, invariants, and deferred gaps.  
+Upstream: [owasp.org/www-project-mobile-top-10](https://owasp.org/www-project-mobile-top-10/).
+
+Product invariants in §5 (PHI, encryption, checksums, offline-first) implement several Top 10 controls; the OWASP doc is the place to verify coverage when extending the MVP.
