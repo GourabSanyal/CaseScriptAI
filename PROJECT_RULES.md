@@ -10,11 +10,13 @@
 
 | Priority | Document | Use for |
 |----------|----------|---------|
-| 1 | `docs/ARCHITECTURE.md` | Product flow, services, invariants, error model |
+| 1 | `docs/ARCHITECTURE.md` | Product flow, services, invariants, error model; **§15 → OWASP Mobile Top 10** |
 | 2 | `docs/SLICES_PLAN.md` | What to build, slice status, test + impl links |
 | 3 | **This file** | How to work: scope, TDD, layers, security, UI |
 | 4 | `AGENTS.md` | Stack, commands, key file index |
 | 5 | `.cursor/rules/*.mdc` | File-scoped conventions (AI, UI, TS, navigation) |
+
+Security checklist detail lives in [`docs/OWASP_MOBILE_TOP_10.md`](docs/OWASP_MOBILE_TOP_10.md) — always reached **via** `ARCHITECTURE.md` §15 when starting a new chat/tab.
 
 **Change control:** Architecture change → update `ARCHITECTURE.md` **before** code. New service/flow not documented → stop, update architecture, then implement.
 
@@ -137,6 +139,7 @@ Detail: `.cursor/rules/typescript-standards.mdc`, `react-native-ui.mdc`, `naviga
 - Encryption keys in Keychain/Keystore (replace POC placeholder before Slice 4.6 ships)
 - No secrets in `EXPO_PUBLIC_*`
 - Release: R8/ProGuard on Android; strip `console.log` in production
+- OWASP Mobile Top 10 (2024) mapping: [`docs/OWASP_MOBILE_TOP_10.md`](docs/OWASP_MOBILE_TOP_10.md) — enter from [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) §15
 
 ---
 
@@ -173,6 +176,7 @@ yarn workspace casescriptai test
 | Task | Location |
 |------|----------|
 | Product flow / invariants | `docs/ARCHITECTURE.md` |
+| Mobile security (OWASP) | `docs/ARCHITECTURE.md` §15 → `docs/OWASP_MOBILE_TOP_10.md` |
 | Slice status / TDD | `docs/SLICES_PLAN.md` |
 | AI / model memory (Whisper↔LLM) | `.cursor/rules/ai-pipeline.mdc` |
 | Screens / paywall | `.cursor/rules/navigation.mdc` |
