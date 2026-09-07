@@ -5,13 +5,13 @@ import {
   purgeExecutorchCacheByPredicate,
 } from '@/services/download/executorch-resource';
 
-const mockDeleteAsync = jest.fn(async () => undefined);
-const mockGetInfoAsync = jest.fn(async (uri: string) => ({
+const mockDeleteAsync = jest.fn(async (_uri?: string, _options?: unknown) => undefined);
+const mockGetInfoAsync = jest.fn(async (uri: string, _options?: unknown) => ({
   exists: true,
   isDirectory: uri.includes('react-native-executorch') && !uri.includes('model'),
   size: 10,
 }));
-const mockReadDirectoryAsync = jest.fn(async () => [
+const mockReadDirectoryAsync = jest.fn(async (_uri?: string) => [
   'whisper-tiny.pte',
   'cdn_qwen3-0.6b-quantized.pte',
   'cdn_qwen3-1.7b-quantized.pte',
@@ -21,9 +21,9 @@ const mockReadDirectoryAsync = jest.fn(async () => [
 
 jest.mock('expo-file-system/legacy', () => ({
   documentDirectory: 'file:///docs/',
-  deleteAsync: (...args: unknown[]) => mockDeleteAsync(...args),
-  getInfoAsync: (...args: unknown[]) => mockGetInfoAsync(...args),
-  readDirectoryAsync: (...args: unknown[]) => mockReadDirectoryAsync(...args),
+  deleteAsync: (uri: string, options?: unknown) => mockDeleteAsync(uri, options),
+  getInfoAsync: (uri: string, options?: unknown) => mockGetInfoAsync(uri, options),
+  readDirectoryAsync: (uri: string) => mockReadDirectoryAsync(uri),
 }));
 
 describe('executorch LLM cache purge', () => {
