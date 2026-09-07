@@ -1,10 +1,13 @@
 import { LlmService } from '@/services/ai/llm-service';
 import { MemoryManager } from '@/services/ai/memory-manager';
-import { createPipelineBackgroundController } from '@/services/ai/pipeline-background';
+import {
+  createPipelineBackgroundController,
+  type AppStateStatus,
+} from '@/services/ai/pipeline-background';
 import { PipelineOrchestrator } from '@/services/ai/pipeline-orchestrator';
-import { TranscriptQueue } from '@/services/ai/transcript-queue';
+import { TranscriptQueue, type TranscriptSegment } from '@/services/ai/transcript-queue';
 import { WhisperService } from '@/services/ai/whisper-service';
-import { AudioChunkQueue } from '@/services/audio/audio-chunk-queue';
+import { AudioChunkQueue, type AudioChunkRef } from '@/services/audio/audio-chunk-queue';
 import { createProcessingQueueStore } from '@/stores/processing-queue-store';
 
 import type { ProcessingQueueItem } from '@/types/processing-queue';
@@ -42,9 +45,9 @@ const mapPersistence = <T>() => {
 describe('Slice 6 pipeline integration', () => {
   it('runs whisper then llm then SOAP and never co-resides locks', async () => {
     const memory = new MemoryManager();
-    const locks: Array<string | null> = [];
-    const audioPersist = mapPersistence();
-    const transcriptPersist = mapPersistence();
+    const locks: (string | null)[] = [];
+    const audioPersist = mapPersistence<AudioChunkRef>();
+    const transcriptPersist = mapPersistence<TranscriptSegment>();
     const audioQueue = new AudioChunkQueue('s1', audioPersist);
     await audioQueue.enqueue({
       id: 'c0',
@@ -101,8 +104,8 @@ describe('Slice 6 pipeline integration', () => {
 
   it('resumes after crash: skips transcribed chunk, finishes SOAP', async () => {
     const memory = new MemoryManager();
-    const audioPersist = mapPersistence();
-    const transcriptPersist = mapPersistence();
+    const audioPersist = mapPersistence<AudioChunkRef>();
+    const transcriptPersist = mapPersistence<TranscriptSegment>();
 
     const seedAudio = new AudioChunkQueue('s1', audioPersist);
     await seedAudio.enqueue({
@@ -171,7 +174,7 @@ describe('Slice 6 pipeline integration', () => {
 
   it('foreground AppState re-drains a queued session', async () => {
     const memory = new MemoryManager();
-    const audioQueue = new AudioChunkQueue('s1', mapPersistence());
+    const audioQueue = new AudioChunkQueue('s1', mapPersistence<AudioChunkRef>());
     await audioQueue.enqueue({
       id: 'c0',
       sessionId: 's1',
@@ -207,11 +210,11 @@ describe('Slice 6 pipeline integration', () => {
       soap: { save: async () => ({ success: true, data: undefined }) },
       sessions: {
         createAudioQueue: () => audioQueue,
-        createTranscriptQueue: (id) => new TranscriptQueue(id, mapPersistence()),
+        createTranscriptQueue: (id) => new TranscriptQueue(id, mapPersistence<TranscriptSegment>()),
       },
     });
 
-    let listener: ((status: string) => void) | null = null;
+    let listener: ((status: AppStateStatus) => void) | null = null;
     let draining: Promise<unknown> = Promise.resolve();
     const controller = createPipelineBackgroundController({
       onForeground: () => {
@@ -225,9 +228,9 @@ describe('Slice 6 pipeline integration', () => {
       },
     });
 
-    listener?.('background');
+    if (listener) (listener as (status: AppStateStatus) => void)('background');
     expect(queueStore.getState().items).toHaveLength(1);
-    listener?.('active');
+    if (listener) (listener as (status: AppStateStatus) => void)('active');
     await draining;
     expect(queueStore.getState().items).toEqual([]);
     controller.stop();
