@@ -1,9 +1,12 @@
-import { createPipelineBackgroundController } from '@/services/ai/pipeline-background';
+import {
+  createPipelineBackgroundController,
+  type AppStateStatus,
+} from '@/services/ai/pipeline-background';
 
 describe('pipeline-background', () => {
   it('invokes onForeground when AppState becomes active', () => {
     const onForeground = jest.fn();
-    let listener: ((status: string) => void) | null = null;
+    let listener: ((status: AppStateStatus) => void) | null = null;
     const controller = createPipelineBackgroundController({
       onForeground,
       subscribe: (fn) => {
@@ -14,9 +17,9 @@ describe('pipeline-background', () => {
       },
     });
 
-    listener?.('background');
+    if (listener) (listener as (status: AppStateStatus) => void)('background');
     expect(onForeground).not.toHaveBeenCalled();
-    listener?.('active');
+    if (listener) (listener as (status: AppStateStatus) => void)('active');
     expect(onForeground).toHaveBeenCalledTimes(1);
 
     controller.stop();
