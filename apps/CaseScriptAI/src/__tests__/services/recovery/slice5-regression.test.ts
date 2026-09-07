@@ -88,7 +88,7 @@ describe('Slice 5 regression', () => {
     });
     await flush();
     expect(toasts).toContain('Some sessions need attention.');
-    net?.(true);
+    if (net) (net as (online: boolean) => void)(true);
     expect(retries).toBe(1);
     controller.stop();
   });
