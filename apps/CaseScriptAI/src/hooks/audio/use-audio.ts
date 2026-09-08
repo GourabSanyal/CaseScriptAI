@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { Platform } from "react-native";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
-import { File, Paths } from "expo-file-system";
+import { Paths } from "expo-file-system";
 import { pickAudioFile } from "@/services/audio/audio-picker";
 import { convertToWav } from "@/services/audio/audio-processor";
 import {
@@ -24,7 +24,6 @@ export const useAudio = () => {
     return resolveAudioUri(lastAudioEntry.uri, "poc");
   }, [lastAudioEntry]);
 
-  const currentSourceRef = useRef<string | null>(null);
   const player = useAudioPlayer();
   const status = useAudioPlayerStatus(player);
 
@@ -64,7 +63,7 @@ export const useAudio = () => {
         console.log(`[FFmpeg] WAV conversion success: ${wavResult.data}`);
       }
 
-      const copied = await copyToDocuments(sourceUriForCopy, caseId);
+      const copied = await copyToDocuments(sourceUriForCopy, caseId, picked.name);
       if (!copied.success) {
         console.error(
           "[Ingestion] Copy failed:",

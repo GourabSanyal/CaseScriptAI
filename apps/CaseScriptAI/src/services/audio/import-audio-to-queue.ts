@@ -1,5 +1,6 @@
 import { Directory, File, Paths } from 'expo-file-system';
 
+import { getNonCollidingFile } from '@/utils/file-naming';
 import { pickAudioFile } from '@/services/audio/audio-picker';
 import { convertToWav } from '@/services/audio/audio-processor';
 import { appStorage } from '@/services/storage/mmkv';
@@ -24,8 +25,9 @@ export const importAudioToProcessingQueue = async (): Promise<Result<string>> =>
   const sessionId = `import-${Date.now()}`;
   const importsDir = new Directory(Paths.document, 'imports');
   if (!importsDir.exists) importsDir.create({ intermediates: true, idempotent: true });
-  const persisted = new File(importsDir, `${sessionId}.wav`);
+  const persisted = getNonCollidingFile(importsDir, `${sessionId}.wav`);
   try {
+    if (persisted.exists) await persisted.delete();
     await new File(wav.data).copy(persisted);
   } catch {
     return { success: false, error: 'Could not keep imported audio on disk' };

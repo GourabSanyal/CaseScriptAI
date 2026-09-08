@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   ViewStyle,
+  StyleProp,
   TextStyle,
   ActivityIndicator,
   View,
@@ -14,7 +15,7 @@ type Props = {
   onPress?: () => void | Promise<void>;
   disabled?: boolean;
   loading?: boolean;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   textStyle?: TextStyle;
 };
 

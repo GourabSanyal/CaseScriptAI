@@ -1,4 +1,5 @@
 import { Directory, File, Paths } from "expo-file-system";
+import { getNonCollidingFile } from "@/utils/file-naming";
 import type { Result } from "@/types/result";
 
 export const ensureCaseDirectory = async (caseId: string): Promise<void> => {
@@ -28,24 +29,32 @@ export const ensureCaseDirectory = async (caseId: string): Promise<void> => {
 export const copyToDocuments = async (
   sourceUri: string,
   caseId?: string,
+  targetName?: string,
 ): Promise<Result<string>> => {
   try {
     const extension = sourceUri.split(".").pop() || "m4a";
-    const fileName = `audio_${Date.now()}.${extension}`;
+    const initialName = targetName || `audio_${Date.now()}.${extension}`;
 
-    let destPath: string;
+    let targetDir: Directory;
     if (caseId) {
       await ensureCaseDirectory(caseId);
-      destPath = `${Paths.document.uri}cases/${caseId}/${fileName}`;
+      targetDir = new Directory(new Directory(Paths.document, "cases"), caseId);
     } else {
-      destPath = `${Paths.document.uri}${fileName}`;
+      targetDir = Paths.document;
     }
 
     const src = new File(sourceUri);
-    const dest = new File(destPath);
+    const dest = getNonCollidingFile(targetDir, initialName);
+    if (dest.exists) {
+      try {
+        await dest.delete();
+      } catch {
+        // ignore
+      }
+    }
     await src.copy(dest);
 
-    return { success: true, data: fileName };
+    return { success: true, data: dest.name };
   } catch (err) {
     const error = err instanceof Error ? err.message : "Copy failed";
     return { success: false, error };

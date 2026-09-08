@@ -20,7 +20,7 @@ export const toHex = (bytes: Uint8Array): string => {
 };
 
 const sha256Bytes = async (bytes: Uint8Array): Promise<string> => {
-  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  const digest = await crypto.subtle.digest('SHA-256', bytes as unknown as BufferSource);
   return toHex(new Uint8Array(digest));
 };
 

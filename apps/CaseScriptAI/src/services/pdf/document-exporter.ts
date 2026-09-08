@@ -2,6 +2,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Directory, File, Paths } from 'expo-file-system';
 
+import { getNonCollidingFile } from '@/utils/file-naming';
 import type { Result } from '@/types/result';
 
 export type DocumentExporterDeps = {
@@ -55,9 +56,16 @@ export const createDocumentExporter = (deps: DocumentExporterDeps) => {
       const dir = reportsDir();
       if (!dir.exists) dir.create({ intermediates: true, idempotent: true });
       const name = args.fileName ?? `soap-${Date.now()}.pdf`;
-      const dest = new File(dir, name);
+      const dest = getNonCollidingFile(dir, name);
       const source = new File(tempUri);
       if (!source.exists) return { success: false, error: 'PDF temp file missing' };
+      if (dest.exists) {
+        try {
+          await dest.delete();
+        } catch {
+          // ignore
+        }
+      }
       await source.copy(dest);
       return { success: true, data: dest.uri };
     } catch (error) {

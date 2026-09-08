@@ -2,6 +2,7 @@ import { Alert, Platform } from "react-native";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { Directory, File, Paths } from "expo-file-system";
+import { getNonCollidingFile } from "@/utils/file-naming";
 
 export const showPdf = async (pdfUri: string): Promise<void> => {
   const uri = pdfUri.startsWith("file://") ? pdfUri : `file://${pdfUri}`;
@@ -15,14 +16,23 @@ export const savePdfToLocal = async (sourceUri: string): Promise<string> => {
   }
 
   const fileName = `soap-note-${Date.now()}.pdf`;
-  const destPath = `${reportsDir.uri}/${fileName}`;
+  const destFile = getNonCollidingFile(reportsDir, fileName);
+  const destPath = destFile.uri;
   const sourceFile = new File(sourceUri);
 
   if (!sourceFile.exists) {
     throw new Error("PDF file not found");
   }
 
-  await sourceFile.copy(new File(destPath));
+  if (destFile.exists) {
+    try {
+      await destFile.delete();
+    } catch {
+      // ignore
+    }
+  }
+
+  await sourceFile.copy(destFile);
 
   if (Platform.OS === "android") {
     const canShare = await Sharing.isAvailableAsync();

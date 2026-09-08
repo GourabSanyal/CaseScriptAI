@@ -20,6 +20,8 @@ expo-env.d.ts
 
 # Android
 apps/**/android/
+packages/**/android/build/
+**/.gradle/
 *.jks
 *.p8
 *.p12

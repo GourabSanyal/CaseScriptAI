@@ -1,9 +1,52 @@
+const mockExistingUris = new Set<string>();
+
+jest.mock('expo-file-system', () => {
+  class File {
+    uri: string;
+    name: string;
+    constructor(dirOrPath: { uri?: string } | string, fileName?: string) {
+      if (typeof dirOrPath === 'string') {
+        this.uri = dirOrPath;
+        this.name = dirOrPath.split('/').pop() ?? '';
+      } else {
+        const dirUri = dirOrPath.uri ?? '';
+        this.name = fileName ?? '';
+        this.uri = `${dirUri}/${this.name}`;
+      }
+    }
+    get exists() {
+      return mockExistingUris.has(this.uri);
+    }
+    async delete() {
+      mockExistingUris.delete(this.uri);
+    }
+    async copy(dest: { uri: string }) {
+      mockExistingUris.add(dest.uri);
+    }
+  }
+
+  class Directory {
+    uri: string;
+    exists = true;
+    constructor(...parts: string[]) {
+      this.uri = `file:///${parts.join('/')}`;
+    }
+    create() {}
+  }
+
+  return { File, Directory, Paths: { document: 'doc' } };
+});
+
 import {
   buildSoapReportHtml,
   createDocumentExporter,
 } from '@/services/pdf/document-exporter';
 
 describe('DocumentExporter', () => {
+  beforeEach(() => {
+    mockExistingUris.clear();
+  });
+
   it('escapes HTML and exports a PDF path', async () => {
     const html = buildSoapReportHtml({
       soapNote: '<script>x</script>',
@@ -11,41 +54,14 @@ describe('DocumentExporter', () => {
     });
     expect(html).toContain('&lt;script&gt;');
     expect(html).not.toContain('<script>x</script>');
+    expect(html).toContain('SOAP Note');
 
-    const files = new Map<string, string>();
     const exporter = createDocumentExporter({
       printToFile: async () => 'file:///tmp/out.pdf',
       canShare: async () => true,
       shareFile: async () => undefined,
-      reportsDir: () => {
-        const dir = {
-          uri: 'file:///reports',
-          exists: true,
-          create: () => undefined,
-        };
-        return dir as never;
-      },
     });
 
-    // Patch File via mock module behavior — use injectable print only for this unit.
-    jest.doMock('expo-file-system', () => {
-      class File {
-        uri: string;
-        constructor(a: { uri: string } | string, name?: string) {
-          this.uri = typeof a === 'string' ? a : `${a.uri}/${name}`;
-        }
-        get exists() {
-          return this.uri === 'file:///tmp/out.pdf' || files.has(this.uri);
-        }
-        async copy(dest: { uri: string }) {
-          files.set(dest.uri, 'pdf');
-        }
-      }
-      return { File, Directory: class {}, Paths: { document: 'file:///doc' } };
-    });
-
-    // Direct path test without FS: build HTML contract is the critical unit.
-    expect(html).toContain('SOAP Note');
     expect(typeof exporter.exportPdf).toBe('function');
     expect(typeof exporter.sharePdf).toBe('function');
   });
@@ -58,4 +74,26 @@ describe('DocumentExporter', () => {
     const result = await exporter.sharePdf('file:///x.pdf');
     expect(result).toEqual({ success: false, error: 'Sharing is not available' });
   });
+
+  it('exportPdf uses non-colliding file names when target already exists', async () => {
+    mockExistingUris.add('file:///tmp/out.pdf'); // Source temp file exists
+    mockExistingUris.add('file:///reports/soap-123.pdf'); // First copy already exists
+
+    const exporter = createDocumentExporter({
+      printToFile: async () => 'file:///tmp/out.pdf',
+      reportsDir: () => ({ uri: 'file:///reports', exists: true, create: () => {} } as never),
+    });
+
+    const res = await exporter.exportPdf({
+      soapNote: 'Patient is doing well.',
+      fileName: 'soap-123.pdf',
+    });
+
+    expect(res.success).toBe(true);
+    if (res.success) {
+      expect(res.data).toBe('file:///reports/soap-123(2).pdf');
+      expect(mockExistingUris.has('file:///reports/soap-123(2).pdf')).toBe(true);
+    }
+  });
 });
+
