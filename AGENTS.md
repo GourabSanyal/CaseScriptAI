@@ -2,6 +2,8 @@
 
 Privacy-first, on-device medical transcription and clinical note generation for **iOS and Android**. All AI runs locally — no cloud inference. Web (`yarn web`) is dev UI testing only; production targets are native mobile.
 
+> **Cloud MVP** (live call + server STT/LLM): use [`AGENTS_CLOUD.md`](AGENTS_CLOUD.md) and start from [`docs/ARCHITECTURE_CLOUD.md`](docs/ARCHITECTURE_CLOUD.md) §0. Keep this file for on-device / historical work only.
+
 ## Tech Stack
 
 - React 19.1, React Native 0.81, Expo 54
