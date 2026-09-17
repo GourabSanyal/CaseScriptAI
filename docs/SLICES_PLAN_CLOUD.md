@@ -1,9 +1,15 @@
 # CaseScriptAI — Cloud MVP Slice Plan & Tracker
 
-> Canonical progress tracker for the **cloud** MVP. **Read this + [`ARCHITECTURE_CLOUD.md`](./ARCHITECTURE_CLOUD.md)** first in every cloud chat/tab.
-> On-device offline product stays in [`SLICES_PLAN.md`](./SLICES_PLAN.md) + [`ARCHITECTURE.md`](./ARCHITECTURE.md) — **do not replace those files**.
-> Security-touching mobile work: [`OWASP_MOBILE_TOP_10.md`](./OWASP_MOBILE_TOP_10.md).
-> Workflow: update the sub-slice to `IN PROGRESS` (with test plan) **before** work; mark `DONE` (with test + impl file links) only when tests are green.
+> Canonical progress tracker for the **cloud** MVP.
+>
+> **Entry point:** [`ARCHITECTURE_CLOUD.md`](./ARCHITECTURE_CLOUD.md) §0 (document hierarchy). From there, read:
+> 1. This file — what to build / status  
+> 2. [`PROJECT_RULES.md`](../PROJECT_RULES.md) — DX, TDD steps, code standards (line limits, layers)  
+> 3. [`AGENTS_CLOUD.md`](../AGENTS_CLOUD.md) — stack, commands, key files  
+> 4. [`OWASP_MOBILE_TOP_10.md`](./OWASP_MOBILE_TOP_10.md) — before auth/storage/crypto/network/logging (keep as-is; do not merge)
+>
+> On-device offline tracker stays in [`SLICES_PLAN.md`](./SLICES_PLAN.md) — **do not replace** it for cloud work.
+> Workflow: update the sub-slice to `IN PROGRESS` (with test plan) **before** work; mark `DONE` (with test + impl file links) only when tests are green — see [`PROJECT_RULES.md`](../PROJECT_RULES.md) §3.
 >
 > Status legend: `TODO` · `IN PROGRESS` · `DONE` · `PARKED`
 
@@ -15,7 +21,7 @@
 - React Native for **both** roles; web later.
 - Scale: **10 therapists**, ~100 patients each, **1 concurrent call per therapist**, sessions **10–90 min**.
 - Note timing: **after END**; UI **"Generating PDF…"** + therapist may start next session.
-- Recording: **server-side**; redirect finished audio to object storage → pipeline (not therapist-device-only as primary).
+- Recording: **server-side primary** + **therapist local backup**; canonical audio via **completeness gate** (not quality A/B); backup upload only if server missing/short; purge local after `ready`.
 - STUN-only is **insufficient** for server recording — SFU and/or recording bot required (exact vendor via spike).
 - STT + LLM: **free-tier APIs** behind adapters for MVP; India / compliance later via **config swap**.
 - Storage: **Postgres** (metadata + text) + **object storage** (audio + PDF).
@@ -62,7 +68,8 @@
 |---|---|
 | Fine-tuning voice model pipeline | Post-MVP |
 | Live draft transcript during call | Post-MVP |
-| Therapist-device local backup recording | Optional after dropouts observed |
+| Audio quality A/B between server vs local | Not planned — completeness gate only |
+| Always dual-upload every session | Not planned |
 | Full Grafana/LiteLLM mega-dashboard | After thin ops admin proves insufficient |
 | Web therapist dashboard | After mobile MVP |
 | LangChain / agents | Not planned for MVP |
@@ -76,8 +83,8 @@
 |---|---|---|
 | (prep) Bake-offs | **S0** | Spikes: WebRTC+record, STT, LLM — outside app |
 | USER + Doc | **C1** | Auth, roles, pairing, session create/join |
-| WebRTC + Record Engine | **C2** | Internet calls, server-side record, redirect to storage |
-| Audio → backend / queue | **C3** | Session END, object keys, job enqueue, status API |
+| WebRTC + Record Engine | **C2** | Internet calls, server record + therapist local backup |
+| Audio → backend / queue | **C3** | END, completeness gate, enqueue, status API |
 | STT | **C4** | Free-tier STT adapter + transcript persist |
 | Text Model | **C5** | Free-tier LLM adapter + structured note validation |
 | PDF → doctor | **C6** | PDF generate, notify/status UI, download |
@@ -121,16 +128,18 @@
 
 ## SLICE C2 — WebRTC + Server Record Engine *(diagram: WebRTC + Record Engine)*
 
-> Gated on **S0.W / S0.R** winner.
+> Gated on **S0.W / S0.R** winner. Resilience: [`ARCHITECTURE_CLOUD.md`](./ARCHITECTURE_CLOUD.md) §7.1.
 
 | Sub | Description | Status | Tests | Impl |
 |---|---|---|---|---|
 | C2.1 | `RealtimeProvider` adapter (token mint from API; no secrets in app) | TODO | | |
 | C2.2 | RN call UI: join/leave, mute, video optional / audio-only fallback | TODO | | |
 | C2.3 | Server record engine integration (SFU record or bot) | TODO | | |
-| C2.4 | On END: finalize recording → redirect to object storage (audio key) | TODO | | |
-| C2.5 | Reconnect / mid-call network loss behavior (document gaps) | TODO | | |
-| C2.6 | Soak: 10–90 min call; concurrent ~10 rooms smoke | TODO | | |
+| C2.4 | On END: finalize server recording → redirect to object storage (audio key) | TODO | | |
+| C2.5 | Therapist local backup buffer (rolling chunks on device; no mid-call upload by default) | TODO | | |
+| C2.6 | Reconnect / mid-call network loss + soft “poor connection” warning | TODO | | |
+| C2.7 | Purge local backup after session `ready` or after successful server select | TODO | | |
+| C2.8 | Soak: 10–90 min call; concurrent ~10 rooms smoke | TODO | | |
 
 ---
 
@@ -138,12 +147,14 @@
 
 | Sub | Description | Status | Tests | Impl |
 |---|---|---|---|---|
-| C3.1 | Session state machine (`scheduled`→`live`→…→`ready`\|`failed`) | TODO | | |
-| C3.2 | `POST /sessions/:id/end` → `recording_finalizing` → `queued` | TODO | | |
-| C3.3 | Job queue + worker skeleton (idempotent enqueue per session) | TODO | | |
-| C3.4 | `GET /sessions/:id/status` for therapist "Generating PDF…" UI | TODO | | |
-| C3.5 | Therapist may start next session while previous job runs | TODO | | |
-| C3.6 | Failure + retry-once policy; surface `failed` without PHI in logs | TODO | | |
+| C3.1 | Session state machine (`scheduled`→`live`→…→`selecting_audio`→`ready`\|`failed`) | TODO | | |
+| C3.2 | `POST /sessions/:id/end` → `recording_finalizing` → completeness gate | TODO | | |
+| C3.3 | Completeness gate: prefer server if duration ≈ call; else request therapist backup upload | TODO | | |
+| C3.4 | Therapist backup multipart upload path (only when gate fails server) | TODO | | |
+| C3.5 | Job queue + worker skeleton (idempotent enqueue per session on canonical key) | TODO | | |
+| C3.6 | `GET /sessions/:id/status` for therapist "Generating PDF…" / "Saving recording…" UI | TODO | | |
+| C3.7 | Therapist may start next session while previous job runs | TODO | | |
+| C3.8 | Failure + retry policy; `RECORDING_MISSING` / degraded flags; no PHI in logs | TODO | | |
 
 ---
 
@@ -244,8 +255,10 @@
 
 ## Definition of Done (every sub-slice)
 
-1. Test plan written when status → `IN PROGRESS`.
-2. Unit and/or integration tests green; links in **Tests** / **Impl** columns.
-3. No PHI in logs.
-4. Provider URLs/keys only via env/adapters.
-5. [`ARCHITECTURE_CLOUD.md`](./ARCHITECTURE_CLOUD.md) updated if flow/invariants changed.
+1. Test plan written when status → `IN PROGRESS` (TDD steps: [`PROJECT_RULES.md`](../PROJECT_RULES.md) §3).
+2. Unit and/or integration tests green; links in **Tests** / **Impl** columns (test location habits: [`PROJECT_RULES.md`](../PROJECT_RULES.md) §9).
+3. Code standards followed ([`PROJECT_RULES.md`](../PROJECT_RULES.md) §6 — e.g. kebab-case, ~115–150 lines).
+4. No PHI in logs.
+5. Provider URLs/keys only via env/adapters.
+6. [`ARCHITECTURE_CLOUD.md`](./ARCHITECTURE_CLOUD.md) updated if flow/invariants changed.
+7. Security-touching mobile work checked against [`OWASP_MOBILE_TOP_10.md`](./OWASP_MOBILE_TOP_10.md).
