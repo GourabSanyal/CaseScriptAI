@@ -5,22 +5,25 @@ alwaysApply: true
 
 # Project Rules
 
-**Read and follow [`PROJECT_RULES.md`](../../PROJECT_RULES.md)** at the start of MVP work.
+**Cloud MVP (current):** start at [`docs/ARCHITECTURE_CLOUD.md`](../../docs/ARCHITECTURE_CLOUD.md) §0, then follow its links — do not merge docs.
 
 Also read before implementing:
 
-- [`docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md) — what to build (**§15 → OWASP Mobile Top 10** for security-touching work)
-- [`docs/SLICES_PLAN.md`](../../docs/SLICES_PLAN.md) — slice status & TDD workflow
+- [`docs/SLICES_PLAN_CLOUD.md`](../../docs/SLICES_PLAN_CLOUD.md) — slice status & TDD gate
+- [`PROJECT_RULES.md`](../../PROJECT_RULES.md) — DX: TDD, layers, code standards (line limits), UI
+- [`AGENTS_CLOUD.md`](../../AGENTS_CLOUD.md) — stack, commands, key files
+- [`docs/OWASP_MOBILE_TOP_10.md`](../../docs/OWASP_MOBILE_TOP_10.md) — before auth/storage/crypto/network/logging (keep as-is)
+
+**On-device historical:** [`docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md) + [`docs/SLICES_PLAN.md`](../../docs/SLICES_PLAN.md) + [`AGENTS.md`](../../AGENTS.md).
 
 Quick enforcers:
 
-- MVP phase — never import from `poc.tsx`
 - Slice: `IN PROGRESS` + test plan before code; `DONE` only when tests green
-- Layers: `app/` → `stores/` → `services/` — no native calls from screens
-- `MemoryManager` owns Whisper/LLM exclusivity
-- No PHI in logs; paywall at navigation layer
-- iOS + Android only; web is dev UI testing
+- Layers: `app/` → `stores/` → `services/` — no native/provider calls from screens
+- No PHI in logs; provider secrets only on server / env
+- Cloud: no LangChain; STT/LLM behind adapters; server-side recording
+- iOS + Android; web is UI/dev only unless a cloud slice says otherwise
 
-File-scoped detail: `ai-pipeline.mdc`, `typescript-standards.mdc`, `react-native-ui.mdc`, `navigation.mdc`.
+File-scoped detail: `typescript-standards.mdc`, `react-native-ui.mdc`, `navigation.mdc`. On-device ExecuTorch memory rules (`ai-pipeline.mdc`) apply only to on-device work.
 
-Skills (memory/R8 + legacy POC only): `.ai/skills/` — model memory always defers to `ai-pipeline.mdc`. Canonical docs: `ARCHITECTURE.md` (incl. §15 → `OWASP_MOBILE_TOP_10.md`), `SLICES_PLAN.md`, `PROJECT_RULES.md`.
+Skills: `.ai/skills/` — canonical cloud docs beat skills when they conflict. Canonical docs: `ARCHITECTURE_CLOUD.md`, `SLICES_PLAN_CLOUD.md`, `PROJECT_RULES.md`, `OWASP_MOBILE_TOP_10.md`.
