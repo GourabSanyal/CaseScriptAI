@@ -7,6 +7,9 @@
 > (see "Change Control" at the bottom). Companions: [`SLICES_PLAN.md`](./SLICES_PLAN.md), [`PROJECT_RULES.md`](../PROJECT_RULES.md).
 > **Mobile security:** for auth, storage, crypto, networking, native modules, or logging work, also read
 > [`OWASP_MOBILE_TOP_10.md`](./OWASP_MOBILE_TOP_10.md) (via §15 below).
+>
+> **Cloud MVP** (live call + server STT/LLM) is tracked separately — do not overwrite this file:
+> [`ARCHITECTURE_CLOUD.md`](./ARCHITECTURE_CLOUD.md) + [`SLICES_PLAN_CLOUD.md`](./SLICES_PLAN_CLOUD.md).
 
 ---
 
