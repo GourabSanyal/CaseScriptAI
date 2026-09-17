@@ -1,10 +1,12 @@
     # CaseScriptAI — Slice Plan & Tracker
 
-> Canonical progress tracker. **Read this + [`ARCHITECTURE.md`](./ARCHITECTURE.md) + [`PROJECT_RULES.md`](../PROJECT_RULES.md) first** in every new chat/tab.
+> Canonical progress tracker **for the on-device offline MVP**. **Read this + [`ARCHITECTURE.md`](./ARCHITECTURE.md) + [`PROJECT_RULES.md`](../PROJECT_RULES.md) first** in every new chat/tab.
 > Security-touching work: [`ARCHITECTURE.md` §15](./ARCHITECTURE.md) → [`OWASP_MOBILE_TOP_10.md`](./OWASP_MOBILE_TOP_10.md).
 > Workflow: update the sub-slice to `IN PROGRESS` (with test plan) **before** work; mark `DONE` (with test + impl file links) only when tests are green.
 >
 > Status legend: `TODO` · `IN PROGRESS` · `DONE` · `PARKED`
+>
+> **Cloud MVP slices** live in [`SLICES_PLAN_CLOUD.md`](./SLICES_PLAN_CLOUD.md) (+ [`ARCHITECTURE_CLOUD.md`](./ARCHITECTURE_CLOUD.md)) — keep this file for on-device work.
 
 ---
 
