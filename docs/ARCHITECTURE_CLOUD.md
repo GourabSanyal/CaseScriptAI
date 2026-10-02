@@ -21,6 +21,8 @@
 
 **Change control:** Architecture change → update **this file** before code. Slice work → update [`SLICES_PLAN_CLOUD.md`](./SLICES_PLAN_CLOUD.md) status before code. DX/process change → update [`PROJECT_RULES.md`](../PROJECT_RULES.md) (do not copy its rules into this file).
 
+**Hacktoberfest weekend demo only:** [`HACKTOBERFEST_WEEKEND_SCOPE.md`](./HACKTOBERFEST_WEEKEND_SCOPE.md) + [`SLICES_PLAN_HACKTOBERFEST.md`](./SLICES_PLAN_HACKTOBERFEST.md) on branch `hacktoberfest/render-session-note` — temporary contest scope; does not rewrite this cloud MVP.
+
 ---
 
 ## 1. Product Flow (source of truth)

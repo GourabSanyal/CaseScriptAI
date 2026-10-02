@@ -4,6 +4,8 @@ Cloud-backed live therapist↔patient sessions for **iOS and Android** (web late
 
 > **Entry point for agents:** [`docs/ARCHITECTURE_CLOUD.md`](docs/ARCHITECTURE_CLOUD.md) §0 — follow links from there (do not merge docs).
 > On-device offline guide remains [`AGENTS.md`](AGENTS.md) — use that only for historical / `mvp_local_AI` work.
+>
+> **Hacktoberfest weekend demo** (branch `hacktoberfest/render-session-note`): start at [`docs/HACKTOBERFEST_WEEKEND_SCOPE.md`](docs/HACKTOBERFEST_WEEKEND_SCOPE.md), then [`docs/SLICES_PLAN_HACKTOBERFEST.md`](docs/SLICES_PLAN_HACKTOBERFEST.md). Do not mix those slices into cloud MVP trackers.
 
 ## Document hierarchy (same as ARCHITECTURE_CLOUD §0)
 
@@ -97,6 +99,8 @@ Canonical product docs beat skills when they conflict.
 |---------|----------|
 | Cloud architecture (start here) | `docs/ARCHITECTURE_CLOUD.md` |
 | Cloud slices | `docs/SLICES_PLAN_CLOUD.md` |
+| Hacktoberfest weekend scope | `docs/HACKTOBERFEST_WEEKEND_SCOPE.md` |
+| Hacktoberfest weekend slices | `docs/SLICES_PLAN_HACKTOBERFEST.md` |
 | Dev practices | `PROJECT_RULES.md` |
 | OWASP mobile mapping | `docs/OWASP_MOBILE_TOP_10.md` |
 | Spike decision records | `spikes/` (create with S0.1) |
