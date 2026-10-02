@@ -53,16 +53,11 @@
 
 | Sub | Description | Status | Tests | Impl |
 |---|---|---|---|---|
-| H1.1 | Migration: `demo_sessions` (id, status, transcript, note_json, pdf_path, error, created_at, updated_at) | IN PROGRESS | `yarn workspace hacktoberfest-api migrate` (needs `DATABASE_URL`) | `migrations/001_demo_sessions.sql`, `src/db/migrate.ts` |
+| H1.1 | Migration: `demo_sessions` (id, status, transcript, note_json, pdf_path, error, created_at, updated_at) | DONE | `yarn workspace hacktoberfest-api migrate` | `migrations/001_demo_sessions.sql`, `src/db/migrate.ts` |
 | H1.2 | Status enum / machine: `queued` → `stt_running` → `llm_running` → `pdf_running` → `ready` \| `failed` | DONE | `src/__tests__/session-status.test.ts` | `src/domain/session-status.ts` |
-| H1.3 | Repository helpers: create session, update status, get by id (no PHI in logs) | IN PROGRESS | `src/__tests__/session-repository.test.ts` (runs when `DATABASE_URL` set) | `src/db/session-repository.ts` |
+| H1.3 | Repository helpers: create session, update status, get by id (no PHI in logs) | DONE | `src/__tests__/session-repository.test.ts` | `src/db/session-repository.ts` |
 
-**Test plan (H1):**
-1. Status: every forward step allowed; skips / reverse / from terminal rejected. ✅
-2. Repo (with DB): create → getById; updateStatus along the happy path; invalid transition throws; never logs transcript/note. ⏳ blocked on `DATABASE_URL` in env file
-3. Migration: `yarn workspace hacktoberfest-api migrate` succeeds against `DATABASE_URL`. ⏳ blocked
-
-**Blocked:** agent cannot see a `DATABASE_URL` in `apps/hacktoberfest-api/.env` or repo-root `.env`. Put it in one of those files (gitignored), then re-run migrate + tests.
+**Test plan (H1):** ✅ green (migrate up to date; 7/7 tests including DB integration)
 
 **Done when:** migrations apply against local Postgres **or** Render external URL; unit tests for status transitions.
 
@@ -74,10 +69,12 @@
 
 | Sub | Description | Status | Tests | Impl |
 |---|---|---|---|---|
-| H2.1 | `SttProvider` port + Groq Whisper adapter | TODO | | |
-| H2.2 | Transcribe fixture file → plain transcript string | TODO | | |
-| H2.3 | Persist transcript on session; mark `stt_running` / failure path | TODO | | |
-| H2.4 | Unit tests with mocked HTTP; one optional live smoke behind env flag | TODO | | |
+| H2.1 | `SttProvider` port + Groq Whisper adapter | DONE | `src/__tests__/groq-whisper-stt.test.ts` | `src/providers/stt-provider.ts`, `groq-whisper-stt.ts` |
+| H2.2 | Transcribe fixture file → plain transcript string | DONE | mocked + optional live smoke | `src/providers/groq-whisper-stt.ts` |
+| H2.3 | Persist transcript on session; mark `stt_running` / failure path | DONE | `src/__tests__/run-stt-step.test.ts` | `src/pipeline/run-stt-step.ts` |
+| H2.4 | Unit tests with mocked HTTP; one optional live smoke behind env flag | DONE | mock always; `stt-live-smoke.test.ts` if `LIVE_PROVIDER_SMOKE=1` | `src/__tests__/` |
+
+**Test plan (H2):** ✅ mocked green (12/12). Live smoke skipped until `GROQ_API_KEY` + `LIVE_PROVIDER_SMOKE=1`.
 
 **Done when:** mocked tests green; with `GROQ_API_KEY`, fixture produces a non-empty transcript stored in DB.
 
@@ -89,11 +86,13 @@
 
 | Sub | Description | Status | Tests | Impl |
 |---|---|---|---|---|
-| H3.1 | `LlmProvider` port + Gemma / Google AI Studio adapter | TODO | | |
-| H3.2 | Prompt + JSON schema for structured clinical note (adapt on-device SOAP ideas; server-only) | TODO | | |
-| H3.3 | `validateStructuredNote` before persist; retry once on invalid JSON | TODO | | |
-| H3.4 | Persist `note_json`; status `llm_running` → next / `failed` | TODO | | |
-| H3.5 | Unit tests: invalid JSON, empty sections, mock provider | TODO | | |
+| H3.1 | `LlmProvider` port + Gemma / Google AI Studio adapter | DONE | `src/__tests__/gemma-llm.test.ts` | `src/providers/llm-provider.ts`, `gemma-llm.ts` |
+| H3.2 | Prompt + JSON schema for structured clinical note (adapt on-device SOAP ideas; server-only) | DONE | `src/__tests__/structured-note.test.ts` | `src/prompts/structured-note-prompt.ts`, `src/domain/structured-note.ts` |
+| H3.3 | `validateStructuredNote` before persist; retry once on invalid JSON | DONE | `run-llm-step.test.ts` (retry) | `structured-note.ts`, `run-llm-step.ts` |
+| H3.4 | Persist `note_json`; status `llm_running` → next / `failed` | DONE | `src/__tests__/run-llm-step.test.ts` | `src/pipeline/run-llm-step.ts` |
+| H3.5 | Unit tests: invalid JSON, empty sections, mock provider | DONE | structured-note + run-llm-step + gemma-llm | `src/__tests__/` |
+
+**Test plan (H3):** ✅ mocked green (22/22). Live LLM smoke skipped until `GOOGLE_AI_API_KEY` + `LIVE_PROVIDER_SMOKE=1`.
 
 **Done when:** transcript → validated note JSON in Postgres with mocked LLM tests green.
 
@@ -105,10 +104,12 @@
 
 | Sub | Description | Status | Tests | Impl |
 |---|---|---|---|---|
-| H4.1 | Server PDF from structured note | TODO | | |
-| H4.2 | Save `pdf_path` / key on session; `GET /sessions/:id/pdf` (or static signed path) | TODO | | |
-| H4.3 | Idempotent regenerate on failure | TODO | | |
-| H4.4 | Tests: PDF bytes non-empty for fixture note; authz stub if any | TODO | | |
+| H4.1 | Server PDF from structured note | DONE | `src/__tests__/build-note-pdf.test.ts` | `src/pdf/build-note-pdf.ts` |
+| H4.2 | Save `pdf_path` / key on session; `GET /sessions/:id/pdf` (or static signed path) | DONE | `src/__tests__/session-pdf-route.test.ts` | `run-pdf-step.ts`, `create-server.ts` |
+| H4.3 | Idempotent regenerate on failure | DONE | `src/__tests__/run-pdf-step.test.ts` | `src/pdf/run-pdf-step.ts` |
+| H4.4 | Tests: PDF bytes non-empty for fixture note; authz stub if any | DONE | pdf + route tests (demo open endpoint) | `src/__tests__/` |
+
+**Test plan (H4):** ✅ green
 
 **Done when:** end-to-end pipeline function returns PDF for fixture with mocks; live path works with keys.
 
