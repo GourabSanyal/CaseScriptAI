@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CaseScriptAI — Session note demo</title>
+    <style>
+      :root {
+        --bg: #fcf9f5;
+        --ink: #1c1c19;
+        --muted: #717973;
+        --sage: #3a6750;
+        --panel: #f0ede9;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "DM Sans", "Segoe UI", sans-serif;
+        background: radial-gradient(circle at top left, #e8f0ea, var(--bg) 55%);
+        color: var(--ink);
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+      main {
+        width: min(520px, 100%);
+      }
+      h1 {
+        font-size: 1.75rem;
+        margin: 0 0 8px;
+        color: var(--sage);
+      }
+      p { margin: 0 0 20px; color: var(--muted); line-height: 1.45; }
+      button {
+        appearance: none;
+        border: 0;
+        border-radius: 999px;
+        background: var(--sage);
+        color: white;
+        font: inherit;
+        font-weight: 600;
+        padding: 12px 22px;
+        cursor: pointer;
+      }
+      button:disabled { opacity: 0.55; cursor: wait; }
+      .status {
+        margin-top: 20px;
+        padding: 14px 16px;
+        border-radius: 16px;
+        background: var(--panel);
+        min-height: 3.2rem;
+      }
+      a.download {
+        display: inline-block;
+        margin-top: 12px;
+        color: var(--sage);
+        font-weight: 600;
+      }
+      .disclaimer { margin-top: 28px; font-size: 0.85rem; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>CaseScriptAI</h1>
+      <p>
+        Generate a structured session note PDF from the synthetic sample
+        recording. Demo data only — not real PHI.
+      </p>
+      <button id="generate" type="button">Use sample session</button>
+      <div class="status" id="status" aria-live="polite">Ready.</div>
+      <a class="download" id="download" hidden href="#">Download PDF</a>
+      <p class="disclaimer">
+        Audio is a fictional scripted conversation for Hacktoberfest. Not for
+        clinical use.
+      </p>
+    </main>
+    <script>
+      const generateBtn = document.getElementById("generate");
+      const statusEl = document.getElementById("status");
+      const downloadEl = document.getElementById("download");
+      let pollTimer = null;
+
+      const setStatus = (text) => {
+        statusEl.textContent = text;
+      };
+
+      const stopPoll = () => {
+        if (pollTimer) {
+          clearInterval(pollTimer);
+          pollTimer = null;
+        }
+      };
+
+      const pollSession = (id) => {
+        stopPoll();
+        pollTimer = setInterval(async () => {
+          try {
+            const res = await fetch("/sessions/" + id);
+            const data = await res.json();
+            if (!res.ok) {
+              setStatus("Error: " + (data.error || "status_failed"));
+              generateBtn.disabled = false;
+              stopPoll();
+              return;
+            }
+            setStatus("Status: " + data.status + (data.error ? " (" + data.error + ")" : ""));
+            if (data.status === "ready" && data.pdfUrl) {
+              downloadEl.hidden = false;
+              downloadEl.href = data.pdfUrl;
+              generateBtn.disabled = false;
+              stopPoll();
+            } else if (data.status === "failed") {
+              generateBtn.disabled = false;
+              stopPoll();
+            }
+          } catch {
+            setStatus("Error: network");
+            generateBtn.disabled = false;
+            stopPoll();
+          }
+        }, 1000);
+      };
+
+      generateBtn.addEventListener("click", async () => {
+        generateBtn.disabled = true;
+        downloadEl.hidden = true;
+        setStatus("Starting…");
+        try {
+          const res = await fetch("/sessions/demo", { method: "POST" });
+          const data = await res.json();
+          if (!res.ok) {
+            setStatus("Error: " + (data.error || "start_failed"));
+            generateBtn.disabled = false;
+            return;
+          }
+          setStatus("Generating… (" + data.status + ")");
+          pollSession(data.id);
+        } catch {
+          setStatus("Error: network");
+          generateBtn.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>
