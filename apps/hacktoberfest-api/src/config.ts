@@ -30,7 +30,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     publicBaseUrl: env.PUBLIC_BASE_URL ?? `http://localhost:${port}`,
     databaseUrl: env.DATABASE_URL,
     groqApiKey: env.GROQ_API_KEY,
-    googleAiApiKey: env.GOOGLE_AI_API_KEY,
-    gemmaModel: env.GEMMA_MODEL,
+    // Google AI Studio often labels these GEMINI_*; both names accepted.
+    googleAiApiKey: env.GOOGLE_AI_API_KEY ?? env.GEMINI_API_KEY,
+    gemmaModel: env.GEMMA_MODEL ?? env.GEMINI_MODEL,
   };
 }

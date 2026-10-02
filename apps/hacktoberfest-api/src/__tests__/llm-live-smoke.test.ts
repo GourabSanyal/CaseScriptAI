@@ -11,7 +11,7 @@ loadEnvFile();
 
 const liveEnabled =
   process.env.LIVE_PROVIDER_SMOKE === '1' &&
-  Boolean(process.env.GOOGLE_AI_API_KEY);
+  Boolean(process.env.GOOGLE_AI_API_KEY ?? process.env.GEMINI_API_KEY);
 
 describe('LLM live smoke', { skip: !liveEnabled }, () => {
   it('generates validated note_json from a synthetic transcript', async () => {
@@ -19,8 +19,8 @@ describe('LLM live smoke', { skip: !liveEnabled }, () => {
     const pool = createPool();
     const repo = createSessionRepository(pool);
     const llm = createGemmaLlm({
-      apiKey: process.env.GOOGLE_AI_API_KEY!,
-      model: process.env.GEMMA_MODEL,
+      apiKey: (process.env.GOOGLE_AI_API_KEY ?? process.env.GEMINI_API_KEY)!,
+      model: process.env.GEMMA_MODEL ?? process.env.GEMINI_MODEL,
     });
 
     try {
@@ -37,7 +37,12 @@ describe('LLM live smoke', { skip: !liveEnabled }, () => {
         sessionId: created.id,
       });
 
-      assert.equal(result.status, 'pdf_running');
+      assert.equal(
+        result.status,
+        'pdf_running',
+        `expected pdf_running, got ${result.status}` +
+          (result.error ? ` error=${result.error}` : ''),
+      );
       assert.ok(result.noteJson);
       assert.equal(typeof (result.noteJson as { subjective: string }).subjective, 'string');
     } finally {

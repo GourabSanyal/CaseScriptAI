@@ -33,7 +33,7 @@ LIVE_PROVIDER_SMOKE=1 yarn workspace hacktoberfest-api test
 PDF download (after a session is `ready`): `GET /sessions/:id/pdf`  
 Artifacts are written under `data/pdfs/` (gitignored).
 
-Env (gitignored `.env` or shell — never commit secrets): `DATABASE_URL`, `GROQ_API_KEY`, `GOOGLE_AI_API_KEY`, optional `GEMMA_MODEL`, optional `LIVE_PROVIDER_SMOKE=1`.
+Env (gitignored `.env` or shell — never commit secrets): `DATABASE_URL`, `GROQ_API_KEY`, `GOOGLE_AI_API_KEY` or `GEMINI_API_KEY`, optional `GEMMA_MODEL` / `GEMINI_MODEL`, optional `LIVE_PROVIDER_SMOKE=1`.
 
 ## Fixture disclaimer
 
