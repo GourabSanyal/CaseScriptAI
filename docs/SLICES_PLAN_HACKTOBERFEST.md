@@ -119,10 +119,12 @@
 
 | Sub | Description | Status | Tests | Impl |
 |---|---|---|---|---|
-| H5.1 | `POST /sessions/demo` starts in-process pipeline on fixture (or uploaded short file) | TODO | | |
-| H5.2 | `GET /sessions/:id` status for “Generating…” polling | TODO | | |
-| H5.3 | Minimal web UI: button → poll → download PDF | TODO | | |
-| H5.4 | No PHI logging; errors sanitized | TODO | | |
+| H5.1 | `POST /sessions/demo` starts in-process pipeline on fixture (or uploaded short file) | DONE | `src/__tests__/demo-api.test.ts`, `run-demo-pipeline.test.ts` | `src/pipeline/run-demo-pipeline.ts`, `demo-session-starter.ts` |
+| H5.2 | `GET /sessions/:id` status for “Generating…” polling | DONE | `demo-api.test.ts`, `session-view.test.ts` | `src/http/session-view.ts`, `create-server.ts` |
+| H5.3 | Minimal web UI: button → poll → download PDF | DONE | `GET /` HTML assertion | `public/index.html` |
+| H5.4 | No PHI logging; errors sanitized | DONE | public DTO omits transcript/note | `session-view.ts`, pipeline |
+
+**Test plan (H5):** ✅ green (33/33 with prior suites)
 
 **Done when:** browser happy path works against local API.
 

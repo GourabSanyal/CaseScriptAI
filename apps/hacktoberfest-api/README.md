@@ -14,8 +14,15 @@ cp apps/hacktoberfest-api/.env.example apps/hacktoberfest-api/.env
 
 yarn workspace hacktoberfest-api migrate
 yarn workspace hacktoberfest-api dev
+# → http://localhost:3001/       (demo UI)
 # → http://localhost:3001/health
 ```
+
+Demo API:
+- `POST /sessions/demo` — start fixture pipeline (returns `{ id, status }`)
+- `GET /sessions/:id` — poll status (`pdfUrl` when ready; no transcript/note in JSON)
+- `GET /sessions/:id/pdf` — download PDF
+
 
 ```bash
 yarn workspace hacktoberfest-api test
