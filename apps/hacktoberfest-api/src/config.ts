@@ -16,6 +16,7 @@ export type AppConfig = {
   databaseUrl: string | undefined;
   groqApiKey: string | undefined;
   googleAiApiKey: string | undefined;
+  gemmaModel: string | undefined;
 };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -30,5 +31,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     databaseUrl: env.DATABASE_URL,
     groqApiKey: env.GROQ_API_KEY,
     googleAiApiKey: env.GOOGLE_AI_API_KEY,
+    gemmaModel: env.GEMMA_MODEL,
   };
 }
