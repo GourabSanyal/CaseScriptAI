@@ -8,6 +8,8 @@
     "packages/*"
   ],
   "scripts": {
-    "postinstall": "yarn workspace casescriptai run postinstall"
+    "postinstall": "yarn workspace casescriptai run postinstall",
+    "hacktoberfest:dev": "yarn workspace hacktoberfest-api dev",
+    "hacktoberfest:test": "yarn workspace hacktoberfest-api test"
   }
 }
