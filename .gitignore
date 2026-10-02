@@ -42,6 +42,9 @@ build/
 out/
 **/.turbo/
 
+# Hacktoberfest demo PDF artifacts
+apps/hacktoberfest-api/data/
+
 # ─── Environment & secrets ────────────────────────────────────────────────────
 .env
 .env.*
