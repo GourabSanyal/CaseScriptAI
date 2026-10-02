@@ -1,0 +1,19 @@
+Therapist: Hello, thanks for joining today's session. This is a fictional practice conversation only. How have things been since we last spoke?
+Client: I've been okay overall. Work has been busy, and I noticed my sleep has been a bit lighter than usual.
+Therapist: Tell me more about the sleep. What time do you typically go to bed, and when do you wake up?
+Client: I try to sleep around eleven, but I often wake up around three for a short while. Then I fall back asleep until about six thirty.
+Therapist: When you wake at three, what is usually on your mind?
+Client: Mostly unfinished tasks from work. I rehearse emails I still need to send. It is not panic, more like a looping checklist.
+Therapist: That looping checklist can keep the nervous system activated. Have you tried any wind-down steps before bed?
+Client: I stopped scrolling on my phone an hour before bed, which helped a little. I also tried a short breathing exercise twice this week.
+Therapist: That is useful progress. On a scale from one to ten, how would you rate your stress level this week?
+Client: Maybe a six. Last month it felt like an eight, so that is an improvement.
+Therapist: Good. Let's also talk about mood during the day. Are there moments when stress spikes, or is it fairly steady?
+Client: It spikes before meetings, especially Monday morning standups. After lunch I usually feel calmer.
+Therapist: Noticing that pattern is helpful. When the Monday spike shows up, what do you do in the moment?
+Client: I take a short walk to the kitchen, drink water, and remind myself I only need the next talking point, not the whole week.
+Therapist: That sounds like a solid grounding habit. Let's set one small goal for the next week: continue the phone-free hour, add five minutes of breathing on three evenings, and use the kitchen walk when Monday stress spikes. How does that sound?
+Client: That feels doable. I can do breathing on Monday, Wednesday, and Friday, and I'll try the walk before standup.
+Therapist: Excellent. We will check in on sleep, stress, and that Monday habit next time. Thanks for the open conversation today. This recording is synthetic demo data only, not a real clinical session.
+Client: Thank you. Talk soon.
+
