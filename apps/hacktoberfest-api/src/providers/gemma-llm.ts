@@ -52,6 +52,12 @@ export const createGemmaLlm = (options: GemmaLlmOptions): LlmProvider => {
   const url = gemmaGenerateContentUrl(model);
 
   const complete = async (prompt: string): Promise<string> => {
+    const generationConfig: Record<string, unknown> = { temperature: 0.2 };
+    // Gemini models support JSON mime type; Gemma often does not.
+    if (model.startsWith('gemini-')) {
+      generationConfig.responseMimeType = 'application/json';
+    }
+
     const response = await fetchImpl(url, {
       method: 'POST',
       headers: {
@@ -60,13 +66,12 @@ export const createGemmaLlm = (options: GemmaLlmOptions): LlmProvider => {
       },
       body: JSON.stringify({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.2,
-        },
+        generationConfig,
       }),
     });
 
     if (!response.ok) {
+      // Surface status only — never echo full provider payloads (may include prompt).
       throw new Error(`llm_http_${response.status}`);
     }
 

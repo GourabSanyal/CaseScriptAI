@@ -47,7 +47,19 @@ describe('validateStructuredNote', () => {
 });
 
 describe('extractJsonText', () => {
-  it('slices object from surrounding prose', () => {
-    assert.equal(extractJsonText('prefix {"a":1} suffix'), '{"a":1}');
+  it('slices the first balanced object from surrounding prose', () => {
+    assert.equal(extractJsonText('prefix {"a":1} middle {"b":2}'), '{"a":1}');
+  });
+});
+
+describe('validateStructuredNote with multiple objects', () => {
+  it('skips placeholder schema examples and accepts the real note', () => {
+    const raw = `
+Here is the shape {"subjective":"...","objective":"...","assessment":"...","plan":"..."}
+Final:
+{"subjective":"Sleep lighter.","objective":"Engaged.","assessment":"Work stress.","plan":"Breathing nights."}
+`;
+    const result = validateStructuredNote(raw);
+    assert.equal(result.ok, true);
   });
 });

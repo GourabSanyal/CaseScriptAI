@@ -15,25 +15,59 @@ export type ValidateNoteResult =
 
 const MIN_SECTION_LEN = 3;
 
-/** Strip ```json fences if the model wraps output. */
-export const extractJsonText = (raw: string): string => {
-  const trimmed = raw.trim();
-  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  if (fenced?.[1]) return fenced[1].trim();
-  const start = trimmed.indexOf('{');
-  const end = trimmed.lastIndexOf('}');
-  if (start >= 0 && end > start) return trimmed.slice(start, end + 1);
-  return trimmed;
+const isPlaceholder = (value: string): boolean => {
+  const t = value.trim();
+  return t === '...' || t === '…' || /^[.…]{2,}$/.test(t);
 };
 
-export const validateStructuredNote = (raw: string): ValidateNoteResult => {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(extractJsonText(raw));
-  } catch {
-    return { ok: false, error: 'llm_invalid_json' };
+/** Find balanced `{...}` objects in model text (handles prose wrappers). */
+export const extractJsonCandidates = (raw: string): string[] => {
+  const trimmed = raw.trim();
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const source = fenced?.[1]?.trim() ?? trimmed;
+  const candidates: string[] = [];
+
+  for (let i = 0; i < source.length; i += 1) {
+    if (source[i] !== '{') continue;
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    for (let j = i; j < source.length; j += 1) {
+      const ch = source[j];
+      if (inString) {
+        if (escaped) {
+          escaped = false;
+        } else if (ch === '\\') {
+          escaped = true;
+        } else if (ch === '"') {
+          inString = false;
+        }
+        continue;
+      }
+      if (ch === '"') {
+        inString = true;
+        continue;
+      }
+      if (ch === '{') depth += 1;
+      if (ch === '}') {
+        depth -= 1;
+        if (depth === 0) {
+          candidates.push(source.slice(i, j + 1));
+          i = j;
+          break;
+        }
+      }
+    }
   }
 
+  return candidates;
+};
+
+/** @deprecated prefer extractJsonCandidates; kept for tests */
+export const extractJsonText = (raw: string): string =>
+  extractJsonCandidates(raw)[0] ?? raw.trim();
+
+const validateParsed = (parsed: unknown): ValidateNoteResult => {
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
     return { ok: false, error: 'llm_invalid_json' };
   }
@@ -44,7 +78,11 @@ export const validateStructuredNote = (raw: string): ValidateNoteResult => {
 
   for (const key of STRUCTURED_NOTE_KEYS) {
     const value = record[key];
-    if (typeof value !== 'string' || value.trim().length < MIN_SECTION_LEN) {
+    if (
+      typeof value !== 'string' ||
+      value.trim().length < MIN_SECTION_LEN ||
+      isPlaceholder(value)
+    ) {
       missing.push(key);
       continue;
     }
@@ -56,4 +94,24 @@ export const validateStructuredNote = (raw: string): ValidateNoteResult => {
   }
 
   return { ok: true, note };
+};
+
+export const validateStructuredNote = (raw: string): ValidateNoteResult => {
+  const candidates = extractJsonCandidates(raw);
+  if (candidates.length === 0) {
+    return { ok: false, error: 'llm_invalid_json' };
+  }
+
+  let lastError = 'llm_invalid_json';
+  for (const candidate of candidates) {
+    try {
+      const result = validateParsed(JSON.parse(candidate));
+      if (result.ok) return result;
+      lastError = result.error;
+    } catch {
+      lastError = 'llm_invalid_json';
+    }
+  }
+
+  return { ok: false, error: lastError };
 };
