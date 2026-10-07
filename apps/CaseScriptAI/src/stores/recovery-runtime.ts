@@ -1,3 +1,4 @@
+import { LOCAL_ON_DEVICE_AI_ENABLED } from '@/constants/features';
 import { handleAppError } from '@/services/recovery/global-error-handler';
 import { healOom } from '@/services/recovery/oom-heal';
 import { useBootStore } from '@/stores/boot-store';
@@ -14,7 +15,10 @@ export const errorHandlerDeps = (): ErrorHandlerDeps => ({
       store.commitSelection(selection);
     });
   },
-  requestRedownload: () => useBootStore.getState().setDestination('download'),
+  requestRedownload: () => {
+    if (!LOCAL_ON_DEVICE_AI_ENABLED) return;
+    useBootStore.getState().setDestination('download');
+  },
   toast: showToast,
 });
 

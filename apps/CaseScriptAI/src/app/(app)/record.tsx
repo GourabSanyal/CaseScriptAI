@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { router } from 'expo-router';
 
 import { HomeRecordView } from '@/components/home/home-record-view';
+import { LOCAL_ON_DEVICE_AI_ENABLED } from '@/constants/features';
 import { useSessionElapsed } from '@/hooks/use-session-elapsed';
 import { importAudioToProcessingQueue } from '@/services/audio/import-audio-to-queue';
 import {
@@ -43,9 +44,12 @@ export default function RecordScreen() {
   const [importError, setImportError] = useState<string | null>(null);
   const downloadHydrated = useDownloadStore((state) => state.hasHydrated);
   const downloadMachine = useDownloadStore((state) => state.machine);
-  const modelsReady = downloadHydrated && !isDownloadInFlight(downloadMachine);
+  const modelsReady =
+    !LOCAL_ON_DEVICE_AI_ENABLED ||
+    (downloadHydrated && !isDownloadInFlight(downloadMachine));
 
   useEffect(() => {
+    if (!LOCAL_ON_DEVICE_AI_ENABLED) return;
     if (!downloadHydrated || modelsReady) return;
     useBootStore.getState().setDestination('download');
     router.replace('/(onboarding)/model-download');
@@ -74,7 +78,6 @@ export default function RecordScreen() {
   };
 
   const rawError = importError ?? error;
-  // Call conflicts use the global toast — hide the raw / duplicate inline dump.
   const displayError = isCallBusyUi(rawError) ? null : rawError;
 
   return (

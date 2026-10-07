@@ -1,8 +1,9 @@
-import { router } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Appearance } from 'react-native';
 
 import { ModelDownloadView } from '@/components/model-download/model-download-view';
+import { LOCAL_ON_DEVICE_AI_ENABLED } from '@/constants/features';
 import { modelManager } from '@/services/ai/model-manager-runtime';
 import { buildModelStatusRows } from '@/services/ai/model-status-rows';
 import {
@@ -16,6 +17,13 @@ import { useDeviceStore } from '@/stores/device-store';
 import type { ModelReadiness } from '@/types/download';
 
 export default function ModelDownloadScreen() {
+  if (!LOCAL_ON_DEVICE_AI_ENABLED) {
+    return <Redirect href="/" />;
+  }
+  return <OnDeviceModelDownloadScreen />;
+}
+
+function OnDeviceModelDownloadScreen() {
   const selection = useDeviceStore((state) => state.selection);
   const assessAndSelect = useDeviceStore((state) => state.assessAndSelect);
 
@@ -33,10 +41,8 @@ export default function ModelDownloadScreen() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Download UI is designed for light; force light while mounted.
     Appearance.setColorScheme('light');
     return () => {
-      // Restore OS preference so main app dark/light toggle works again.
       Appearance.setColorScheme(null);
     };
   }, []);
@@ -47,7 +53,6 @@ export default function ModelDownloadScreen() {
 
   const tier = selection?.tier ?? 'lite';
   const checking = readiness === null;
-  // Disk is source of truth — MMKV can be idle/0% after a kill while files are already there.
   const complete = readiness?.ready === true;
   const busy =
     !complete &&
@@ -71,14 +76,11 @@ export default function ModelDownloadScreen() {
     if (machine.status === 'paused') void startDownload(tier);
   }, [hasHydrated, markComplete, machine.status, readiness, startDownload, tier]);
 
-  // Stale MMKV `complete` + empty disk → reset; ring % must not outrank disk readiness.
   useEffect(() => {
     if (machine.status === 'complete' && readiness && !readiness.ready) {
       reset();
     }
   }, [machine.status, readiness, reset]);
-
-  // ponytail: no 2s poll while downloading — progress UI is enough; avoids extra FS work under memory pressure.
 
   const handleDeleteModel = useCallback(
     async (group: ModelGroupId) => {
@@ -119,7 +121,7 @@ export default function ModelDownloadScreen() {
               return;
             }
             useBootStore.getState().setDestination('app');
-            router.replace('/record');
+            router.replace('/');
           })();
           return;
         }

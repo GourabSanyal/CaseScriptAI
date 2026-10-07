@@ -3,6 +3,7 @@ import { AppState } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { useRouter } from 'expo-router';
 
+import { LOCAL_ON_DEVICE_AI_ENABLED } from '@/constants/features';
 import { memoryManager } from '@/services/ai/memory-manager';
 import { modelManager } from '@/services/ai/model-manager-runtime';
 import {
@@ -29,6 +30,7 @@ export const useAppRecovery = (navigationReady: boolean): void => {
 
   // Boot uses index Redirect. REPLACE only after (app) was mounted — Slot is gone during splash.
   useEffect(() => {
+    if (!LOCAL_ON_DEVICE_AI_ENABLED) return;
     if (!navigationReady || destination !== 'download' || !sawApp.current) return;
     router.replace('/(onboarding)/model-download');
   }, [destination, navigationReady, router]);
@@ -53,6 +55,9 @@ export const useAppRecovery = (navigationReady: boolean): void => {
       isPipelineRunning: () => pipelineOrchestrator.isRunning(),
       clearStaleLock: (running) => memoryManager.clearStaleLock(running),
       checkModelsReady: async () => {
+        if (!LOCAL_ON_DEVICE_AI_ENABLED) {
+          return { success: true, data: { ready: true } };
+        }
         const tier = useDeviceStore.getState().selection?.tier;
         // ponytail: first readiness gate stays in root layout until a tier is committed
         if (!tier) return { success: true, data: { ready: true } };
@@ -60,13 +65,18 @@ export const useAppRecovery = (navigationReady: boolean): void => {
         if (!readiness.success) return readiness;
         return { success: true, data: { ready: readiness.data.ready } };
       },
-      requestRedownload: () => useBootStore.getState().setDestination('download'),
+      requestRedownload: () => {
+        if (!LOCAL_ON_DEVICE_AI_ENABLED) return;
+        useBootStore.getState().setDestination('download');
+      },
       shouldRetryDownload: () => {
+        if (!LOCAL_ON_DEVICE_AI_ENABLED) return false;
         if (useBootStore.getState().destination !== 'download') return false;
         const machine = useDownloadStore.getState().machine;
         return machine.status === 'failed' && machine.errorCode === AppErrorCode.DOWNLOAD_NETWORK;
       },
       retryDownload: () => {
+        if (!LOCAL_ON_DEVICE_AI_ENABLED) return;
         const tier = useDeviceStore.getState().selection?.tier ?? 'lite';
         void useDownloadStore.getState().retry(tier);
       },
