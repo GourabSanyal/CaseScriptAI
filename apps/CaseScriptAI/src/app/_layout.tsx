@@ -11,6 +11,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { SplashScreenOverlay } from '@/components/splash-screen';
 import { ToastHost } from '@/components/toast/toast-host';
+import { LOCAL_ON_DEVICE_AI_ENABLED } from '@/constants/features';
 import { useAppRecovery } from '@/hooks/use-app-recovery';
 import { useCallAudioPresenceToast } from '@/hooks/use-call-audio-presence-toast';
 import { useDmSans } from '@/hooks/use-dm-sans';
@@ -54,15 +55,23 @@ export default function RootLayout() {
   const setDestination = useBootStore((state) => state.setDestination);
   const downloadHydrated = useDownloadStore((state) => state.hasHydrated);
 
-  // Always wire Keychain/AES + SQL — do not gate on destination (persisted `app` skipped init before).
   useEffect(() => {
     if (!fontsLoaded) return;
     void initAppStorage();
   }, [fontsLoaded]);
 
-  // ponytail: disk + in-flight download machine — do not load ExecuTorch during download.
+  // External APIs: skip model download + ExecuTorch; go straight to auth/app.
   useEffect(() => {
-    if (!fontsLoaded || !downloadHydrated || destination) return;
+    if (LOCAL_ON_DEVICE_AI_ENABLED || !fontsLoaded || destination) return;
+    ExpoSplashScreen.hideAsync().catch(() => undefined);
+    setDestination('app');
+  }, [destination, fontsLoaded, setDestination]);
+
+  // On-device only: disk readiness gates download vs app.
+  useEffect(() => {
+    if (!LOCAL_ON_DEVICE_AI_ENABLED || !fontsLoaded || !downloadHydrated || destination) {
+      return;
+    }
 
     ExpoSplashScreen.hideAsync().catch(() => undefined);
 
@@ -89,9 +98,11 @@ export default function RootLayout() {
     };
   }, [destination, downloadHydrated, fontsLoaded, setDestination]);
 
-  // Load ExecuTorch only when entering the main app (models already on disk).
+  // On-device only: load ExecuTorch when models are on disk.
   useEffect(() => {
-    if (destination !== 'app' || isExecutorchReady) return;
+    if (!LOCAL_ON_DEVICE_AI_ENABLED || destination !== 'app' || isExecutorchReady) {
+      return;
+    }
 
     let cancelled = false;
     const run = async () => {
@@ -124,7 +135,7 @@ export default function RootLayout() {
     );
   }
 
-  if (executorchError) {
+  if (LOCAL_ON_DEVICE_AI_ENABLED && executorchError) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <Text style={{ color: 'red' }}>AI runtime error: {executorchError}</Text>
@@ -134,11 +145,10 @@ export default function RootLayout() {
 
   if (!fontsLoaded) return null;
 
-  // Download screen must not wait on ExecuTorch native init.
-  // Continue may init ExecuTorch before layout state updates — honor the module flag so Slot stays mounted.
-  const bootReady =
-    destination === 'download' ||
-    (destination === 'app' && (isExecutorchReady || getExecutorchBootReady()));
+  const bootReady = LOCAL_ON_DEVICE_AI_ENABLED
+    ? destination === 'download' ||
+      (destination === 'app' && (isExecutorchReady || getExecutorchBootReady()))
+    : destination === 'app';
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
