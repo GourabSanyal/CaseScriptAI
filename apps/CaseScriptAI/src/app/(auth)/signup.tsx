@@ -1,9 +1,5 @@
-import { View, Text } from 'react-native';
+import { Redirect } from 'expo-router';
 
-export default function Screen() {
-  return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <Text>(auth)/signup.tsx Screen</Text>
-    </View>
-  );
+export default function SignupRedirectScreen() {
+  return <Redirect href="/(auth)/therapist-login" />;
 }
