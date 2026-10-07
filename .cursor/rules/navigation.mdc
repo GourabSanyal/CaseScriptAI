@@ -12,11 +12,14 @@ Use `router` from `expo-router` or `<Link />`. Do not use React Navigation APIs 
 ## Route Groups
 | Group | Purpose |
 |-------|---------|
-| `(auth)` | Login, signup |
+| `(auth)` | Welcome, therapist login, patient join |
 | `(onboarding)` | Device check, model download |
-| `(app)` | Core app: record, processing, preview, export |
+| `(app)` | Therapist core app: record, processing, preview, export |
+| `(patient)` | Patient waiting room / join flow |
 
 New group folders need `_layout.tsx` when they share header or tab state.
+
+Role guards: `(app)` requires `session.role === 'therapist'`; `(patient)` requires `patient`. Unauthenticated users go to `/(auth)/welcome`. Demo auth details: `docs/UI_DUAL_AUTH_AND_MOTION.md`.
 
 ## Screen Structure
 Screens are thin. Root with `ThemedView` or `SafeAreaView`:
