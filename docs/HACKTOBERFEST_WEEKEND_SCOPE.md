@@ -6,7 +6,8 @@
 > **Partner target:** Best Use of Render (+ optional Gemma / ElevenLabs only if spare time)  
 >
 > This doc is the **scope lock** for the weekend demo. It does **not** replace [`ARCHITECTURE_CLOUD.md`](./ARCHITECTURE_CLOUD.md). Cloud MVP work continues there after the contest.  
-> Slice tracker for this branch: [`SLICES_PLAN_HACKTOBERFEST.md`](./SLICES_PLAN_HACKTOBERFEST.md).
+> Slice tracker for this branch: [`SLICES_PLAN_HACKTOBERFEST.md`](./SLICES_PLAN_HACKTOBERFEST.md).  
+> Mobile dual-auth + motion UI on this branch (not contest scoring): [`UI_DUAL_AUTH_AND_MOTION.md`](./UI_DUAL_AUTH_AND_MOTION.md).
 
 ---
 

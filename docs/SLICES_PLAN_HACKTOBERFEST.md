@@ -3,6 +3,7 @@
 > **Scope lock:** [`HACKTOBERFEST_WEEKEND_SCOPE.md`](./HACKTOBERFEST_WEEKEND_SCOPE.md)  
 > **Branch:** `hacktoberfest/render-session-note`  
 > **Does not replace** [`SLICES_PLAN_CLOUD.md`](./SLICES_PLAN_CLOUD.md) — weekend demo only.  
+> **LLD:** [`LLD_HACKTOBERFEST.md`](./LLD_HACKTOBERFEST.md) — module map, schema, API, limits, edge cases per slice.  
 >
 > Workflow: set sub-slice → `IN PROGRESS` (with test plan) **before** code; `DONE` only when tests green — [`PROJECT_RULES.md`](../PROJECT_RULES.md) §3.  
 > Status: `TODO` · `IN PROGRESS` · `DONE` · `PARKED`  
@@ -25,7 +26,7 @@
 | ID | Item | Why |
 |---|---|---|
 | WEB.RTC | Live call + server record | Out of weekend scope |
-| AUTH.FULL | Real therapist/patient auth | Demo can use a single open generate endpoint |
+| AUTH.FULL | Real patient auth / server invites | Therapist Google login unparked as **H5A**; patient stays demo invite code |
 | WORKER.BG | Render Background Worker | Not free; use in-process |
 | MOBILE.POLISH | Full RN therapist E2E | Web demo is enough to submit |
 
@@ -130,18 +131,110 @@
 
 ---
 
-## SLICE H6 — Render deploy
+## SLICE H5L — Local dev baseline *(first — pulled forward from H6)*
 
 | Sub | Description | Status | Tests | Impl |
 |---|---|---|---|---|
-| H6.1 | `Dockerfile` or Render native build documented | TODO | | |
-| H6.2 | Run migrations on deploy / release command | TODO | | |
+| H5L.1 | `docker-compose.yml` local Postgres (was H6.7) | DONE | `local-dev-baseline.test.ts` | `docker-compose.yml` |
+| H5L.2 | Root scripts `hacktoberfest:typecheck` / `:migrate` / `:check` (was H6.5) | DONE | `local-dev-baseline.test.ts` | root `package.json` |
+| H5L.3 | `.nvmrc` + shell-independent API test glob (was H6.6) | DONE | `local-dev-baseline.test.ts` | `.nvmrc`, `apps/hacktoberfest-api/package.json` |
+
+**Test plan (H5L):** ✅ baseline unit tests green; migrate/check against compose needs Docker Desktop running locally.
+
+1. `docker compose up -d` → Postgres healthy on `localhost:5432`.
+2. With `.env.example` credentials → `yarn hacktoberfest:migrate` applies `001_demo_sessions.sql` (or up to date).
+3. `yarn hacktoberfest:typecheck` and `yarn hacktoberfest:test` succeed via `yarn hacktoberfest:check` (quoted test glob; no shell globstar).
+
+**Done when:** fresh clone → `docker compose up -d` → `yarn hacktoberfest:migrate` → `yarn hacktoberfest:check` green, no Render needed.
+
+---
+
+## SLICE H5A — Therapist Google login (Clerk) + `users` table *(local first)*
+
+> Read [`OWASP_MOBILE_TOP_10.md`](./OWASP_MOBILE_TOP_10.md) before starting. Design: [`LLD_HACKTOBERFEST.md`](./LLD_HACKTOBERFEST.md) §1.12.
+> Therapist only. Patient keeps demo invite code. Demo web page stays open (no login).
+
+| Sub | Description | Status | Tests | Impl |
+|---|---|---|---|---|
+| H5A.1 | Scope doc: therapist auth now in scope; OWASP checklist notes | TODO | | |
+| H5A.2 | Migration `002_users.sql` (`clerk_user_id` unique, email, role) + `user-repository` upsert | TODO | | |
+| H5A.3 | API `verifyClerkToken` (`@clerk/backend`) + `GET /me` (upsert on first call, role from server) | TODO | | |
+| H5A.4 | Mobile `ClerkProvider` + SecureStore token cache; "Continue with Google" on therapist login | TODO | | |
+| H5A.5 | Mobile `api-client` sends Bearer token; auth store takes role from `GET /me`; sign-out clears Clerk + store | TODO | | |
+| H5A.6 | Demo therapist login kept for `__DEV__` only | TODO | | |
+| H5A.7 | Local E2E checklist: simulator + emulator sign-in → `users` row → sign-out/in reuses row | TODO | | |
+
+**Test plan (draft, H5A):**
+1. `GET /me` without token → `401 auth_missing`; bad/expired token → `401 auth_invalid`.
+2. Valid (mocked verifier) token, first call → user row created with role `therapist`; second call → same row, `last_seen_at` updated.
+3. Role in response comes from DB, never from client input.
+4. Mobile auth store: Clerk signed-in + `/me` ok → therapist session; `/me` 401 → signed out with error.
+5. Release build: demo login button absent.
+
+**Done when:** H5A.7 passes on iOS simulator and Android emulator against local API + local Postgres.
+
+**You needed first:** Clerk dev app with Google enabled; native app redirect `casescriptai://` allowlisted; keys in local `.env` files (see LLD §1.12). Own Google Cloud OAuth clients not needed until production.
+
+---
+
+## SLICE H5S — Public demo guardrails *(urgent — blocks H6)*
+
+> A public Render URL with an open generate endpoint and in-process pipeline must not burn free-tier quota, hang, or lose PDFs on restart.
+
+| Sub | Description | Status | Tests | Impl |
+|---|---|---|---|---|
+| H5S.1 | Rate limit `POST /sessions/demo`: per-IP (e.g. 3/hour) + global daily cap → `429 rate_limited` | TODO | | |
+| H5S.2 | Timeouts on Groq + Gemma `fetch` (`AbortSignal.timeout`) → sanitized `stt_timeout` / `llm_timeout` failure | TODO | | |
+| H5S.3 | Boot recovery: sessions left in `queued` / `*_running` → `failed` with `interrupted_restart` | TODO | | |
+| H5S.4 | PDF bytes in Postgres (`003_hardening` migration, `bytea`) instead of `data/pdfs/` — Render free disk is ephemeral | TODO | | |
+| H5S.5 | Security headers on every response (CSP, `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`) | TODO | | |
+| H5S.6 | Graceful `SIGTERM`: stop accepting, close `pg` pool | TODO | | |
+
+**Test plan (draft, H5S):**
+1. N+1th demo start from same IP within window → 429; counter resets after window.
+2. Mocked provider that never resolves → step fails with timeout code; status `failed`; no PHI in error.
+3. Seed `stt_running` row → boot recovery marks `failed` / `interrupted_restart`; `ready` rows untouched.
+4. PDF step writes bytes to DB; `GET /sessions/:id/pdf` serves from DB with no file on disk.
+5. `GET /health`, `/`, `/sessions/:id` include all security headers.
+6. `SIGTERM` handler closes server + pool (unit-test the shutdown function).
+
+**Done when:** all six green; public endpoint safe to share with judges.
+
+---
+
+## SLICE H6 — Render deploy + DX baseline
+
+| Sub | Description | Status | Tests | Impl |
+|---|---|---|---|---|
+| H6.1 | `render.yaml` blueprint (web service + Postgres) — Render native build, no Dockerfile | TODO | | |
+| H6.2 | Run migrations on deploy (`preDeployCommand` / start script) | TODO | | |
 | H6.3 | Env vars documented for Render dashboard | TODO | | |
 | H6.4 | Smoke checklist: health → generate → PDF → row in Postgres | TODO | | |
+| H6.5 | Moved to H5L.2 | — | | |
+| H6.6 | Moved to H5L.3 | — | | |
+| H6.7 | Moved to H5L.1 | — | | |
+| H6.11 | Clerk keys on Render env (`CLERK_SECRET_KEY`) + EAS env (`EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`) | TODO | | |
+| H6.8 | GitHub Actions: API tests + typecheck, mobile `test` + `typecheck` on PRs to this branch | TODO | | |
+| H6.9 | Optional `DEMO_ACCESS_KEY` env → generate requires header/query key when set | TODO | | |
+| H6.10 | Scope doc note: session UUID is a capability URL; open read is acceptable only for synthetic data | TODO | | |
 
-**Done when:** public Render URL completes one generate after cold start.
+**Done when:** public Render URL completes one generate after cold start; `yarn hacktoberfest:check` and CI green.
 
 **You needed first:** Render web service + Postgres + env vars (scope doc §7 C).
+
+---
+
+## SLICE H6U — Demo UX polish *(before write-up)*
+
+| Sub | Description | Status | Tests | Impl |
+|---|---|---|---|---|
+| H6U.1 | Step progress UI (Transcribing → Writing note → Building PDF → Ready) instead of raw status | TODO | | |
+| H6U.2 | Cold-start notice: "Waking server (~1 min)" when first request is slow | TODO | | |
+| H6U.3 | Retry button on `failed` (reuses idempotent pipeline steps) | TODO | | |
+| H6U.4 | Poll backoff (1s → 2s → 5s cap), max wait, pause when tab hidden; respect `prefers-reduced-motion` | TODO | | |
+| H6U.5 | Note preview on page before PDF download (synthetic data only) | TODO | | |
+
+**Done when:** happy path + failure + retry demoable on the Render URL; `GET /` HTML assertions updated.
 
 ---
 
@@ -157,13 +250,40 @@
 
 ---
 
+## SLICE H8 — Mobile guardrails + performance *(after write-up)*
+
+> Mobile is not contest-scored (see [`UI_DUAL_AUTH_AND_MOTION.md`](./UI_DUAL_AUTH_AND_MOTION.md)); this hardens the branch app alongside the thin demo screen.
+
+| Sub | Description | Status | Tests | Impl |
+|---|---|---|---|---|
+| H8.1 | Encrypt auth MMKV store (`casescriptai-storage`) and drop raw email from demo token | TODO | | |
+| H8.2 | Strip `console.*` in release builds (babel config); replace PHI-adjacent logs in AI hooks | TODO | | |
+| H8.3 | Exclude `poc.tsx` / `explore.tsx` routes from release builds | TODO | | |
+| H8.4 | Lazy-load ExecuTorch / ffmpeg / Whisper modules only when `LOCAL_ON_DEVICE_AI_ENABLED` is `true` | TODO | | |
+| H8.5 | Motion budget applied to every animated component; low-end Android test checklist | TODO | | |
+| H8.6 | Drop one of `expo-av` / `expo-audio` (keep `expo-audio`) | TODO | | |
+| H8.7 | Thin therapist "Generate demo note" screen → Render API (status + PDF open/share) | TODO | | |
+
+**Done when:** mobile `test` + `typecheck` green; release build has no `console.*` and no POC routes.
+
+---
+
+## SLICE H9 — Stretch features
+
+| Sub | Description | Status | Tests | Impl |
+|---|---|---|---|---|
+| H9.1 | Upload own short audio (size/duration cap, WAV/MP3 check, rate limit from H5S.1 applies) | TODO | | |
+| H9.2 | Recent sessions list (last 5) on demo page | TODO | | |
+
+---
+
 ## Suggested work order (one after another)
 
 ```
-H0 → H1 → H2 → H3 → H4 → H5 → H6 → H7
+H0 → H1 → H2 → H3 → H4 → H5 → H5L → H5A → H5S → H6 → H6U → H7 → H8 → H9
 ```
 
-Do not start H6 until H5 works locally. Do not start H2 until H1 migrations apply.
+Local first: H5L + H5A must pass on local Postgres before any Render work. Do not start H6 until H5A local E2E **and H5S are green**. Do not start H2 until H1 migrations apply. H8.7 partially unparks `MOBILE.POLISH`.
 
 ---
 
