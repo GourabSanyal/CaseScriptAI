@@ -11,6 +11,7 @@ import Animated, {
 
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
+import { useMotionBudget } from '@/hooks/use-motion-budget';
 import { useTheme } from '@/hooks/use-theme';
 
 const BAR_COUNT = 12;
@@ -25,15 +26,17 @@ function WaveBar({
   index,
   active,
   color,
+  allowLoop,
 }: {
   index: number;
   active: boolean;
   color: string;
+  allowLoop: boolean;
 }) {
   const height = useSharedValue(10 + BAR_PATTERN[index]! * 28);
 
   useEffect(() => {
-    if (!active) {
+    if (!active || !allowLoop) {
       height.value = withTiming(8 + BAR_PATTERN[index]! * 12, { duration: 280 });
       return () => cancelAnimation(height);
     }
@@ -46,7 +49,7 @@ function WaveBar({
       true,
     );
     return () => cancelAnimation(height);
-  }, [active, height, index]);
+  }, [active, allowLoop, height, index]);
 
   const style = useAnimatedStyle(() => ({
     height: height.value,
@@ -58,6 +61,8 @@ function WaveBar({
 
 export function WaveformCard({ active, subtitle }: WaveformCardProps) {
   const theme = useTheme();
+  const budget = useMotionBudget();
+  const allowLoop = budget === 'full';
 
   return (
     <View
@@ -71,6 +76,7 @@ export function WaveformCard({ active, subtitle }: WaveformCardProps) {
             key={index}
             index={index}
             active={active}
+            allowLoop={allowLoop}
             color={active ? theme.primary : theme.primaryFixedDim}
           />
         ))}

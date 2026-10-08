@@ -7,6 +7,7 @@ import { EncryptionStatusBar } from '@/components/home/encryption-status-bar';
 import { HomePrimaryActions } from '@/components/home/home-primary-actions';
 import { SessionTimer } from '@/components/home/session-timer';
 import { WaveformCard } from '@/components/home/waveform-card';
+import { LOCAL_ON_DEVICE_AI_ENABLED } from '@/constants/features';
 import { Layout, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -57,11 +58,14 @@ export function HomeRecordView({
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]} edges={['top']}>
-      {/* ponytail: temp QA entry — remove once download UI is signed off */}
       <AppHeader
         horizontalPad={horizontalPad}
-        rightIcon="cloud-download"
-        onRightPress={() => router.push('/(onboarding)/model-download')}
+        {...(LOCAL_ON_DEVICE_AI_ENABLED
+          ? {
+              rightIcon: 'cloud-download' as const,
+              onRightPress: () => router.push('/(onboarding)/model-download'),
+            }
+          : {})}
       />
 
       <View style={[styles.body, { paddingHorizontal: horizontalPad }]}>

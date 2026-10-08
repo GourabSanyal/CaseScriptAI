@@ -1,9 +1,17 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { useEffect } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
+import { Motion } from '@/constants/motion';
 import { Radius, Spacing } from '@/constants/theme';
+import { useMotionBudget } from '@/hooks/use-motion-budget';
 import { useTheme } from '@/hooks/use-theme';
 import { useToastStore } from '@/stores/toast-store';
 
@@ -31,6 +39,29 @@ export function ToastHost({ bottomOffset }: ToastHostProps) {
   const insets = useSafeAreaInsets();
   const toast = useToastStore((state) => state.current);
   const dismiss = useToastStore((state) => state.dismiss);
+  const budget = useMotionBudget();
+  const opacity = useSharedValue(0);
+  const translateY = useSharedValue(8);
+
+  useEffect(() => {
+    if (!toast) {
+      opacity.value = 0;
+      translateY.value = 8;
+      return;
+    }
+    if (budget === 'none') {
+      opacity.value = 1;
+      translateY.value = 0;
+      return;
+    }
+    opacity.value = withTiming(1, { duration: Motion.toastMs });
+    translateY.value = withTiming(0, { duration: Motion.toastMs });
+  }, [budget, opacity, toast, translateY]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateY: translateY.value }],
+  }));
 
   if (!toast) return null;
 
@@ -52,11 +83,12 @@ export function ToastHost({ bottomOffset }: ToastHostProps) {
         },
       ]}
     >
-      <View
+      <Animated.View
         accessibilityLiveRegion="polite"
         accessibilityRole="alert"
         style={[
           styles.toast,
+          animatedStyle,
           {
             backgroundColor: theme.surfaceContainerHigh,
             borderColor: theme.outlineVariant,
@@ -84,7 +116,7 @@ export function ToastHost({ bottomOffset }: ToastHostProps) {
         >
           <MaterialIcons name="close" size={18} color={theme.textSecondary} />
         </Pressable>
-      </View>
+      </Animated.View>
     </View>
   );
 }
