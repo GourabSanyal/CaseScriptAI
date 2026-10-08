@@ -10,6 +10,9 @@
   "scripts": {
     "postinstall": "yarn workspace casescriptai run postinstall",
     "hacktoberfest:dev": "yarn workspace hacktoberfest-api dev",
-    "hacktoberfest:test": "yarn workspace hacktoberfest-api test"
+    "hacktoberfest:test": "yarn workspace hacktoberfest-api test",
+    "hacktoberfest:typecheck": "yarn workspace hacktoberfest-api typecheck",
+    "hacktoberfest:migrate": "yarn workspace hacktoberfest-api migrate",
+    "hacktoberfest:check": "yarn hacktoberfest:typecheck && yarn hacktoberfest:test"
   }
 }

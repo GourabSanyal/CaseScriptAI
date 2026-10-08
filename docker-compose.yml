@@ -1,0 +1,22 @@
+# Local Postgres for Hacktoberfest demo API (H5L).
+# Matches apps/hacktoberfest-api/.env.example DATABASE_URL.
+services:
+  postgres:
+    image: postgres:16
+    container_name: casescriptai-hacktoberfest-pg
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: casescriptai_demo
+    volumes:
+      - hacktoberfest_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U user -d casescriptai_demo']
+      interval: 3s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  hacktoberfest_pg:

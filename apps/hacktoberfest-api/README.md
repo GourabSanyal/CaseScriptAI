@@ -7,16 +7,20 @@ Thin TypeScript HTTP service for the contest branch
 ## Quick start
 
 ```bash
-# from repo root
+# from repo root (Node 20 — see .nvmrc)
 yarn install
 cp apps/hacktoberfest-api/.env.example apps/hacktoberfest-api/.env
-# set DATABASE_URL (local Postgres or Render External URL)
+# .env.example DATABASE_URL matches docker-compose.yml
 
-yarn workspace hacktoberfest-api migrate
-yarn workspace hacktoberfest-api dev
+docker compose up -d
+yarn hacktoberfest:migrate
+yarn hacktoberfest:check          # typecheck + unit tests
+yarn hacktoberfest:dev
 # → http://localhost:3001/       (demo UI)
 # → http://localhost:3001/health
 ```
+
+Local Postgres: `docker-compose.yml` (`postgres:16` on `localhost:5432`). No Render required for day-to-day API work.
 
 Demo API:
 - `POST /sessions/demo` — start fixture pipeline (returns `{ id, status }`)
