@@ -93,4 +93,35 @@ describe('runPdfStep', () => {
       await rm(dir, { recursive: true, force: true });
     }
   });
+
+  it('marks failed with pdf_missing_note when note_json is invalid', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'pdf-'));
+    const session = pdfSession('pdf_running');
+    session.noteJson = { subjective: 'only-one-field' };
+    const repo = createMemoryRepo(session);
+
+    try {
+      const result = await runPdfStep({
+        repo,
+        sessionId: session.id,
+        pdfDir: dir,
+      });
+      assert.equal(result.status, 'failed');
+      assert.equal(result.error, 'pdf_missing_note');
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('throws pdf_bad_status when not pdf_running or ready', async () => {
+    const repo = createMemoryRepo(pdfSession('llm_running'));
+    await assert.rejects(
+      () =>
+        runPdfStep({
+          repo,
+          sessionId: '33333333-3333-3333-3333-333333333333',
+        }),
+      /pdf_bad_status:llm_running/,
+    );
+  });
 });
