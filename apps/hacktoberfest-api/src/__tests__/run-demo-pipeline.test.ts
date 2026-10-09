@@ -32,31 +32,34 @@ const createMemoryRepo = (initial: DemoSession): SessionRepository => {
   };
 };
 
+const queued = (id: string): DemoSession => ({
+  id,
+  status: 'queued' as SessionStatus,
+  transcript: null,
+  noteJson: null,
+  pdfPath: null,
+  error: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+});
+
+const validNoteJson = JSON.stringify({
+  subjective: 'Reports lighter sleep and work stress.',
+  objective: 'Engaged; affect congruent.',
+  assessment: 'Situational stress with sleep disruption.',
+  plan: 'Breathing three evenings; phone-free hour.',
+});
+
 describe('runDemoPipeline', () => {
   it('runs stt → llm → pdf with mocks to ready', async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), 'demo-'));
     const id = '77777777-7777-7777-7777-777777777777';
-    const repo = createMemoryRepo({
-      id,
-      status: 'queued' as SessionStatus,
-      transcript: null,
-      noteJson: null,
-      pdfPath: null,
-      error: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
+    const repo = createMemoryRepo(queued(id));
     const stt: SttProvider = {
       transcribeFile: async () => 'Client discussed sleep and stress.',
     };
     const llm: LlmProvider = {
-      complete: async () =>
-        JSON.stringify({
-          subjective: 'Reports lighter sleep and work stress.',
-          objective: 'Engaged; affect congruent.',
-          assessment: 'Situational stress with sleep disruption.',
-          plan: 'Breathing three evenings; phone-free hour.',
-        }),
+      complete: async () => validNoteJson,
     };
 
     try {
@@ -70,6 +73,63 @@ describe('runDemoPipeline', () => {
       });
       assert.equal(result.status, 'ready');
       assert.ok(result.pdfPath);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('stops after STT failure and does not call LLM', async () => {
+    const id = '77777777-7777-7777-7777-777777777778';
+    const repo = createMemoryRepo(queued(id));
+    let llmCalls = 0;
+    const stt: SttProvider = {
+      transcribeFile: async () => {
+        throw new Error('stt_http_503');
+      },
+    };
+    const llm: LlmProvider = {
+      complete: async () => {
+        llmCalls += 1;
+        return validNoteJson;
+      },
+    };
+
+    const result = await runDemoPipeline({
+      repo,
+      stt,
+      llm,
+      sessionId: id,
+      audioPath: '/tmp/fixture.wav',
+    });
+
+    assert.equal(result.status, 'failed');
+    assert.equal(result.error, 'stt_http_503');
+    assert.equal(llmCalls, 0);
+  });
+
+  it('stops after LLM failure and does not write a PDF', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'demo-'));
+    const id = '77777777-7777-7777-7777-777777777779';
+    const repo = createMemoryRepo(queued(id));
+    const stt: SttProvider = {
+      transcribeFile: async () => 'Client discussed sleep and stress.',
+    };
+    const llm: LlmProvider = {
+      complete: async () => 'not-valid-json',
+    };
+
+    try {
+      const result = await runDemoPipeline({
+        repo,
+        stt,
+        llm,
+        sessionId: id,
+        audioPath: '/tmp/fixture.wav',
+        pdfDir: dir,
+      });
+      assert.equal(result.status, 'failed');
+      assert.equal(result.error, 'llm_invalid_json');
+      assert.equal(result.pdfPath, null);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
