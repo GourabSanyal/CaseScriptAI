@@ -80,4 +80,41 @@ describe('runSttStep', () => {
     assert.equal(result.error, 'stt_failed');
     assert.equal(result.transcript, null);
   });
+
+  it('marks failed with stt_empty_transcript when provider returns whitespace', async () => {
+    const repo = createMemoryRepo(queuedSession());
+    const stt: SttProvider = {
+      transcribeFile: async () => '   ',
+    };
+
+    const result = await runSttStep({
+      repo,
+      stt,
+      sessionId: '11111111-1111-1111-1111-111111111111',
+      audioPath: '/tmp/fixture.wav',
+    });
+
+    assert.equal(result.status, 'failed');
+    assert.equal(result.error, 'stt_empty_transcript');
+    assert.equal(result.transcript, null);
+  });
+
+  it('preserves stt_* error codes from the provider', async () => {
+    const repo = createMemoryRepo(queuedSession());
+    const stt: SttProvider = {
+      transcribeFile: async () => {
+        throw new Error('stt_http_429');
+      },
+    };
+
+    const result = await runSttStep({
+      repo,
+      stt,
+      sessionId: '11111111-1111-1111-1111-111111111111',
+      audioPath: '/tmp/fixture.wav',
+    });
+
+    assert.equal(result.status, 'failed');
+    assert.equal(result.error, 'stt_http_429');
+  });
 });
