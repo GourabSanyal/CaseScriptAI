@@ -14,6 +14,8 @@ describe('H5L local dev baseline', () => {
     assert.match(compose, /POSTGRES_USER:\s*user/);
     assert.match(compose, /POSTGRES_PASSWORD:\s*password/);
     assert.match(compose, /POSTGRES_DB:\s*casescriptai_demo/);
+    assert.match(compose, /healthcheck:/);
+    assert.match(compose, /pg_isready/);
 
     const envExample = readFileSync(
       path.join(repoRoot, 'apps/hacktoberfest-api/.env.example'),
@@ -23,6 +25,15 @@ describe('H5L local dev baseline', () => {
       envExample,
       /DATABASE_URL=postgres:\/\/user:password@localhost:5432\/casescriptai_demo/,
     );
+  });
+
+  it('ships migration 001_demo_sessions.sql under migrations/', () => {
+    const sql = readFileSync(
+      path.join(repoRoot, 'apps/hacktoberfest-api/migrations/001_demo_sessions.sql'),
+      'utf8',
+    );
+    assert.match(sql, /CREATE TABLE IF NOT EXISTS demo_sessions/);
+    assert.match(sql, /demo_sessions_status_check/);
   });
 
   it('root package.json exposes hacktoberfest typecheck/migrate/check scripts', () => {
