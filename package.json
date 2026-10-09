@@ -13,6 +13,6 @@
     "hacktoberfest:test": "yarn workspace hacktoberfest-api test",
     "hacktoberfest:typecheck": "yarn workspace hacktoberfest-api typecheck",
     "hacktoberfest:migrate": "yarn workspace hacktoberfest-api migrate",
-    "hacktoberfest:check": "yarn hacktoberfest:typecheck && yarn hacktoberfest:test"
+    "hacktoberfest:check": "yarn hacktoberfest:typecheck && LIVE_PROVIDER_SMOKE=0 yarn hacktoberfest:test"
   }
 }
