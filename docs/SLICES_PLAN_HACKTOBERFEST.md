@@ -139,13 +139,13 @@
 | H5L.2 | Root scripts `hacktoberfest:typecheck` / `:migrate` / `:check` (was H6.5) | DONE | `local-dev-baseline.test.ts` | root `package.json` |
 | H5L.3 | `.nvmrc` + shell-independent API test glob (was H6.6) | DONE | `local-dev-baseline.test.ts` | `.nvmrc`, `apps/hacktoberfest-api/package.json` |
 
-**Test plan (H5L):** ✅ baseline unit tests green; migrate/check against compose needs Docker Desktop running locally.
+**Test plan (H5L):** ✅ baseline + mocked suite green (`LIVE_PROVIDER_SMOKE=0` forced by `yarn hacktoberfest:check`). Migrate against compose needs Docker Desktop.
 
 1. `docker compose up -d` → Postgres healthy on `localhost:5432`.
-2. With `.env.example` credentials → `yarn hacktoberfest:migrate` applies `001_demo_sessions.sql` (or up to date).
-3. `yarn hacktoberfest:typecheck` and `yarn hacktoberfest:test` succeed via `yarn hacktoberfest:check` (quoted test glob; no shell globstar).
+2. `.env` `DATABASE_URL` must match compose (`user:password@localhost:5432/casescriptai_demo` from `.env.example`) → `yarn hacktoberfest:migrate`.
+3. `yarn hacktoberfest:check` → typecheck + tests (quoted glob; live provider smokes off).
 
-**Done when:** fresh clone → `docker compose up -d` → `yarn hacktoberfest:migrate` → `yarn hacktoberfest:check` green, no Render needed.
+**Done when:** artifacts in repo; unit path green without DB. Full path (compose → migrate → check with DB) is a local machine step when Docker is running.
 
 ---
 
