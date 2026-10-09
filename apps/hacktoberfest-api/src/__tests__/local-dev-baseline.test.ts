@@ -33,7 +33,7 @@ describe('H5L local dev baseline', () => {
     assert.equal(pkg.scripts['hacktoberfest:migrate'], 'yarn workspace hacktoberfest-api migrate');
     assert.equal(
       pkg.scripts['hacktoberfest:check'],
-      'yarn hacktoberfest:typecheck && yarn hacktoberfest:test',
+      'yarn hacktoberfest:typecheck && LIVE_PROVIDER_SMOKE=0 yarn hacktoberfest:test',
     );
   });
 
