@@ -83,4 +83,50 @@ describe('demo API routes', () => {
       assert.match(html, /Use sample session/);
     });
   });
+
+  it('POST /sessions/demo returns 503 when starter is unavailable', async () => {
+    const server = createServer();
+    await withServer(server, async (base) => {
+      const res = await fetch(`${base}/sessions/demo`, { method: 'POST' });
+      const body = await res.json();
+      assert.equal(res.status, 503);
+      assert.deepEqual(body, { ok: false, error: 'demo_unavailable' });
+    });
+  });
+
+  it('GET /sessions/:id returns 404 when session is missing', async () => {
+    const server = createServer({
+      getSessionById: async () => null,
+    });
+    await withServer(server, async (base) => {
+      const res = await fetch(`${base}/sessions/${sessionId}`);
+      const body = await res.json();
+      assert.equal(res.status, 404);
+      assert.deepEqual(body, { ok: false, error: 'session_not_found' });
+    });
+  });
+
+  it('GET /sessions/:id returns 503 when sessions are unavailable', async () => {
+    const server = createServer();
+    await withServer(server, async (base) => {
+      const res = await fetch(`${base}/sessions/${sessionId}`);
+      const body = await res.json();
+      assert.equal(res.status, 503);
+      assert.deepEqual(body, { ok: false, error: 'sessions_unavailable' });
+    });
+  });
+
+  it('rejects non-UUID session paths as not_found', async () => {
+    const server = createServer({
+      getSessionById: async () => {
+        throw new Error('should_not_be_called');
+      },
+    });
+    await withServer(server, async (base) => {
+      const res = await fetch(`${base}/sessions/not-a-uuid`);
+      const body = await res.json();
+      assert.equal(res.status, 404);
+      assert.deepEqual(body, { ok: false, error: 'not_found' });
+    });
+  });
 });
