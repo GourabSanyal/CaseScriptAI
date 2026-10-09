@@ -61,4 +61,21 @@ describe('createGroqWhisperStt', () => {
   it('rejects empty API key at construction', () => {
     assert.throws(() => createGroqWhisperStt({ apiKey: '   ' }), /groq_api_key_missing/);
   });
+
+  it('rejects empty transcript text from Groq', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'stt-'));
+    const audioPath = path.join(dir, 'sample.wav');
+    await writeFile(audioPath, Buffer.from('x'));
+
+    const stt = createGroqWhisperStt({
+      apiKey: 'test-key',
+      fetchImpl: async () =>
+        new Response(JSON.stringify({ text: '  ' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+    });
+
+    await assert.rejects(() => stt.transcribeFile(audioPath), /stt_empty_transcript/);
+  });
 });
