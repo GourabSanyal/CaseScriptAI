@@ -94,4 +94,71 @@ describe('runLlmStep', () => {
     assert.equal(result.status, 'failed');
     assert.equal(result.error, 'llm_invalid_json');
   });
+
+  it('marks failed with llm_missing_transcript when transcript is blank', async () => {
+    const repo = createMemoryRepo({ ...llmSession(), transcript: '  ' });
+    const llm: LlmProvider = {
+      complete: async () => {
+        throw new Error('should_not_call_llm');
+      },
+    };
+
+    const result = await runLlmStep({
+      repo,
+      llm,
+      sessionId: '22222222-2222-2222-2222-222222222222',
+    });
+
+    assert.equal(result.status, 'failed');
+    assert.equal(result.error, 'llm_missing_transcript');
+  });
+
+  it('throws llm_bad_status when session is not llm_running', async () => {
+    const repo = createMemoryRepo({ ...llmSession(), status: 'queued' as SessionStatus });
+    const llm: LlmProvider = { complete: async () => validNote };
+
+    await assert.rejects(
+      () =>
+        runLlmStep({
+          repo,
+          llm,
+          sessionId: '22222222-2222-2222-2222-222222222222',
+        }),
+      /llm_bad_status:queued/,
+    );
+  });
+
+  it('throws session_not_found when id is unknown', async () => {
+    const repo = createMemoryRepo(llmSession());
+    const llm: LlmProvider = { complete: async () => validNote };
+
+    await assert.rejects(
+      () =>
+        runLlmStep({
+          repo,
+          llm,
+          sessionId: '99999999-9999-9999-9999-999999999999',
+        }),
+      /session_not_found/,
+    );
+  });
+
+  it('sanitizes non-llm_* provider errors to llm_failed', async () => {
+    const repo = createMemoryRepo(llmSession());
+    const llm: LlmProvider = {
+      complete: async () => {
+        throw new Error('provider leaked prompt: SECRET');
+      },
+    };
+
+    const result = await runLlmStep({
+      repo,
+      llm,
+      sessionId: '22222222-2222-2222-2222-222222222222',
+    });
+
+    assert.equal(result.status, 'failed');
+    assert.equal(result.error, 'llm_failed');
+    assert.equal(result.error?.includes('SECRET'), false);
+  });
 });
