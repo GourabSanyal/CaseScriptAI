@@ -25,4 +25,20 @@ describe('toPublicSession', () => {
     });
     assert.equal(JSON.stringify(view).includes('SECRET'), false);
   });
+
+  it('omits pdfUrl when status is not ready', () => {
+    const session: DemoSession = {
+      id: '55555555-5555-5555-5555-555555555555',
+      status: 'llm_running',
+      transcript: null,
+      noteJson: null,
+      pdfPath: null,
+      error: 'stt_failed',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const view = toPublicSession(session, 'http://localhost:3001');
+    assert.equal(view.pdfUrl, null);
+    assert.equal(view.error, 'stt_failed');
+  });
 });
