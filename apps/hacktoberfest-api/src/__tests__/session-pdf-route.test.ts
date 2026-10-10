@@ -67,4 +67,28 @@ describe('GET /sessions/:id/pdf', () => {
       error: 'pdf_not_ready',
     });
   });
+
+  it('returns 404 when session is missing', async () => {
+    const server = createServer({
+      getSessionById: async () => null,
+      readPdfBytes: async () => Buffer.from('%PDF'),
+    });
+
+    const { status, body } = await request(server, `/sessions/${sessionId}/pdf`);
+    assert.equal(status, 404);
+    assert.deepEqual(JSON.parse(Buffer.from(body).toString('utf8')), {
+      ok: false,
+      error: 'session_not_found',
+    });
+  });
+
+  it('returns 503 when PDF deps are unavailable', async () => {
+    const server = createServer();
+    const { status, body } = await request(server, `/sessions/${sessionId}/pdf`);
+    assert.equal(status, 503);
+    assert.deepEqual(JSON.parse(Buffer.from(body).toString('utf8')), {
+      ok: false,
+      error: 'pdf_unavailable',
+    });
+  });
 });
