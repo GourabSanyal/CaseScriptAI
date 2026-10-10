@@ -48,4 +48,21 @@ describe('session repository (integration)', { skip: !hasDatabaseUrl }, () => {
       await pool.end();
     }
   });
+
+  it('returns null for unknown id and rejects update on missing session', async () => {
+    await runMigrations();
+    const pool = createPool();
+    const repo = createSessionRepository(pool);
+    const missing = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+
+    try {
+      assert.equal(await repo.getById(missing), null);
+      await assert.rejects(
+        () => repo.updateStatus(missing, 'stt_running'),
+        /session_not_found/,
+      );
+    } finally {
+      await pool.end();
+    }
+  });
 });
