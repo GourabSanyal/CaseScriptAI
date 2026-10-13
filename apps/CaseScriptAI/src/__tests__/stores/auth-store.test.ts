@@ -42,4 +42,16 @@ describe('auth-store', () => {
     expect(store.getState().session).toBeNull();
     expect(store.getState().lastError).toBeTruthy();
   });
+
+  it('establishes a Clerk-backed therapist session', () => {
+    const store = createAuthStore(createMemoryStorage());
+    store.getState().establishSession({
+      role: 'therapist',
+      displayName: 'Ada Lovelace',
+      token: 'clerk-jwt',
+      createdAt: 1,
+    });
+    expect(store.getState().session?.displayName).toBe('Ada Lovelace');
+    expect(store.getState().lastError).toBeNull();
+  });
 });
