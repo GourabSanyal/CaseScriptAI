@@ -78,8 +78,7 @@
       ],
       "expo-font",
       "expo-web-browser",
-      "expo-secure-store",
-      "@clerk/expo"
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,

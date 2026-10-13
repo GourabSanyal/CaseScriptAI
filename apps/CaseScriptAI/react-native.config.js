@@ -1,5 +1,12 @@
 module.exports = {
   dependencies: {
+    // JS-only Clerk (useSSO). Native ClerkKit needs Swift 6.2+ / newer Xcode.
+    '@clerk/expo': {
+      platforms: {
+        ios: null,
+        android: null,
+      },
+    },
     'ffmpeg-kit-react-native': {
       platforms: {
         ios: null, // Disable autolinking on iOS to prevent 404 download errors
