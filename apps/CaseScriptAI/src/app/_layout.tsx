@@ -1,3 +1,5 @@
+import { ClerkProvider } from '@clerk/expo';
+import { tokenCache } from '@clerk/expo/token-cache';
 import {
   DarkTheme,
   DefaultTheme,
@@ -9,6 +11,7 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Text, useColorScheme, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { ClerkSessionBridge } from '@/components/auth/clerk-session-bridge';
 import { SplashScreenOverlay } from '@/components/splash-screen';
 import { ToastHost } from '@/components/toast/toast-host';
 import { LOCAL_ON_DEVICE_AI_ENABLED } from '@/constants/features';
@@ -23,6 +26,12 @@ import { useDeviceStore } from '@/stores/device-store';
 import { useDownloadStore } from '@/stores/download-runtime';
 import { initAppStorage } from '@/stores/session-runtime';
 import { setToastsReady } from '@/stores/toast-store';
+
+const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
+
+if (!publishableKey) {
+  throw new Error("Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY. Add your key to .env.\nRun: 1) clerk auth login  2) clerk link  3) clerk env pull — then restart the dev server.");
+}
 
 ExpoSplashScreen.preventAutoHideAsync().catch(() => {
   // Native splash may already be hidden during fast reload.
@@ -151,18 +160,21 @@ export default function RootLayout() {
     : destination === 'app';
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <AppChrome navigationReady={bootReady && !showSplash}>
-          {bootReady && !showSplash ? <Slot /> : null}
-          {showSplash ? (
-            <SplashScreenOverlay
-              readyToDismiss={bootReady}
-              onFinish={handleSplashFinish}
-            />
-          ) : null}
-        </AppChrome>
-      </ThemeProvider>
-    </GestureHandlerRootView>
+    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+      <ClerkSessionBridge />
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          <AppChrome navigationReady={bootReady && !showSplash}>
+            {bootReady && !showSplash ? <Slot /> : null}
+            {showSplash ? (
+              <SplashScreenOverlay
+                readyToDismiss={bootReady}
+                onFinish={handleSplashFinish}
+              />
+            ) : null}
+          </AppChrome>
+        </ThemeProvider>
+      </GestureHandlerRootView>
+    </ClerkProvider>
   );
 }

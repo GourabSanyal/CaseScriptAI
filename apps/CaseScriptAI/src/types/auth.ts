@@ -8,6 +8,7 @@ export type AuthSession = {
   createdAt: number;
 };
 
+/** Demo / __DEV__ only — production therapists use Google via Clerk. */
 export type TherapistLoginInput = {
   email: string;
   password: string;

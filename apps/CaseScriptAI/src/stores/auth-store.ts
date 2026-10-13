@@ -15,11 +15,14 @@ type AuthStore = {
   session: AuthSession | null;
   hasHydrated: boolean;
   lastError: string | null;
+  /** Demo / __DEV__ only — real therapists use Google via Clerk. */
   signInTherapist: (input: TherapistLoginInput) => Result<AuthSession>;
   continueTherapistDemo: () => Result<AuthSession>;
   joinPatient: (input: PatientJoinInput) => Result<AuthSession>;
+  establishSession: (session: AuthSession) => void;
   signOut: () => void;
   clearError: () => void;
+  setLastError: (error: string) => void;
 };
 
 export const createAuthStore = (stateStorage: StateStorage = appZustandMMKVStorage) =>
@@ -56,8 +59,10 @@ export const createAuthStore = (stateStorage: StateStorage = appZustandMMKVStora
           set({ session: result.data, lastError: null });
           return result;
         },
+        establishSession: (session) => set({ session, lastError: null }),
         signOut: () => set({ session: null, lastError: null }),
         clearError: () => set({ lastError: null }),
+        setLastError: (error) => set({ lastError: error }),
       }),
       {
         name: 'auth-session-demo',

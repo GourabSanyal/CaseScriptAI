@@ -22,15 +22,17 @@ export default function WelcomeScreen() {
       title="Welcome"
       subtitle="Therapists sign in to run sessions. Patients join with an invite."
       footer={
-        <Pressable
-          accessibilityRole="button"
-          onPress={onTherapistDemo}
-          testID="auth-welcome-therapist-demo"
-        >
-          <ThemedText type="linkPrimary" style={styles.center}>
-            Continue as therapist (demo)
-          </ThemedText>
-        </Pressable>
+        __DEV__ ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={onTherapistDemo}
+            testID="auth-welcome-therapist-demo"
+          >
+            <ThemedText type="linkPrimary" style={styles.center}>
+              Continue as therapist (demo)
+            </ThemedText>
+          </Pressable>
+        ) : null
       }
     >
       <GradientButton
@@ -59,7 +61,7 @@ export default function WelcomeScreen() {
 
       <View style={styles.hint}>
         <ThemedText type="labelSm" themeColor="textSecondary">
-          Demo auth only — real accounts and invite expiry land with cloud C1.
+          Therapists sign in with Google. Patients still join with an invite code.
         </ThemedText>
       </View>
     </AuthScreenShell>

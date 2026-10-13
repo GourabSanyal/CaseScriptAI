@@ -1,3 +1,4 @@
+import { useClerk, useUser } from '@clerk/expo';
 import { router } from 'expo-router';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,10 +19,23 @@ export default function AccountScreen() {
     width >= Layout.tabletBreakpoint ? Spacing.marginTablet : Spacing.marginMobile;
   const selection = useDeviceStore((state) => state.selection);
   const session = useAuthStore((state) => state.session);
-  const signOut = useAuthStore((state) => state.signOut);
+  const signOutLocal = useAuthStore((state) => state.signOut);
+  const { signOut } = useClerk();
+  const { user } = useUser();
 
-  const onSignOut = () => {
-    signOut();
+  const displayName =
+    user?.fullName ||
+    user?.primaryEmailAddress?.emailAddress ||
+    session?.displayName ||
+    'Therapist';
+
+  const onSignOut = async () => {
+    try {
+      await signOut();
+    } catch {
+      // Local clear still required if Clerk is already signed out.
+    }
+    signOutLocal();
     router.replace('/(auth)/welcome');
   };
 
@@ -31,7 +45,7 @@ export default function AccountScreen() {
       <View style={[styles.body, { paddingHorizontal: horizontalPad }]}>
         <ThemedText type="headlineLgMobile">Account</ThemedText>
         <ThemedText type="bodyMd" themeColor="textSecondary">
-          Signed in as {session?.displayName ?? 'Therapist'} ({session?.role ?? 'therapist'})
+          Signed in as {displayName} ({session?.role ?? 'therapist'})
         </ThemedText>
         {LOCAL_ON_DEVICE_AI_ENABLED ? (
           <ThemedText type="bodyMd" themeColor="textSecondary">
@@ -44,10 +58,12 @@ export default function AccountScreen() {
             AI runs via external APIs — local model download is off.
           </ThemedText>
         )}
-        <ThemedText type="labelSm" themeColor="textSecondary">
-          Demo session only — cloud C1 will replace this with secure tokens.
-        </ThemedText>
-        <GradientButton onPress={onSignOut} testID="account-sign-out">
+        <GradientButton
+          onPress={() => {
+            void onSignOut();
+          }}
+          testID="account-sign-out"
+        >
           <ThemedText type="default" style={{ color: theme.onPrimary }}>
             Sign out
           </ThemedText>
