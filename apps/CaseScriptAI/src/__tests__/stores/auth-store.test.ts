@@ -43,15 +43,32 @@ describe('auth-store', () => {
     expect(store.getState().lastError).toBeTruthy();
   });
 
-  it('establishes a Clerk-backed therapist session', () => {
+  it('establishes a Clerk-backed therapist session from /me', () => {
     const store = createAuthStore(createMemoryStorage());
     store.getState().establishSession({
       role: 'therapist',
       displayName: 'Ada Lovelace',
       token: 'clerk-jwt',
+      userId: 'db-user-1',
       createdAt: 1,
     });
     expect(store.getState().session?.displayName).toBe('Ada Lovelace');
+    expect(store.getState().session?.userId).toBe('db-user-1');
+    expect(store.getState().lastError).toBeNull();
+  });
+
+  it('clears session on sign out after /me 401 path', () => {
+    const store = createAuthStore(createMemoryStorage());
+    store.getState().establishSession({
+      role: 'therapist',
+      displayName: 'Ada',
+      token: 'clerk-jwt',
+      userId: 'db-user-1',
+      createdAt: 1,
+    });
+    store.getState().setLastError('auth_invalid');
+    store.getState().signOut();
+    expect(store.getState().session).toBeNull();
     expect(store.getState().lastError).toBeNull();
   });
 });
