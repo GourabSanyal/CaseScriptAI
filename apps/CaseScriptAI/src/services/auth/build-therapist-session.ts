@@ -1,17 +1,21 @@
-import type { AuthSession } from '@/types/auth';
+import type { AuthSession, UserRole } from '@/types/auth';
 
 type BuildTherapistSessionInput = {
   displayName: string;
   token: string;
+  /** Must come from `GET /me` (DB), never from the client form. */
+  role: UserRole;
+  userId?: string;
 };
 
-/** Local therapist session until H5A `GET /me` is the role source. */
+/** Therapist session after Clerk + `/me`. Role is server-sourced. */
 export const buildTherapistSession = (
   input: BuildTherapistSessionInput,
 ): AuthSession => ({
-  role: 'therapist',
+  role: input.role,
   displayName: input.displayName.trim() || 'Therapist',
   token: input.token,
+  userId: input.userId,
   createdAt: Date.now(),
 });
 

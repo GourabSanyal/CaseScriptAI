@@ -70,7 +70,9 @@
   },
   "expo": {
     "autolinking": {
-      "exclude": ["@clerk/expo"]
+      "exclude": [
+        "@clerk/expo"
+      ]
     }
   },
   "devDependencies": {

@@ -1,5 +1,4 @@
 import { ClerkProvider } from '@clerk/expo';
-import { tokenCache } from '@clerk/expo/token-cache';
 import {
   DarkTheme,
   DefaultTheme,
@@ -20,6 +19,7 @@ import { useCallAudioPresenceToast } from '@/hooks/use-call-audio-presence-toast
 import { useDmSans } from '@/hooks/use-dm-sans';
 import { getExecutorchBootReady } from '@/services/ai/executorch-boot';
 import { modelManager } from '@/services/ai/model-manager-runtime';
+import { clerkTokenCache } from '@/services/auth/clerk-token-cache';
 import { resolveLaunchDestination } from '@/services/download/download-state-machine';
 import { useBootStore } from '@/stores/boot-store';
 import { useDeviceStore } from '@/stores/device-store';
@@ -160,7 +160,7 @@ export default function RootLayout() {
     : destination === 'app';
 
   return (
-    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+    <ClerkProvider publishableKey={publishableKey} tokenCache={clerkTokenCache}>
       <ClerkSessionBridge />
       <GestureHandlerRootView style={{ flex: 1 }}>
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>

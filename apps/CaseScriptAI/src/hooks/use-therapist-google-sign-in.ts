@@ -2,10 +2,7 @@ import { useClerk, useSSO } from '@clerk/expo';
 import * as AuthSession from 'expo-auth-session';
 import { useState } from 'react';
 
-import {
-  buildTherapistSession,
-  displayNameFromClerkUser,
-} from '@/services/auth/build-therapist-session';
+import { establishTherapistFromMe } from '@/services/auth/establish-therapist-from-me';
 import { useAuthStore } from '@/stores/auth-store';
 import type { Result } from '@/types/result';
 
@@ -18,6 +15,7 @@ export const useTherapistGoogleSignIn = () => {
   const { startSSOFlow } = useSSO();
   const clerk = useClerk();
   const establishSession = useAuthStore((s) => s.establishSession);
+  const signOutLocal = useAuthStore((s) => s.signOut);
   const setLastError = useAuthStore((s) => s.setLastError);
   const clearError = useAuthStore((s) => s.clearError);
   const [isBusy, setIsBusy] = useState(false);
@@ -47,12 +45,29 @@ export const useTherapistGoogleSignIn = () => {
         return { success: false, error };
       }
 
-      establishSession(
-        buildTherapistSession({
-          displayName: displayNameFromClerkUser(user),
-          token,
-        }),
-      );
+      const established = await establishTherapistFromMe({
+        token,
+        user,
+        getToken: async () => clerk.session?.getToken() ?? token,
+      });
+
+      if (!established.success) {
+        if (
+          established.error === 'auth_invalid' ||
+          established.error === 'auth_missing'
+        ) {
+          try {
+            await clerk.signOut();
+          } catch {
+            // Local clear below is enough if Clerk is already gone.
+          }
+          signOutLocal();
+        }
+        setLastError(established.error);
+        return { success: false, error: established.error };
+      }
+
+      establishSession(established.data);
       return { success: true, data: undefined };
     } catch (err) {
       const error =

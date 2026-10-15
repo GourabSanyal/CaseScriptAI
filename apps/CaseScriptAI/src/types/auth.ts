@@ -3,8 +3,10 @@ export type UserRole = 'therapist' | 'patient';
 export type AuthSession = {
   role: UserRole;
   displayName: string;
-  /** Demo / local only until C1 issues real tokens. */
+  /** Clerk JWT or demo token. Role always comes from server `/me` for Clerk. */
   token: string;
+  /** Postgres `users.id` after H5A `/me` upsert. */
+  userId?: string;
   createdAt: number;
 };
 
