@@ -17,6 +17,7 @@ export type AppConfig = {
   groqApiKey: string | undefined;
   googleAiApiKey: string | undefined;
   gemmaModel: string | undefined;
+  clerkSecretKey: string | undefined;
 };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -33,5 +34,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     // Google AI Studio often labels these GEMINI_*; both names accepted.
     googleAiApiKey: env.GOOGLE_AI_API_KEY ?? env.GEMINI_API_KEY,
     gemmaModel: env.GEMMA_MODEL ?? env.GEMINI_MODEL,
+    clerkSecretKey: env.CLERK_SECRET_KEY,
   };
 }

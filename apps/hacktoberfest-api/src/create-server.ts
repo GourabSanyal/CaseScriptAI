@@ -2,8 +2,11 @@ import { readFile } from 'node:fs/promises';
 import http from 'node:http';
 import path from 'node:path';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import type { VerifyClerkToken } from './auth/verify-clerk-token.js';
 import type { DemoSession } from './db/session-repository.js';
+import type { AppUser, UpsertUserInput } from './db/user-repository.js';
 import { packageRoot } from './db/env.js';
+import { handleGetMe } from './http/me-route.js';
 import { toPublicSession } from './http/session-view.js';
 import type { DemoSessionStarter } from './pipeline/demo-session-starter.js';
 
@@ -13,6 +16,8 @@ export type ServerDeps = {
   readPdfBytes?: (session: DemoSession) => Promise<Buffer | null>;
   startDemoSession?: DemoSessionStarter;
   publicBaseUrl?: string;
+  verifyClerkToken?: VerifyClerkToken;
+  upsertUserByClerkId?: (input: UpsertUserInput) => Promise<AppUser>;
 };
 
 function sendJson(res: ServerResponse, status: number, body: unknown): void {
@@ -108,6 +113,19 @@ export function createServer(deps: ServerDeps = {}): http.Server {
 
     if (method === 'GET' && url.pathname === '/health') {
       sendJson(res, 200, { ok: true });
+      return;
+    }
+
+    if (method === 'GET' && url.pathname === '/me') {
+      if (!deps.verifyClerkToken || !deps.upsertUserByClerkId) {
+        sendJson(res, 503, { ok: false, error: 'auth_unavailable' });
+        return;
+      }
+      void handleGetMe(req as IncomingMessage, res, {
+        verifyClerkToken: deps.verifyClerkToken,
+        upsertUserByClerkId: deps.upsertUserByClerkId,
+        sendJson,
+      }).catch(fail);
       return;
     }
 

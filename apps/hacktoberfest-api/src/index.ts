@@ -1,8 +1,10 @@
+import { createClerkTokenVerifier } from './auth/verify-clerk-token.js';
 import { createServer } from './create-server.js';
 import { FIXTURE_AUDIO_PATH, loadConfig } from './config.js';
 import { createPool } from './db/client.js';
 import { loadEnvFile } from './db/env.js';
 import { createSessionRepository } from './db/session-repository.js';
+import { createUserRepository } from './db/user-repository.js';
 import { createDemoSessionStarter } from './pipeline/demo-session-starter.js';
 import { defaultPdfDir, readSessionPdf } from './pdf/run-pdf-step.js';
 import { createGemmaLlm } from './providers/gemma-llm.js';
@@ -18,6 +20,7 @@ const buildServer = () => {
 
   const pool = createPool(config.databaseUrl);
   const repo = createSessionRepository(pool);
+  const users = createUserRepository(pool);
   const pdfDir = defaultPdfDir();
 
   const deps = {
@@ -25,6 +28,14 @@ const buildServer = () => {
     getSessionById: (id: string) => repo.getById(id),
     readPdfBytes: (session: Parameters<typeof readSessionPdf>[0]) =>
       readSessionPdf(session, pdfDir),
+    ...(config.clerkSecretKey
+      ? {
+          verifyClerkToken: createClerkTokenVerifier({
+            secretKey: config.clerkSecretKey,
+          }),
+          upsertUserByClerkId: users.upsertByClerkId,
+        }
+      : {}),
   };
 
   if (!config.groqApiKey || !config.googleAiApiKey) {
