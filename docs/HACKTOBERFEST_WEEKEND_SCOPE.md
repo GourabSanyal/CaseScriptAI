@@ -32,11 +32,25 @@ A therapist friend who wants session notes without typing them up after a call.
 | PDF | Generated **on the Render server** from validated JSON |
 | Adapters | `SttProvider` / `LlmProvider` ports; env-selected; no provider keys in the client |
 | Contest artifacts | Public Render URL, repo link, DEV write-up with demo |
+| Therapist auth (H5A) | Google via Clerk on mobile; `GET /me` upserts `users`; role from DB only |
 
 ## 3. Out of scope (explicitly not this weekend)
 
 - Live WebRTC / SFU / server call recording  
-- Real therapist↔patient auth, invites, mobile E2E product polish  
+- Patient Google auth / server-issued invites (patient keeps demo invite code)  
+- Full mobile product polish beyond H5A / H8 guardrails  
+
+### H5A OWASP notes (therapist Google)
+
+| Risk | Guard for H5A |
+|---|---|
+| **M1** Credential usage | `CLERK_SECRET_KEY` server-only; publishable key may be `EXPO_PUBLIC_*`; never put secret in the app |
+| **M3** Authz | Role from Postgres `users.role` only — mobile never sends role; `GET /me` requires Bearer |
+| **M5** Communication | HTTPS in production; local HTTP only for simulator/emulator against laptop API |
+| **M6** Privacy | Do not log tokens, emails in production logs, or Clerk error bodies |
+| **M9** Storage | Clerk session tokens via SecureStore token cache; demo MMKV session is `__DEV__` only |
+
+
 - On-device ExecuTorch / local Whisper+LLM path  
 - LangChain, agent frameworks, Temporal, Mastra  
 - Object storage vendor bake-off (fixture audio can live in repo or Render disk for demo)  

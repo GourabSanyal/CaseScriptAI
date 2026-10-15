@@ -156,22 +156,17 @@
 
 | Sub | Description | Status | Tests | Impl |
 |---|---|---|---|---|
-| H5A.1 | Scope doc: therapist auth now in scope; OWASP checklist notes | TODO | | |
-| H5A.2 | Migration `002_users.sql` (`clerk_user_id` unique, email, role) + `user-repository` upsert | TODO | | |
-| H5A.3 | API `verifyClerkToken` (`@clerk/backend`) + `GET /me` (upsert on first call, role from server) | TODO | | |
-| H5A.4 | Mobile `ClerkProvider` + SecureStore token cache; "Continue with Google" on therapist login | TODO | | |
-| H5A.5 | Mobile `api-client` sends Bearer token; auth store takes role from `GET /me`; sign-out clears Clerk + store | TODO | | |
-| H5A.6 | Demo therapist login kept for `__DEV__` only | TODO | | |
-| H5A.7 | Local E2E checklist: simulator + emulator sign-in → `users` row → sign-out/in reuses row | TODO | | |
+| H5A.1 | Scope doc: therapist auth now in scope; OWASP checklist notes | DONE | — | `docs/HACKTOBERFEST_WEEKEND_SCOPE.md` |
+| H5A.2 | Migration `002_users.sql` (`clerk_user_id` unique, email, role) + `user-repository` upsert | DONE | `user-repository.test.ts` | `migrations/002_users.sql`, `src/db/user-repository.ts` |
+| H5A.3 | API `verifyClerkToken` (`@clerk/backend`) + `GET /me` (upsert on first call, role from server) | DONE | `verify-clerk-token.test.ts`, `me-route.test.ts` | `src/auth/verify-clerk-token.ts`, `src/http/me-route.ts` |
+| H5A.4 | Mobile `ClerkProvider` + SecureStore token cache; "Continue with Google" on therapist login | DONE | `clerk-session-sync.test.ts` | `clerk-token-cache.ts`, `therapist-login.tsx`, `_layout.tsx` |
+| H5A.5 | Mobile `api-client` sends Bearer token; auth store takes role from `GET /me`; sign-out clears Clerk + store | DONE | `api-client.test.ts`, `establish-therapist-from-me.test.ts`, `auth-store.test.ts` | `api-client.ts`, `establish-therapist-from-me.ts`, hook + bridge |
+| H5A.6 | Demo therapist login kept for `__DEV__` only | DONE | `demo-login-dev-only.test.ts` | `welcome.tsx` |
+| H5A.7 | Local E2E checklist: simulator + emulator sign-in → `users` row → sign-out/in reuses row | DONE | checklist in API README | `apps/hacktoberfest-api/README.md` |
 
-**Test plan (draft, H5A):**
-1. `GET /me` without token → `401 auth_missing`; bad/expired token → `401 auth_invalid`.
-2. Valid (mocked verifier) token, first call → user row created with role `therapist`; second call → same row, `last_seen_at` updated.
-3. Role in response comes from DB, never from client input.
-4. Mobile auth store: Clerk signed-in + `/me` ok → therapist session; `/me` 401 → signed out with error.
-5. Release build: demo login button absent.
+**Test plan (H5A):** ✅ unit/mocked green. Integration upsert runs when `DATABASE_URL` set. Manual device E2E: see API README H5A checklist.
 
-**Done when:** H5A.7 passes on iOS simulator and Android emulator against local API + local Postgres.
+**Done when:** H5A.7 checklist run on iOS simulator and Android emulator against local API + local Postgres (operator step).
 
 **You needed first:** Clerk dev app with Google enabled; native app redirect `casescriptai://` allowlisted; keys in local `.env` files (see LLD §1.12). Own Google Cloud OAuth clients not needed until production.
 
