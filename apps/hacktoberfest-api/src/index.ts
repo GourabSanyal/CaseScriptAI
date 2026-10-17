@@ -6,28 +6,37 @@ import { loadEnvFile } from './db/env.js';
 import { createSessionRepository } from './db/session-repository.js';
 import { createUserRepository } from './db/user-repository.js';
 import { createDemoSessionStarter } from './pipeline/demo-session-starter.js';
-import { defaultPdfDir, readSessionPdf } from './pdf/run-pdf-step.js';
+import { PipelineConcurrencyGate } from './pipeline/pipeline-concurrency.js';
+import { recoverInterruptedSessions } from './pipeline/recover-interrupted.js';
+import { readSessionPdf } from './pdf/run-pdf-step.js';
 import { createGemmaLlm } from './providers/gemma-llm.js';
 import { createGroqWhisperStt } from './providers/groq-whisper-stt.js';
+import { attachSigtermHandler } from './shutdown.js';
 
 loadEnvFile();
 const config = loadConfig();
 
-const buildServer = () => {
+const buildServer = async () => {
   if (!config.databaseUrl) {
-    return createServer({ publicBaseUrl: config.publicBaseUrl });
+    return { server: createServer({ publicBaseUrl: config.publicBaseUrl }) };
   }
 
   const pool = createPool(config.databaseUrl);
+  await recoverInterruptedSessions(pool);
+
   const repo = createSessionRepository(pool);
   const users = createUserRepository(pool);
-  const pdfDir = defaultPdfDir();
+  const gate = new PipelineConcurrencyGate(2);
 
   const deps = {
     publicBaseUrl: config.publicBaseUrl,
     getSessionById: (id: string) => repo.getById(id),
     readPdfBytes: (session: Parameters<typeof readSessionPdf>[0]) =>
-      readSessionPdf(session, pdfDir),
+      readSessionPdf(session),
+    rateLimitStore: repo,
+    ipHashSalt: config.ipHashSalt,
+    tryAcquirePipeline: () => gate.tryAcquire(),
+    releasePipeline: () => gate.release(),
     ...(config.clerkSecretKey
       ? {
           verifyClerkToken: createClerkTokenVerifier({
@@ -39,27 +48,30 @@ const buildServer = () => {
   };
 
   if (!config.groqApiKey || !config.googleAiApiKey) {
-    return createServer(deps);
+    return { server: createServer(deps), pool };
   }
 
-  return createServer({
-    ...deps,
-    startDemoSession: createDemoSessionStarter({
-      repo,
-      stt: createGroqWhisperStt({ apiKey: config.groqApiKey }),
-      llm: createGemmaLlm({
-        apiKey: config.googleAiApiKey,
-        model: config.gemmaModel,
+  return {
+    pool,
+    server: createServer({
+      ...deps,
+      startDemoSession: createDemoSessionStarter({
+        repo,
+        stt: createGroqWhisperStt({ apiKey: config.groqApiKey }),
+        llm: createGemmaLlm({
+          apiKey: config.googleAiApiKey,
+          model: config.gemmaModel,
+        }),
+        audioPath: FIXTURE_AUDIO_PATH,
+        gate,
       }),
-      audioPath: FIXTURE_AUDIO_PATH,
-      pdfDir,
     }),
-  });
+  };
 };
 
-const server = buildServer();
+const { server, pool } = await buildServer();
+attachSigtermHandler({ server, pool });
 
 server.listen(config.port, () => {
-  // Intentionally no PHI / paths — startup only.
   console.log(`hacktoberfest-api listening on :${config.port}`);
 });
