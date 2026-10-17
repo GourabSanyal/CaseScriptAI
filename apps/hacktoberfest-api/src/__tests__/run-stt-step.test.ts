@@ -1,46 +1,17 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { DemoSession, SessionRepository } from '../db/session-repository.js';
 import {
-  assertTransition,
-  type SessionStatus,
-} from '../domain/session-status.js';
+  createMemoryRepo,
+  withSessionDefaults,
+} from './helpers/memory-session-repo.js';
 import { runSttStep } from '../pipeline/run-stt-step.js';
 import type { SttProvider } from '../providers/stt-provider.js';
 
-const createMemoryRepo = (initial: DemoSession): SessionRepository => {
-  let session = { ...initial };
-  return {
-    createSession: async () => session,
-    getById: async (id) => (id === session.id ? { ...session } : null),
-    updateStatus: async (id, next, patch = {}) => {
-      if (id !== session.id) throw new Error(`session_not_found:${id}`);
-      assertTransition(session.status, next);
-      session = {
-        ...session,
-        status: next,
-        transcript:
-          patch.transcript === undefined ? session.transcript : patch.transcript,
-        noteJson: patch.noteJson === undefined ? session.noteJson : patch.noteJson,
-        pdfPath: patch.pdfPath === undefined ? session.pdfPath : patch.pdfPath,
-        error: patch.error === undefined ? session.error : patch.error,
-        updatedAt: new Date(),
-      };
-      return { ...session };
-    },
-  };
-};
-
-const queuedSession = (): DemoSession => ({
-  id: '11111111-1111-1111-1111-111111111111',
-  status: 'queued' as SessionStatus,
-  transcript: null,
-  noteJson: null,
-  pdfPath: null,
-  error: null,
-  createdAt: new Date(),
-  updatedAt: new Date(),
-});
+const queuedSession = () =>
+  withSessionDefaults({
+    id: '11111111-1111-1111-1111-111111111111',
+    status: 'queued',
+  });
 
 describe('runSttStep', () => {
   it('marks stt_running then stores transcript and advances to llm_running', async () => {

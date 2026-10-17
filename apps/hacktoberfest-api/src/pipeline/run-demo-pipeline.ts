@@ -11,7 +11,6 @@ export type RunDemoPipelineDeps = {
   llm: LlmProvider;
   sessionId: string;
   audioPath: string;
-  pdfDir?: string;
 };
 
 /** In-process STT → LLM → PDF. Never logs transcript/note/paths. */
@@ -36,6 +35,5 @@ export const runDemoPipeline = async (
   return runPdfStep({
     repo: deps.repo,
     sessionId: deps.sessionId,
-    pdfDir: deps.pdfDir,
   });
 };

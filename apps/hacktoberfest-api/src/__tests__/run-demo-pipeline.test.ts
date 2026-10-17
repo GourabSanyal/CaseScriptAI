@@ -1,47 +1,15 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { DemoSession, SessionRepository } from '../db/session-repository.js';
-import { assertTransition, type SessionStatus } from '../domain/session-status.js';
+import {
+  createMemoryRepo,
+  withSessionDefaults,
+} from './helpers/memory-session-repo.js';
 import { runDemoPipeline } from '../pipeline/run-demo-pipeline.js';
 import type { LlmProvider } from '../providers/llm-provider.js';
 import type { SttProvider } from '../providers/stt-provider.js';
-import { mkdtemp, rm } from 'node:fs/promises';
-import os from 'node:os';
-import path from 'node:path';
 
-const createMemoryRepo = (initial: DemoSession): SessionRepository => {
-  let session = { ...initial };
-  return {
-    createSession: async () => session,
-    getById: async (id) => (id === session.id ? { ...session } : null),
-    updateStatus: async (id, next, patch = {}) => {
-      if (id !== session.id) throw new Error(`session_not_found:${id}`);
-      assertTransition(session.status, next);
-      session = {
-        ...session,
-        status: next,
-        transcript:
-          patch.transcript === undefined ? session.transcript : patch.transcript,
-        noteJson: patch.noteJson === undefined ? session.noteJson : patch.noteJson,
-        pdfPath: patch.pdfPath === undefined ? session.pdfPath : patch.pdfPath,
-        error: patch.error === undefined ? session.error : patch.error,
-        updatedAt: new Date(),
-      };
-      return { ...session };
-    },
-  };
-};
-
-const queued = (id: string): DemoSession => ({
-  id,
-  status: 'queued' as SessionStatus,
-  transcript: null,
-  noteJson: null,
-  pdfPath: null,
-  error: null,
-  createdAt: new Date(),
-  updatedAt: new Date(),
-});
+const queued = (id: string) =>
+  withSessionDefaults({ id, status: 'queued' });
 
 const validNoteJson = JSON.stringify({
   subjective: 'Reports lighter sleep and work stress.',
@@ -52,7 +20,6 @@ const validNoteJson = JSON.stringify({
 
 describe('runDemoPipeline', () => {
   it('runs stt → llm → pdf with mocks to ready', async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), 'demo-'));
     const id = '77777777-7777-7777-7777-777777777777';
     const repo = createMemoryRepo(queued(id));
     const stt: SttProvider = {
@@ -62,20 +29,16 @@ describe('runDemoPipeline', () => {
       complete: async () => validNoteJson,
     };
 
-    try {
-      const result = await runDemoPipeline({
-        repo,
-        stt,
-        llm,
-        sessionId: id,
-        audioPath: '/tmp/fixture.wav',
-        pdfDir: dir,
-      });
-      assert.equal(result.status, 'ready');
-      assert.ok(result.pdfPath);
-    } finally {
-      await rm(dir, { recursive: true, force: true });
-    }
+    const result = await runDemoPipeline({
+      repo,
+      stt,
+      llm,
+      sessionId: id,
+      audioPath: '/tmp/fixture.wav',
+    });
+    assert.equal(result.status, 'ready');
+    assert.ok(result.pdfBytes);
+    assert.equal(result.pdfBytes!.subarray(0, 5).toString('utf8'), '%PDF-');
   });
 
   it('stops after STT failure and does not call LLM', async () => {
@@ -108,7 +71,6 @@ describe('runDemoPipeline', () => {
   });
 
   it('stops after LLM failure and does not write a PDF', async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), 'demo-'));
     const id = '77777777-7777-7777-7777-777777777779';
     const repo = createMemoryRepo(queued(id));
     const stt: SttProvider = {
@@ -118,20 +80,15 @@ describe('runDemoPipeline', () => {
       complete: async () => 'not-valid-json',
     };
 
-    try {
-      const result = await runDemoPipeline({
-        repo,
-        stt,
-        llm,
-        sessionId: id,
-        audioPath: '/tmp/fixture.wav',
-        pdfDir: dir,
-      });
-      assert.equal(result.status, 'failed');
-      assert.equal(result.error, 'llm_invalid_json');
-      assert.equal(result.pdfPath, null);
-    } finally {
-      await rm(dir, { recursive: true, force: true });
-    }
+    const result = await runDemoPipeline({
+      repo,
+      stt,
+      llm,
+      sessionId: id,
+      audioPath: '/tmp/fixture.wav',
+    });
+    assert.equal(result.status, 'failed');
+    assert.equal(result.error, 'llm_invalid_json');
+    assert.equal(result.pdfBytes, null);
   });
 });

@@ -1,37 +1,10 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import os from 'node:os';
-import path from 'node:path';
 import { describe, it } from 'node:test';
-import type { DemoSession, SessionRepository } from '../db/session-repository.js';
-import { assertTransition, type SessionStatus } from '../domain/session-status.js';
 import {
-  pdfPathForSession,
-  runPdfStep,
-} from '../pdf/run-pdf-step.js';
-
-const createMemoryRepo = (initial: DemoSession): SessionRepository => {
-  let session = { ...initial };
-  return {
-    createSession: async () => session,
-    getById: async (id) => (id === session.id ? { ...session } : null),
-    updateStatus: async (id, next, patch = {}) => {
-      if (id !== session.id) throw new Error(`session_not_found:${id}`);
-      assertTransition(session.status, next);
-      session = {
-        ...session,
-        status: next,
-        transcript:
-          patch.transcript === undefined ? session.transcript : patch.transcript,
-        noteJson: patch.noteJson === undefined ? session.noteJson : patch.noteJson,
-        pdfPath: patch.pdfPath === undefined ? session.pdfPath : patch.pdfPath,
-        error: patch.error === undefined ? session.error : patch.error,
-        updatedAt: new Date(),
-      };
-      return { ...session };
-    },
-  };
-};
+  createMemoryRepo,
+  withSessionDefaults,
+} from './helpers/memory-session-repo.js';
+import { runPdfStep } from '../pdf/run-pdf-step.js';
 
 const note = {
   subjective: 'Sleep lighter this week with work stress.',
@@ -40,87 +13,75 @@ const note = {
   plan: 'Breathing three evenings; phone-free hour.',
 };
 
-const pdfSession = (status: SessionStatus, pdfPath: string | null = null): DemoSession => ({
-  id: '33333333-3333-3333-3333-333333333333',
-  status,
-  transcript: 'synthetic',
-  noteJson: note,
-  pdfPath,
-  error: null,
-  createdAt: new Date(),
-  updatedAt: new Date(),
-});
-
 describe('runPdfStep', () => {
-  it('writes PDF and marks ready from pdf_running', async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), 'pdf-'));
-    const repo = createMemoryRepo(pdfSession('pdf_running'));
-
-    try {
-      const result = await runPdfStep({
-        repo,
-        sessionId: '33333333-3333-3333-3333-333333333333',
-        pdfDir: dir,
-      });
-      assert.equal(result.status, 'ready');
-      assert.ok(result.pdfPath);
-      assert.equal(result.pdfPath, pdfPathForSession(result.id, dir));
-    } finally {
-      await rm(dir, { recursive: true, force: true });
-    }
+  it('writes PDF bytes to the session and marks ready', async () => {
+    const session = withSessionDefaults({
+      id: '33333333-3333-3333-3333-333333333333',
+      status: 'pdf_running',
+      transcript: 'synthetic',
+      noteJson: note,
+    });
+    const repo = createMemoryRepo(session);
+    const result = await runPdfStep({ repo, sessionId: session.id });
+    assert.equal(result.status, 'ready');
+    assert.ok(result.pdfBytes);
+    assert.equal(result.pdfBytes!.subarray(0, 5).toString('utf8'), '%PDF-');
+    assert.equal(result.pdfPath, null);
   });
 
-  it('is idempotent when ready and file exists; regenerates when missing', async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), 'pdf-'));
+  it('is idempotent when ready and bytes exist; regenerates when missing', async () => {
     const id = '33333333-3333-3333-3333-333333333333';
-    const filePath = pdfPathForSession(id, dir);
-    const repo = createMemoryRepo(pdfSession('ready', filePath));
+    const repo = createMemoryRepo(
+      withSessionDefaults({
+        id,
+        status: 'ready',
+        noteJson: note,
+        pdfBytes: Buffer.from('%PDF-1.4 existing'),
+      }),
+    );
 
-    try {
-      await writeFile(filePath, Buffer.from('%PDF-1.4 existing'));
-      const first = await runPdfStep({ repo, sessionId: id, pdfDir: dir });
-      assert.equal(first.status, 'ready');
+    const first = await runPdfStep({ repo, sessionId: id });
+    assert.equal(first.status, 'ready');
+    assert.equal(first.pdfBytes!.toString('utf8'), '%PDF-1.4 existing');
 
-      await rm(filePath, { force: true });
-      const second = await runPdfStep({ repo, sessionId: id, pdfDir: dir });
-      assert.equal(second.status, 'ready');
-
-      const { readFile } = await import('node:fs/promises');
-      const bytes = await readFile(filePath);
-      assert.ok(bytes.length > 20);
-      assert.equal(bytes.subarray(0, 5).toString('utf8'), '%PDF-');
-    } finally {
-      await rm(dir, { recursive: true, force: true });
-    }
+    await repo.setPdfBytes(id, Buffer.alloc(0));
+    // Empty buffer treated as missing — set to null via update
+    const cleared = createMemoryRepo(
+      withSessionDefaults({
+        id,
+        status: 'ready',
+        noteJson: note,
+        pdfBytes: null,
+      }),
+    );
+    const second = await runPdfStep({ repo: cleared, sessionId: id });
+    assert.equal(second.status, 'ready');
+    assert.ok(second.pdfBytes && second.pdfBytes.length > 20);
+    assert.equal(second.pdfBytes.subarray(0, 5).toString('utf8'), '%PDF-');
   });
 
   it('marks failed with pdf_missing_note when note_json is invalid', async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), 'pdf-'));
-    const session = pdfSession('pdf_running');
-    session.noteJson = { subjective: 'only-one-field' };
+    const session = withSessionDefaults({
+      id: '33333333-3333-3333-3333-333333333333',
+      status: 'pdf_running',
+      noteJson: { subjective: 'only-one-field' },
+    });
     const repo = createMemoryRepo(session);
-
-    try {
-      const result = await runPdfStep({
-        repo,
-        sessionId: session.id,
-        pdfDir: dir,
-      });
-      assert.equal(result.status, 'failed');
-      assert.equal(result.error, 'pdf_missing_note');
-    } finally {
-      await rm(dir, { recursive: true, force: true });
-    }
+    const result = await runPdfStep({ repo, sessionId: session.id });
+    assert.equal(result.status, 'failed');
+    assert.equal(result.error, 'pdf_missing_note');
   });
 
   it('throws pdf_bad_status when not pdf_running or ready', async () => {
-    const repo = createMemoryRepo(pdfSession('llm_running'));
+    const repo = createMemoryRepo(
+      withSessionDefaults({
+        id: '33333333-3333-3333-3333-333333333333',
+        status: 'llm_running',
+        noteJson: note,
+      }),
+    );
     await assert.rejects(
-      () =>
-        runPdfStep({
-          repo,
-          sessionId: '33333333-3333-3333-3333-333333333333',
-        }),
+      () => runPdfStep({ repo, sessionId: '33333333-3333-3333-3333-333333333333' }),
       /pdf_bad_status:llm_running/,
     );
   });
