@@ -50,6 +50,9 @@ describe('demo API routes', () => {
       transcript: 'should-not-leak',
       noteJson: { subjective: 'nope' },
       pdfPath: null,
+      pdfBytes: null,
+      clientIpHash: null,
+      attempt: 1,
       error: null,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -129,4 +132,42 @@ describe('demo API routes', () => {
       assert.deepEqual(body, { ok: false, error: 'not_found' });
     });
   });
+
+  it('POST /sessions/demo returns 429 when rate limited', async () => {
+    const server = createServer({
+      ipHashSalt: 'test-salt',
+      rateLimitStore: {
+        countStartsByIpHash: async () => 3,
+        countStartsGlobal: async () => 0,
+      },
+      startDemoSession: async () => {
+        throw new Error('should_not_start');
+      },
+    });
+    await withServer(server, async (base) => {
+      const res = await fetch(`${base}/sessions/demo`, {
+        method: 'POST',
+        headers: { 'x-forwarded-for': '203.0.113.10' },
+      });
+      const body = await res.json();
+      assert.equal(res.status, 429);
+      assert.deepEqual(body, { ok: false, error: 'rate_limited' });
+    });
+  });
+
+  it('POST /sessions/demo returns 503 busy when pipeline gate is full', async () => {
+    const server = createServer({
+      tryAcquirePipeline: () => false,
+      startDemoSession: async () => {
+        throw new Error('should_not_start');
+      },
+    });
+    await withServer(server, async (base) => {
+      const res = await fetch(`${base}/sessions/demo`, { method: 'POST' });
+      const body = await res.json();
+      assert.equal(res.status, 503);
+      assert.deepEqual(body, { ok: false, error: 'busy' });
+    });
+  });
 });
+

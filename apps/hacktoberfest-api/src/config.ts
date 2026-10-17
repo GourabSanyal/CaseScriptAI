@@ -18,6 +18,7 @@ export type AppConfig = {
   googleAiApiKey: string | undefined;
   gemmaModel: string | undefined;
   clerkSecretKey: string | undefined;
+  ipHashSalt: string;
 };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -35,5 +36,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     googleAiApiKey: env.GOOGLE_AI_API_KEY ?? env.GEMINI_API_KEY,
     gemmaModel: env.GEMMA_MODEL ?? env.GEMINI_MODEL,
     clerkSecretKey: env.CLERK_SECRET_KEY,
+    ipHashSalt: env.IP_HASH_SALT?.trim() || 'dev-ip-salt',
   };
 }

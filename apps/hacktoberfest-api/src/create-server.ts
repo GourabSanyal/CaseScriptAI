@@ -6,35 +6,50 @@ import type { VerifyClerkToken } from './auth/verify-clerk-token.js';
 import type { DemoSession } from './db/session-repository.js';
 import type { AppUser, UpsertUserInput } from './db/user-repository.js';
 import { packageRoot } from './db/env.js';
+import { extractClientIp, hashClientIp } from './http/client-ip.js';
 import { handleGetMe } from './http/me-route.js';
+import {
+  checkDemoRateLimit,
+  type RateLimitStore,
+} from './http/rate-limit.js';
+import { withSecurityHeaders } from './http/security-headers.js';
 import { toPublicSession } from './http/session-view.js';
 import type { DemoSessionStarter } from './pipeline/demo-session-starter.js';
 
 export type ServerDeps = {
-  /** Demo: open access — no authz. */
   getSessionById?: (id: string) => Promise<DemoSession | null>;
   readPdfBytes?: (session: DemoSession) => Promise<Buffer | null>;
   startDemoSession?: DemoSessionStarter;
   publicBaseUrl?: string;
   verifyClerkToken?: VerifyClerkToken;
   upsertUserByClerkId?: (input: UpsertUserInput) => Promise<AppUser>;
+  rateLimitStore?: RateLimitStore;
+  ipHashSalt?: string;
+  tryAcquirePipeline?: () => boolean;
+  releasePipeline?: () => void;
 };
 
 function sendJson(res: ServerResponse, status: number, body: unknown): void {
   const payload = JSON.stringify(body);
-  res.writeHead(status, {
-    'Content-Type': 'application/json; charset=utf-8',
-    'Content-Length': Buffer.byteLength(payload),
-  });
+  res.writeHead(
+    status,
+    withSecurityHeaders({
+      'Content-Type': 'application/json; charset=utf-8',
+      'Content-Length': Buffer.byteLength(payload),
+    }),
+  );
   res.end(payload);
 }
 
 function sendPdf(res: ServerResponse, bytes: Buffer, sessionId: string): void {
-  res.writeHead(200, {
-    'Content-Type': 'application/pdf',
-    'Content-Length': bytes.length,
-    'Content-Disposition': `attachment; filename="session-${sessionId}.pdf"`,
-  });
+  res.writeHead(
+    200,
+    withSecurityHeaders({
+      'Content-Type': 'application/pdf',
+      'Content-Length': bytes.length,
+      'Content-Disposition': `attachment; filename="session-${sessionId}.pdf"`,
+    }),
+  );
   res.end(bytes);
 }
 
@@ -84,6 +99,7 @@ async function handleGetSession(
 }
 
 async function handleDemoStart(
+  req: IncomingMessage,
   res: ServerResponse,
   deps: ServerDeps,
 ): Promise<void> {
@@ -91,17 +107,42 @@ async function handleDemoStart(
     sendJson(res, 503, { ok: false, error: 'demo_unavailable' });
     return;
   }
-  const started = await deps.startDemoSession();
-  sendJson(res, 202, started);
+
+  const salt = deps.ipHashSalt ?? 'dev-ip-salt';
+  const ipHash = hashClientIp(extractClientIp(req), salt);
+
+  if (deps.rateLimitStore) {
+    const limit = await checkDemoRateLimit(deps.rateLimitStore, ipHash);
+    if (limit === 'rate_limited') {
+      sendJson(res, 429, { ok: false, error: 'rate_limited' });
+      return;
+    }
+  }
+
+  if (deps.tryAcquirePipeline && !deps.tryAcquirePipeline()) {
+    sendJson(res, 503, { ok: false, error: 'busy' });
+    return;
+  }
+
+  try {
+    const started = await deps.startDemoSession({ clientIpHash: ipHash });
+    sendJson(res, 202, started);
+  } catch (err) {
+    deps.releasePipeline?.();
+    throw err;
+  }
 }
 
 async function handleDemoUi(res: ServerResponse): Promise<void> {
   const htmlPath = path.join(packageRoot, 'public', 'index.html');
   const html = await readFile(htmlPath);
-  res.writeHead(200, {
-    'Content-Type': 'text/html; charset=utf-8',
-    'Content-Length': html.length,
-  });
+  res.writeHead(
+    200,
+    withSecurityHeaders({
+      'Content-Type': 'text/html; charset=utf-8',
+      'Content-Length': html.length,
+    }),
+  );
   res.end(html);
 }
 
@@ -121,7 +162,7 @@ export function createServer(deps: ServerDeps = {}): http.Server {
         sendJson(res, 503, { ok: false, error: 'auth_unavailable' });
         return;
       }
-      void handleGetMe(req as IncomingMessage, res, {
+      void handleGetMe(req, res, {
         verifyClerkToken: deps.verifyClerkToken,
         upsertUserByClerkId: deps.upsertUserByClerkId,
         sendJson,
@@ -135,7 +176,7 @@ export function createServer(deps: ServerDeps = {}): http.Server {
     }
 
     if (method === 'POST' && url.pathname === '/sessions/demo') {
-      void handleDemoStart(res, deps).catch(fail);
+      void handleDemoStart(req, res, deps).catch(fail);
       return;
     }
 
