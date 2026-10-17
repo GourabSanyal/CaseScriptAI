@@ -25,8 +25,11 @@ Local Postgres: `docker-compose.yml` (`postgres:16`). Host port is **`5433`** (m
 Put this in `apps/hacktoberfest-api/.env`:
 
 ```bash
-DATABASE_URL=postgresql://user:password@localhost:5433/casescriptai_demo
+DATABASE_URL=postgres://user:password@localhost:5433/casescriptai_demo
+IP_HASH_SALT=dev-ip-salt
 ```
+
+After pull / H5S: `yarn hacktoberfest:migrate` applies `003_hardening.sql` (PDF bytes + rate-limit columns).
 
 ### View Docker Postgres in pgAdmin (GUI)
 

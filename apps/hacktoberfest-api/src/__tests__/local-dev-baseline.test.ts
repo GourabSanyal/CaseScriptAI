@@ -10,7 +10,7 @@ describe('H5L local dev baseline', () => {
   it('docker-compose.yml exposes Postgres 16 matching .env.example', () => {
     const compose = readFileSync(path.join(repoRoot, 'docker-compose.yml'), 'utf8');
     assert.match(compose, /image:\s*postgres:16/);
-    assert.match(compose, /['"]5432:5432['"]/);
+    assert.match(compose, /['"]5433:5432['"]/);
     assert.match(compose, /POSTGRES_USER:\s*user/);
     assert.match(compose, /POSTGRES_PASSWORD:\s*password/);
     assert.match(compose, /POSTGRES_DB:\s*casescriptai_demo/);
@@ -23,7 +23,7 @@ describe('H5L local dev baseline', () => {
     );
     assert.match(
       envExample,
-      /DATABASE_URL=postgres:\/\/user:password@localhost:5432\/casescriptai_demo/,
+      /DATABASE_URL=postgres:\/\/user:password@localhost:5433\/casescriptai_demo/,
     );
   });
 
