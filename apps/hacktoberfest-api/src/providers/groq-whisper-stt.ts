@@ -1,11 +1,13 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { isAbortError } from '../util/abort-error.js';
 import type { SttProvider } from './stt-provider.js';
 
 export const GROQ_TRANSCRIPTIONS_URL =
   'https://api.groq.com/openai/v1/audio/transcriptions';
 
 export const GROQ_WHISPER_MODEL = 'whisper-large-v3-turbo';
+export const STT_TIMEOUT_MS = 60_000;
 
 export type FetchLike = (
   input: string | URL | Request,
@@ -16,6 +18,7 @@ type GroqWhisperOptions = {
   apiKey: string;
   fetchImpl?: FetchLike;
   model?: string;
+  timeoutMs?: number;
 };
 
 export const createGroqWhisperStt = (options: GroqWhisperOptions): SttProvider => {
@@ -26,6 +29,7 @@ export const createGroqWhisperStt = (options: GroqWhisperOptions): SttProvider =
 
   const fetchImpl = options.fetchImpl ?? fetch;
   const model = options.model ?? GROQ_WHISPER_MODEL;
+  const timeoutMs = options.timeoutMs ?? STT_TIMEOUT_MS;
 
   const transcribeFile = async (audioPath: string): Promise<string> => {
     const bytes = await readFile(audioPath);
@@ -39,11 +43,18 @@ export const createGroqWhisperStt = (options: GroqWhisperOptions): SttProvider =
       path.basename(audioPath),
     );
 
-    const response = await fetchImpl(GROQ_TRANSCRIPTIONS_URL, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${apiKey}` },
-      body: form,
-    });
+    let response: Response;
+    try {
+      response = await fetchImpl(GROQ_TRANSCRIPTIONS_URL, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiKey}` },
+        body: form,
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+    } catch (err) {
+      if (isAbortError(err)) throw new Error('stt_timeout');
+      throw err;
+    }
 
     if (!response.ok) {
       // Do not surface response body (may echo request metadata).

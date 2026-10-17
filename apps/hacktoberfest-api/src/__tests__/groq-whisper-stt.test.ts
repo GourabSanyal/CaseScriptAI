@@ -78,4 +78,27 @@ describe('createGroqWhisperStt', () => {
 
     await assert.rejects(() => stt.transcribeFile(audioPath), /stt_empty_transcript/);
   });
+
+  it('maps AbortSignal timeout to stt_timeout', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'stt-'));
+    const audioPath = path.join(dir, 'sample.wav');
+    await writeFile(audioPath, Buffer.from('x'));
+
+    const fetchImpl: FetchLike = async (_input, init) =>
+      new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => {
+          const err = new Error('aborted');
+          err.name = 'TimeoutError';
+          reject(err);
+        });
+      });
+
+    const stt = createGroqWhisperStt({
+      apiKey: 'test-key',
+      fetchImpl,
+      timeoutMs: 20,
+    });
+    await assert.rejects(() => stt.transcribeFile(audioPath), /stt_timeout/);
+  });
 });
+

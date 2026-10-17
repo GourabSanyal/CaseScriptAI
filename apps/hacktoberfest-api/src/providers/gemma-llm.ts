@@ -1,6 +1,8 @@
+import { isAbortError } from '../util/abort-error.js';
 import type { LlmProvider } from './llm-provider.js';
 
 export const DEFAULT_GEMMA_MODEL = 'gemma-4-26b-a4b-it';
+export const LLM_TIMEOUT_MS = 45_000;
 
 export type FetchLike = (
   input: string | URL | Request,
@@ -11,6 +13,7 @@ type GemmaLlmOptions = {
   apiKey: string;
   model?: string;
   fetchImpl?: FetchLike;
+  timeoutMs?: number;
 };
 
 export const gemmaGenerateContentUrl = (model: string): string =>
@@ -50,6 +53,7 @@ export const createGemmaLlm = (options: GemmaLlmOptions): LlmProvider => {
   const model = options.model ?? DEFAULT_GEMMA_MODEL;
   const fetchImpl = options.fetchImpl ?? fetch;
   const url = gemmaGenerateContentUrl(model);
+  const timeoutMs = options.timeoutMs ?? LLM_TIMEOUT_MS;
 
   const complete = async (prompt: string): Promise<string> => {
     const generationConfig: Record<string, unknown> = { temperature: 0.2 };
@@ -58,17 +62,24 @@ export const createGemmaLlm = (options: GemmaLlmOptions): LlmProvider => {
       generationConfig.responseMimeType = 'application/json';
     }
 
-    const response = await fetchImpl(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey,
-      },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig,
-      }),
-    });
+    let response: Response;
+    try {
+      response = await fetchImpl(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey,
+        },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig,
+        }),
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+    } catch (err) {
+      if (isAbortError(err)) throw new Error('llm_timeout');
+      throw err;
+    }
 
     if (!response.ok) {
       // Surface status only — never echo full provider payloads (may include prompt).

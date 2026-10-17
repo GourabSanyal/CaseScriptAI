@@ -46,4 +46,23 @@ describe('createGemmaLlm', () => {
   it('rejects empty API key', () => {
     assert.throws(() => createGemmaLlm({ apiKey: ' ' }), /google_ai_api_key_missing/);
   });
+
+  it('maps AbortSignal timeout to llm_timeout', async () => {
+    const fetchImpl: FetchLike = async (_input, init) =>
+      new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => {
+          const err = new Error('aborted');
+          err.name = 'TimeoutError';
+          reject(err);
+        });
+      });
+
+    const llm = createGemmaLlm({
+      apiKey: 'test-key',
+      fetchImpl,
+      timeoutMs: 20,
+    });
+    await assert.rejects(() => llm.complete('x'), /llm_timeout/);
+  });
 });
+
