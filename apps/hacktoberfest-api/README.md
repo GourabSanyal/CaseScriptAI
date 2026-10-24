@@ -4,10 +4,14 @@ Thin TypeScript HTTP service for the contest branch
 `hacktoberfest/render-session-note`. Scope:
 [`docs/HACKTOBERFEST_WEEKEND_SCOPE.md`](../../docs/HACKTOBERFEST_WEEKEND_SCOPE.md).
 
+Monorepo install and track picker: [root README](../../README.md).
+
+**Auth shortcut:** mobile Google login only needs `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` in `apps/CaseScriptAI/.env`. Updating `users` / `GET /me` also needs this API running with `CLERK_SECRET_KEY` (see H5A checklist below).
+
 ## Quick start
 
 ```bash
-# from repo root (Node 20 — see .nvmrc)
+# from repo root (Node 20 — see .nvmrc); see root README if you have not installed yet
 yarn install
 cp apps/hacktoberfest-api/.env.example apps/hacktoberfest-api/.env
 # .env.example DATABASE_URL matches docker-compose.yml
