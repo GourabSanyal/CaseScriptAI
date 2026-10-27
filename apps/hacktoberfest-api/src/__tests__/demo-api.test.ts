@@ -84,6 +84,8 @@ describe('demo API routes', () => {
       assert.equal(res.status, 200);
       assert.match(res.headers.get('content-type') ?? '', /text\/html/);
       assert.match(html, /Use sample session/);
+      assert.match(html, /Waking server/);
+      assert.match(html, /\/health/);
     });
   });
 

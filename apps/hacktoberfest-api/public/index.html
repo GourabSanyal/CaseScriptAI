@@ -57,6 +57,7 @@
         color: var(--sage);
         font-weight: 600;
       }
+      a.download[hidden] { display: none !important; }
       .disclaimer { margin-top: 28px; font-size: 0.85rem; }
     </style>
   </head>
@@ -67,8 +68,8 @@
         Generate a structured session note PDF from the synthetic sample
         recording. Demo data only — not real PHI.
       </p>
-      <button id="generate" type="button">Use sample session</button>
-      <div class="status" id="status" aria-live="polite">Ready.</div>
+      <button id="generate" type="button" disabled>Use sample session</button>
+      <div class="status" id="status" aria-live="polite">Waking server (~1 min)…</div>
       <a class="download" id="download" hidden href="#">Download PDF</a>
       <p class="disclaimer">
         Audio is a fictional scripted conversation for Hacktoberfest. Not for
@@ -80,6 +81,7 @@
       const statusEl = document.getElementById("status");
       const downloadEl = document.getElementById("download");
       let pollTimer = null;
+      let serverReady = false;
 
       const setStatus = (text) => {
         statusEl.textContent = text;
@@ -90,6 +92,27 @@
           clearInterval(pollTimer);
           pollTimer = null;
         }
+      };
+
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+      const wakeServer = async () => {
+        const started = Date.now();
+        generateBtn.disabled = true;
+        setStatus("Waking server (~1 min)…");
+        while (Date.now() - started < 90000) {
+          try {
+            const res = await fetch("/health");
+            if (res.ok) {
+              serverReady = true;
+              generateBtn.disabled = false;
+              setStatus("Ready.");
+              return;
+            }
+          } catch (_) {}
+          await sleep(2000);
+        }
+        setStatus("Server wake timed out. Refresh the page.");
       };
 
       const pollSession = (id) => {
@@ -123,6 +146,10 @@
       };
 
       generateBtn.addEventListener("click", async () => {
+        if (!serverReady) {
+          await wakeServer();
+          if (!serverReady) return;
+        }
         generateBtn.disabled = true;
         downloadEl.hidden = true;
         setStatus("Starting…");
@@ -141,6 +168,8 @@
           generateBtn.disabled = false;
         }
       });
+
+      wakeServer();
     </script>
   </body>
 </html>
