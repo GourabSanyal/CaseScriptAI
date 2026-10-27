@@ -30,13 +30,15 @@ const buildServer = async () => {
 
   const deps = {
     publicBaseUrl: config.publicBaseUrl,
+    ipHashSalt: config.ipHashSalt,
+    rateLimitStore: {
+      countStartsByIpHash: repo.countStartsByIpHash,
+      countStartsGlobal: repo.countStartsGlobal,
+    },
+    tryAcquirePipeline: () => gate.tryAcquire(),
     getSessionById: (id: string) => repo.getById(id),
     readPdfBytes: (session: Parameters<typeof readSessionPdf>[0]) =>
       readSessionPdf(session),
-    rateLimitStore: repo,
-    ipHashSalt: config.ipHashSalt,
-    tryAcquirePipeline: () => gate.tryAcquire(),
-    releasePipeline: () => gate.release(),
     ...(config.clerkSecretKey
       ? {
           verifyClerkToken: createClerkTokenVerifier({
@@ -73,5 +75,6 @@ const { server, pool } = await buildServer();
 attachSigtermHandler({ server, pool });
 
 server.listen(config.port, () => {
+  // Intentionally no PHI / paths — startup only.
   console.log(`hacktoberfest-api listening on :${config.port}`);
 });

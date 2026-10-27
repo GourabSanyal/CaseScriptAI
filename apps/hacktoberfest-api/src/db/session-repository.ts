@@ -105,7 +105,11 @@ export const createSessionRepository = (pool: DbPool) => {
          status = $2,
          transcript = COALESCE($3, transcript),
          note_json = COALESCE($4::jsonb, note_json),
-         pdf_path = COALESCE($5, pdf_path),
+         pdf_path = CASE
+           WHEN $6::bytea IS NOT NULL THEN NULL
+           WHEN $8::boolean THEN $5
+           ELSE pdf_path
+         END,
          pdf_bytes = COALESCE($6, pdf_bytes),
          error = COALESCE($7, error),
          updated_at = now()
@@ -119,6 +123,7 @@ export const createSessionRepository = (pool: DbPool) => {
         patch.pdfPath === undefined ? null : patch.pdfPath,
         patch.pdfBytes === undefined ? null : patch.pdfBytes,
         patch.error === undefined ? null : patch.error,
+        patch.pdfPath !== undefined,
       ],
     );
     return mapRow(result.rows[0]);

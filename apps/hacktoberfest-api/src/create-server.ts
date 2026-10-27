@@ -23,10 +23,9 @@ export type ServerDeps = {
   publicBaseUrl?: string;
   verifyClerkToken?: VerifyClerkToken;
   upsertUserByClerkId?: (input: UpsertUserInput) => Promise<AppUser>;
-  rateLimitStore?: RateLimitStore;
   ipHashSalt?: string;
+  rateLimitStore?: RateLimitStore;
   tryAcquirePipeline?: () => boolean;
-  releasePipeline?: () => void;
 };
 
 function sendJson(res: ServerResponse, status: number, body: unknown): void {
@@ -124,13 +123,8 @@ async function handleDemoStart(
     return;
   }
 
-  try {
-    const started = await deps.startDemoSession({ clientIpHash: ipHash });
-    sendJson(res, 202, started);
-  } catch (err) {
-    deps.releasePipeline?.();
-    throw err;
-  }
+  const started = await deps.startDemoSession({ clientIpHash: ipHash });
+  sendJson(res, 202, started);
 }
 
 async function handleDemoUi(res: ServerResponse): Promise<void> {
@@ -162,7 +156,7 @@ export function createServer(deps: ServerDeps = {}): http.Server {
         sendJson(res, 503, { ok: false, error: 'auth_unavailable' });
         return;
       }
-      void handleGetMe(req, res, {
+      void handleGetMe(req as IncomingMessage, res, {
         verifyClerkToken: deps.verifyClerkToken,
         upsertUserByClerkId: deps.upsertUserByClerkId,
         sendJson,
