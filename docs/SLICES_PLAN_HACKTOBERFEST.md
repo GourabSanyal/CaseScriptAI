@@ -225,7 +225,7 @@
 | Sub | Description | Status | Tests | Impl |
 |---|---|---|---|---|
 | H6U.1 | Step progress UI (Transcribing → Writing note → Building PDF → Ready) instead of raw status | TODO | | |
-| H6U.2 | Cold-start notice: "Waking server (~1 min)" when first request is slow | TODO | | |
+| H6U.2 | Cold-start notice: "Waking server (~1 min)" when first request is slow | DONE | `wake-demo-api.test.ts`, HTML assertion in `demo-api.test.ts` | `wake-demo-api.ts`, `use-wake-demo-api.ts`, `welcome.tsx`, `public/index.html` |
 | H6U.3 | Retry button on `failed` (reuses idempotent pipeline steps) | TODO | | |
 | H6U.4 | Poll backoff (1s → 2s → 5s cap), max wait, pause when tab hidden; respect `prefers-reduced-motion` | TODO | | |
 | H6U.5 | Note preview on page before PDF download (synthetic data only) | TODO | | |
