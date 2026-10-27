@@ -178,16 +178,23 @@
 
 | Sub | Description | Status | Tests | Impl |
 |---|---|---|---|---|
-| H5S.1 | Rate limit `POST /sessions/demo`: per-IP (e.g. 3/hour) + global daily cap → `429 rate_limited` | DONE | `rate-limit.test.ts`, `client-ip.test.ts`, `demo-api.test.ts` | `http/rate-limit.ts`, `http/client-ip.ts`, `create-server.ts` |
+| H5S.1 | Rate limit `POST /sessions/demo`: per-IP (e.g. 3/hour) + global daily cap → `429 rate_limited` | DONE | `rate-limit.test.ts`, `client-ip.test.ts`, `demo-api.test.ts` | `src/http/rate-limit.ts`, `client-ip.ts`, `create-server.ts` |
 | H5S.2 | Timeouts on Groq + Gemma `fetch` (`AbortSignal.timeout`) → sanitized `stt_timeout` / `llm_timeout` failure | DONE | `groq-whisper-stt.test.ts`, `gemma-llm.test.ts` | `groq-whisper-stt.ts`, `gemma-llm.ts` |
-| H5S.3 | Boot recovery: sessions left in `queued` / `*_running` → `failed` with `interrupted_restart` | DONE | `recover-interrupted.test.ts` | `pipeline/recover-interrupted.ts`, `index.ts` |
-| H5S.4 | PDF bytes in Postgres (`003_hardening` migration, `bytea`) instead of `data/pdfs/` — Render free disk is ephemeral | DONE | `run-pdf-step.test.ts`, `session-pdf-route.test.ts` | `migrations/003_hardening.sql`, `run-pdf-step.ts`, `session-repository.ts` |
-| H5S.5 | Security headers on every response (CSP, `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`) | DONE | `security-headers.test.ts` | `http/security-headers.ts`, `create-server.ts` |
-| H5S.6 | Graceful `SIGTERM`: stop accepting, close `pg` pool | DONE | `shutdown.test.ts` | `shutdown.ts`, `index.ts` |
+| H5S.3 | Boot recovery: sessions left in `queued` / `*_running` → `failed` with `interrupted_restart` | DONE | `recover-interrupted.test.ts` | `src/pipeline/recover-interrupted.ts`, `index.ts` |
+| H5S.4 | PDF bytes in Postgres (`003_hardening` migration, `bytea`) instead of `data/pdfs/` — Render free disk is ephemeral | DONE | `run-pdf-step.test.ts`, `session-pdf-route.test.ts` | `migrations/003_hardening.sql`, `run-pdf-step.ts` |
+| H5S.5 | Security headers on every response (CSP, `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`) | DONE | `security-headers.test.ts` | `src/http/security-headers.ts`, `create-server.ts` |
+| H5S.6 | Graceful `SIGTERM`: stop accepting, close `pg` pool | DONE | `shutdown.test.ts` | `src/shutdown.ts`, `index.ts` |
 
-**Test plan (H5S):** ✅ unit/mocked green. Run `yarn hacktoberfest:migrate` for `003_hardening.sql` before live demo.
+**Test plan (H5S):** ✅ unit/mocked green (`DATABASE_URL=` + `LIVE_PROVIDER_SMOKE=0`).
 
-**Done when:** all six green; public endpoint safe to share with judges.
+1. N+1th demo start from same IP within window → 429; counter resets after window.
+2. Mocked provider that never resolves → step fails with timeout code; status `failed`; no PHI in error.
+3. Seed `stt_running` row → boot recovery marks `failed` / `interrupted_restart`; `ready` rows untouched.
+4. PDF step writes bytes to DB; `GET /sessions/:id/pdf` serves from DB with no file on disk.
+5. `GET /health`, `/`, `/sessions/:id` include all security headers.
+6. `SIGTERM` handler closes server + pool (unit-test the shutdown function).
+
+**Done when:** all six green; public endpoint safe to share with judges. Run `yarn hacktoberfest:migrate` on Render/local so `003_hardening.sql` is applied.
 
 ---
 

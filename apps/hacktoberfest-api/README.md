@@ -4,14 +4,10 @@ Thin TypeScript HTTP service for the contest branch
 `hacktoberfest/render-session-note`. Scope:
 [`docs/HACKTOBERFEST_WEEKEND_SCOPE.md`](../../docs/HACKTOBERFEST_WEEKEND_SCOPE.md).
 
-Monorepo install and track picker: [root README](../../README.md).
-
-**Auth shortcut:** mobile Google login only needs `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` in `apps/CaseScriptAI/.env`. Updating `users` / `GET /me` also needs this API running with `CLERK_SECRET_KEY` (see H5A checklist below).
-
 ## Quick start
 
 ```bash
-# from repo root (Node 20 — see .nvmrc); see root README if you have not installed yet
+# from repo root (Node 20 — see .nvmrc)
 yarn install
 cp apps/hacktoberfest-api/.env.example apps/hacktoberfest-api/.env
 # .env.example DATABASE_URL matches docker-compose.yml
@@ -29,11 +25,8 @@ Local Postgres: `docker-compose.yml` (`postgres:16`). Host port is **`5433`** (m
 Put this in `apps/hacktoberfest-api/.env`:
 
 ```bash
-DATABASE_URL=postgres://user:password@localhost:5433/casescriptai_demo
-IP_HASH_SALT=dev-ip-salt
+DATABASE_URL=postgresql://user:password@localhost:5433/casescriptai_demo
 ```
-
-After pull / H5S: `yarn hacktoberfest:migrate` applies `003_hardening.sql` (PDF bytes + rate-limit columns).
 
 ### View Docker Postgres in pgAdmin (GUI)
 
