@@ -86,6 +86,8 @@ describe('demo API routes', () => {
       assert.match(html, /Use sample session/);
       assert.match(html, /Waking server/);
       assert.match(html, /\/health/);
+      assert.match(html, /llm_unavailable/);
+      assert.match(html, /Retry/);
     });
   });
 
