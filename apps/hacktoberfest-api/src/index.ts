@@ -9,7 +9,10 @@ import { createDemoSessionStarter } from './pipeline/demo-session-starter.js';
 import { PipelineConcurrencyGate } from './pipeline/pipeline-concurrency.js';
 import { recoverInterruptedSessions } from './pipeline/recover-interrupted.js';
 import { readSessionPdf } from './pdf/run-pdf-step.js';
-import { createGemmaLlm } from './providers/gemma-llm.js';
+import {
+  createLlmFromConfig,
+  llmReadyFromConfig,
+} from './providers/create-llm.js';
 import { createGroqWhisperStt } from './providers/groq-whisper-stt.js';
 import { attachSigtermHandler } from './shutdown.js';
 
@@ -49,7 +52,7 @@ const buildServer = async () => {
       : {}),
   };
 
-  if (!config.groqApiKey || !config.googleAiApiKey) {
+  if (!llmReadyFromConfig(config)) {
     return { server: createServer(deps), pool };
   }
 
@@ -59,12 +62,8 @@ const buildServer = async () => {
       ...deps,
       startDemoSession: createDemoSessionStarter({
         repo,
-        stt: createGroqWhisperStt({ apiKey: config.groqApiKey }),
-        llm: createGemmaLlm({
-          apiKey: config.googleAiApiKey,
-          model: config.gemmaModel,
-          timeoutMs: config.llmTimeoutMs,
-        }),
+        stt: createGroqWhisperStt({ apiKey: config.groqApiKey! }),
+        llm: createLlmFromConfig(config),
         audioPath: FIXTURE_AUDIO_PATH,
         gate,
       }),

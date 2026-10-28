@@ -1,5 +1,9 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  parseLlmProvider,
+  type LlmProviderName,
+} from './providers/llm-provider-name.js';
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -20,6 +24,10 @@ export type AppConfig = {
   clerkSecretKey: string | undefined;
   ipHashSalt: string;
   llmTimeoutMs: number | undefined;
+  /** Switch note LLM: groq (default) | google */
+  llmProvider: LlmProviderName;
+  /** Optional model id for the selected provider */
+  llmModel: string | undefined;
 };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -48,5 +56,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     clerkSecretKey: env.CLERK_SECRET_KEY,
     ipHashSalt: env.IP_HASH_SALT?.trim() || 'dev-ip-salt',
     llmTimeoutMs,
+    llmProvider: parseLlmProvider(env.LLM_PROVIDER),
+    llmModel: env.LLM_MODEL?.trim() || undefined,
   };
 }
