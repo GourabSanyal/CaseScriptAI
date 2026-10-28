@@ -1,8 +1,10 @@
 import { isAbortError } from '../util/abort-error.js';
 import type { LlmProvider } from './llm-provider.js';
 
-export const DEFAULT_GEMMA_MODEL = 'gemma-4-26b-a4b-it';
-export const LLM_TIMEOUT_MS = 45_000;
+/** Prefer a current Gemini Flash id — Gemma defaults often time out on free tier. */
+export const DEFAULT_GEMMA_MODEL = 'gemini-3.8-flash';
+export const LLM_TIMEOUT_MS = 90_000;
+export const LLM_MAX_ATTEMPTS = 3;
 
 export type FetchLike = (
   input: string | URL | Request,
@@ -14,10 +16,17 @@ type GemmaLlmOptions = {
   model?: string;
   fetchImpl?: FetchLike;
   timeoutMs?: number;
+  maxAttempts?: number;
+  sleep?: (ms: number) => Promise<void>;
 };
 
 export const gemmaGenerateContentUrl = (model: string): string =>
   `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+
+const defaultSleep = (ms: number) =>
+  new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
 
 const extractText = (payload: unknown): string => {
   if (typeof payload !== 'object' || payload === null) {
@@ -46,6 +55,15 @@ const extractText = (payload: unknown): string => {
   return text;
 };
 
+const mapHttpError = (status: number): Error => {
+  if (status === 503) return new Error('llm_unavailable');
+  if (status === 429) return new Error('llm_rate_limited');
+  return new Error(`llm_http_${status}`);
+};
+
+const isRetryableStatus = (status: number): boolean =>
+  status === 503 || status === 429;
+
 export const createGemmaLlm = (options: GemmaLlmOptions): LlmProvider => {
   const apiKey = options.apiKey.trim();
   if (!apiKey) throw new Error('google_ai_api_key_missing');
@@ -54,39 +72,57 @@ export const createGemmaLlm = (options: GemmaLlmOptions): LlmProvider => {
   const fetchImpl = options.fetchImpl ?? fetch;
   const url = gemmaGenerateContentUrl(model);
   const timeoutMs = options.timeoutMs ?? LLM_TIMEOUT_MS;
+  const maxAttempts = options.maxAttempts ?? LLM_MAX_ATTEMPTS;
+  const sleep = options.sleep ?? defaultSleep;
 
   const complete = async (prompt: string): Promise<string> => {
     const generationConfig: Record<string, unknown> = { temperature: 0.2 };
-    // Gemini models support JSON mime type; Gemma often does not.
     if (model.startsWith('gemini-')) {
       generationConfig.responseMimeType = 'application/json';
     }
 
-    let response: Response;
-    try {
-      response = await fetchImpl(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': apiKey,
-        },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          generationConfig,
-        }),
-        signal: AbortSignal.timeout(timeoutMs),
-      });
-    } catch (err) {
-      if (isAbortError(err)) throw new Error('llm_timeout');
-      throw err;
+    let lastError: Error | undefined;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      let response: Response;
+      try {
+        response = await fetchImpl(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': apiKey,
+          },
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            generationConfig,
+          }),
+          signal: AbortSignal.timeout(timeoutMs),
+        });
+      } catch (err) {
+        if (isAbortError(err)) {
+          lastError = new Error('llm_timeout');
+          if (attempt < maxAttempts) {
+            await sleep(1_500 * attempt);
+            continue;
+          }
+          throw lastError;
+        }
+        throw err;
+      }
+
+      if (response.ok) {
+        return extractText(await response.json());
+      }
+
+      lastError = mapHttpError(response.status);
+      if (isRetryableStatus(response.status) && attempt < maxAttempts) {
+        await sleep(1_500 * attempt);
+        continue;
+      }
+      throw lastError;
     }
 
-    if (!response.ok) {
-      // Surface status only — never echo full provider payloads (may include prompt).
-      throw new Error(`llm_http_${response.status}`);
-    }
-
-    return extractText(await response.json());
+    throw lastError ?? new Error('llm_failed');
   };
 
   return { complete };
