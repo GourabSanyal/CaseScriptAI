@@ -96,6 +96,28 @@
 
       const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+      const friendlyFailure = (code) => {
+        if (
+          code === "llm_unavailable" ||
+          code === "llm_http_503" ||
+          code === "llm_timeout"
+        ) {
+          return "AI is busy or slow right now. Tap Retry — high demand is usually temporary.";
+        }
+        if (code === "llm_rate_limited" || code === "llm_http_429") {
+          return "AI rate limit hit. Wait a moment, then tap Retry.";
+        }
+        if (code === "stt_timeout") {
+          return "Transcription timed out. Tap Retry.";
+        }
+        return "Failed (" + code + "). Tap Retry to try again.";
+      };
+
+      const markRetryable = () => {
+        generateBtn.disabled = false;
+        generateBtn.textContent = "Retry sample session";
+      };
+
       const wakeServer = async () => {
         const started = Date.now();
         generateBtn.disabled = true;
@@ -106,6 +128,7 @@
             if (res.ok) {
               serverReady = true;
               generateBtn.disabled = false;
+              generateBtn.textContent = "Use sample session";
               setStatus("Ready.");
               return;
             }
@@ -113,6 +136,15 @@
           await sleep(2000);
         }
         setStatus("Server wake timed out. Refresh the page.");
+      };
+
+      const stepLabel = (status) => {
+        if (status === "queued") return "Queued…";
+        if (status === "stt_running") return "Transcribing…";
+        if (status === "llm_running") return "Writing note…";
+        if (status === "pdf_running") return "Building PDF…";
+        if (status === "ready") return "Ready.";
+        return "Status: " + status;
       };
 
       const pollSession = (id) => {
@@ -123,23 +155,27 @@
             const data = await res.json();
             if (!res.ok) {
               setStatus("Error: " + (data.error || "status_failed"));
-              generateBtn.disabled = false;
+              markRetryable();
               stopPoll();
               return;
             }
-            setStatus("Status: " + data.status + (data.error ? " (" + data.error + ")" : ""));
+            if (data.status === "failed") {
+              setStatus(friendlyFailure(data.error || "failed"));
+              markRetryable();
+              stopPoll();
+              return;
+            }
+            setStatus(stepLabel(data.status));
             if (data.status === "ready" && data.pdfUrl) {
               downloadEl.hidden = false;
               downloadEl.href = data.pdfUrl;
               generateBtn.disabled = false;
-              stopPoll();
-            } else if (data.status === "failed") {
-              generateBtn.disabled = false;
+              generateBtn.textContent = "Use sample session";
               stopPoll();
             }
           } catch {
-            setStatus("Error: network");
-            generateBtn.disabled = false;
+            setStatus("Error: network — tap Retry.");
+            markRetryable();
             stopPoll();
           }
         }, 1000);
@@ -157,15 +193,19 @@
           const res = await fetch("/sessions/demo", { method: "POST" });
           const data = await res.json();
           if (!res.ok) {
-            setStatus("Error: " + (data.error || "start_failed"));
-            generateBtn.disabled = false;
+            setStatus(
+              data.error === "rate_limited"
+                ? "Too many demos — wait and tap Retry."
+                : "Error: " + (data.error || "start_failed"),
+            );
+            markRetryable();
             return;
           }
-          setStatus("Generating… (" + data.status + ")");
+          setStatus(stepLabel(data.status));
           pollSession(data.id);
         } catch {
-          setStatus("Error: network");
-          generateBtn.disabled = false;
+          setStatus("Error: network — tap Retry.");
+          markRetryable();
         }
       });
 
