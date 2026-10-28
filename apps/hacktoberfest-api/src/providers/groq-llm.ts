@@ -2,7 +2,8 @@ import { isAbortError } from '../util/abort-error.js';
 import type { LlmProvider } from './llm-provider.js';
 
 export const GROQ_CHAT_URL = 'https://api.groq.com/openai/v1/chat/completions';
-export const DEFAULT_GROQ_LLM_MODEL = 'llama-3.1-8b-instant';
+/** Free/dev replacement after llama-3.1-8b-instant shutdown (Aug 2026). */
+export const DEFAULT_GROQ_LLM_MODEL = 'openai/gpt-oss-20b';
 export const GROQ_LLM_TIMEOUT_MS = 90_000;
 export const GROQ_LLM_MAX_ATTEMPTS = 3;
 

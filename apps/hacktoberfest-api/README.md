@@ -77,7 +77,7 @@ Artifacts are written under `data/pdfs/` (gitignored).
 
 Env (gitignored `.env` or shell — never commit secrets): `DATABASE_URL`, `CLERK_SECRET_KEY`, `GROQ_API_KEY`, `LLM_PROVIDER` (`groq` default | `google`), optional `LLM_MODEL`, `LLM_TIMEOUT_MS`, and `GOOGLE_AI_API_KEY` only if `LLM_PROVIDER=google`.
 
-**Live LLM switch:** set `LLM_PROVIDER=groq` on the Render Web Service (uses the same `GROQ_API_KEY` as Whisper). Flip to `google` only if you want Gemini again.
+**Live LLM switch:** set `LLM_PROVIDER=groq` and `LLM_MODEL=openai/gpt-oss-20b` on the Render Web Service (same `GROQ_API_KEY` as Whisper). Flip to `google` + `GEMINI_MODEL=gemini-3.8-flash` only if you want Gemini again.
 
 ### H5A therapist Google (local E2E checklist)
 
