@@ -39,15 +39,47 @@ describe('createGemmaLlm', () => {
     const llm = createGemmaLlm({
       apiKey: 'test-key',
       fetchImpl: async () => new Response('nope', { status: 403 }),
+      maxAttempts: 1,
     });
     await assert.rejects(() => llm.complete('x'), /llm_http_403/);
+  });
+
+  it('retries 503 then succeeds', async () => {
+    let calls = 0;
+    const llm = createGemmaLlm({
+      apiKey: 'test-key',
+      maxAttempts: 3,
+      sleep: async () => undefined,
+      fetchImpl: async () => {
+        calls += 1;
+        if (calls < 3) return new Response('busy', { status: 503 });
+        return new Response(
+          JSON.stringify({
+            candidates: [{ content: { parts: [{ text: 'ok' }] } }],
+          }),
+          { status: 200 },
+        );
+      },
+    });
+    assert.equal(await llm.complete('x'), 'ok');
+    assert.equal(calls, 3);
+  });
+
+  it('maps exhausted 503 to llm_unavailable', async () => {
+    const llm = createGemmaLlm({
+      apiKey: 'test-key',
+      maxAttempts: 2,
+      sleep: async () => undefined,
+      fetchImpl: async () => new Response('busy', { status: 503 }),
+    });
+    await assert.rejects(() => llm.complete('x'), /llm_unavailable/);
   });
 
   it('rejects empty API key', () => {
     assert.throws(() => createGemmaLlm({ apiKey: ' ' }), /google_ai_api_key_missing/);
   });
 
-  it('maps AbortSignal timeout to llm_timeout', async () => {
+  it('maps AbortSignal timeout to llm_timeout after retries', async () => {
     const fetchImpl: FetchLike = async (_input, init) =>
       new Promise((_resolve, reject) => {
         init?.signal?.addEventListener('abort', () => {
@@ -61,8 +93,9 @@ describe('createGemmaLlm', () => {
       apiKey: 'test-key',
       fetchImpl,
       timeoutMs: 20,
+      maxAttempts: 2,
+      sleep: async () => undefined,
     });
     await assert.rejects(() => llm.complete('x'), /llm_timeout/);
   });
 });
-
