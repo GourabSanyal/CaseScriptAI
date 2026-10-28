@@ -75,7 +75,9 @@ LIVE_PROVIDER_SMOKE=1 yarn workspace hacktoberfest-api test
 PDF download (after a session is `ready`): `GET /sessions/:id/pdf`  
 Artifacts are written under `data/pdfs/` (gitignored).
 
-Env (gitignored `.env` or shell — never commit secrets): `DATABASE_URL`, `CLERK_SECRET_KEY`, `GROQ_API_KEY`, `GOOGLE_AI_API_KEY` or `GEMINI_API_KEY`, optional `GEMMA_MODEL` / `GEMINI_MODEL`, optional `LIVE_PROVIDER_SMOKE=1`.
+Env (gitignored `.env` or shell — never commit secrets): `DATABASE_URL`, `CLERK_SECRET_KEY`, `GROQ_API_KEY`, `LLM_PROVIDER` (`groq` default | `google`), optional `LLM_MODEL`, `LLM_TIMEOUT_MS`, and `GOOGLE_AI_API_KEY` only if `LLM_PROVIDER=google`.
+
+**Live LLM switch:** set `LLM_PROVIDER=groq` on the Render Web Service (uses the same `GROQ_API_KEY` as Whisper). Flip to `google` only if you want Gemini again.
 
 ### H5A therapist Google (local E2E checklist)
 
