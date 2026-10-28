@@ -19,12 +19,22 @@ export type AppConfig = {
   gemmaModel: string | undefined;
   clerkSecretKey: string | undefined;
   ipHashSalt: string;
+  llmTimeoutMs: number | undefined;
 };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const port = Number(env.PORT ?? '3001');
   if (!Number.isFinite(port) || port <= 0) {
     throw new Error('PORT must be a positive number');
+  }
+
+  const llmTimeoutRaw = env.LLM_TIMEOUT_MS;
+  const llmTimeoutMs = llmTimeoutRaw ? Number(llmTimeoutRaw) : undefined;
+  if (
+    llmTimeoutMs !== undefined &&
+    (!Number.isFinite(llmTimeoutMs) || llmTimeoutMs < 5_000)
+  ) {
+    throw new Error('LLM_TIMEOUT_MS must be a number >= 5000');
   }
 
   return {
@@ -37,5 +47,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     gemmaModel: env.GEMMA_MODEL ?? env.GEMINI_MODEL,
     clerkSecretKey: env.CLERK_SECRET_KEY,
     ipHashSalt: env.IP_HASH_SALT?.trim() || 'dev-ip-salt',
+    llmTimeoutMs,
   };
 }
