@@ -63,6 +63,7 @@ const buildServer = async () => {
         llm: createGemmaLlm({
           apiKey: config.googleAiApiKey,
           model: config.gemmaModel,
+          timeoutMs: config.llmTimeoutMs,
         }),
         audioPath: FIXTURE_AUDIO_PATH,
         gate,
