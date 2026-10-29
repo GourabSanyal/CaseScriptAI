@@ -1,0 +1,58 @@
+# H6.8 — CI for hacktoberfest/render-session-note
+name: Hacktoberfest
+
+on:
+  pull_request:
+    branches: [hacktoberfest/render-session-note]
+  push:
+    branches: [hacktoberfest/render-session-note]
+
+concurrency:
+  group: hacktoberfest-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    name: API typecheck + test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: casescriptai_demo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U user -d casescriptai_demo"
+          --health-interval 3s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      LIVE_PROVIDER_SMOKE: '0'
+      DATABASE_URL: postgresql://user:password@localhost:5432/casescriptai_demo
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: yarn
+      - run: corepack enable
+      - run: yarn install --immutable
+      - run: yarn hacktoberfest:migrate
+      - run: yarn hacktoberfest:check
+
+  mobile:
+    name: Mobile typecheck + test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: yarn
+      - run: corepack enable
+      - run: yarn install --immutable
+      - run: yarn workspace casescriptai typecheck
+      - run: yarn workspace casescriptai test --ci
