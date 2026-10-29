@@ -34,6 +34,7 @@ const buildServer = async () => {
   const deps = {
     publicBaseUrl: config.publicBaseUrl,
     ipHashSalt: config.ipHashSalt,
+    demoAccessKey: config.demoAccessKey,
     rateLimitStore: {
       countStartsByIpHash: repo.countStartsByIpHash,
       countStartsGlobal: repo.countStartsGlobal,

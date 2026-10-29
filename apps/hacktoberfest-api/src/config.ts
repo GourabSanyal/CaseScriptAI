@@ -28,6 +28,8 @@ export type AppConfig = {
   llmProvider: LlmProviderName;
   /** Optional model id for the selected provider */
   llmModel: string | undefined;
+  /** When set, POST /sessions/demo requires matching x-demo-key / ?demoKey= */
+  demoAccessKey: string | undefined;
 };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -58,5 +60,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     llmTimeoutMs,
     llmProvider: parseLlmProvider(env.LLM_PROVIDER),
     llmModel: env.LLM_MODEL?.trim() || undefined,
+    demoAccessKey: env.DEMO_ACCESS_KEY?.trim() || undefined,
   };
 }

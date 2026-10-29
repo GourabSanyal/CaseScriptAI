@@ -7,6 +7,10 @@ import type { DemoSession } from './db/session-repository.js';
 import type { AppUser, UpsertUserInput } from './db/user-repository.js';
 import { packageRoot } from './db/env.js';
 import { extractClientIp, hashClientIp } from './http/client-ip.js';
+import {
+  checkDemoAccessKey,
+  extractDemoAccessKey,
+} from './http/demo-access-key.js';
 import { handleGetMe } from './http/me-route.js';
 import {
   checkDemoRateLimit,
@@ -26,6 +30,7 @@ export type ServerDeps = {
   ipHashSalt?: string;
   rateLimitStore?: RateLimitStore;
   tryAcquirePipeline?: () => boolean;
+  demoAccessKey?: string;
 };
 
 function sendJson(res: ServerResponse, status: number, body: unknown): void {
@@ -101,9 +106,19 @@ async function handleDemoStart(
   req: IncomingMessage,
   res: ServerResponse,
   deps: ServerDeps,
+  searchParams: URLSearchParams,
 ): Promise<void> {
   if (!deps.startDemoSession) {
     sendJson(res, 503, { ok: false, error: 'demo_unavailable' });
+    return;
+  }
+
+  const access = checkDemoAccessKey(
+    extractDemoAccessKey(req, searchParams),
+    deps.demoAccessKey,
+  );
+  if (access === 'demo_key_required') {
+    sendJson(res, 401, { ok: false, error: 'demo_key_required' });
     return;
   }
 
@@ -170,7 +185,7 @@ export function createServer(deps: ServerDeps = {}): http.Server {
     }
 
     if (method === 'POST' && url.pathname === '/sessions/demo') {
-      void handleDemoStart(req, res, deps).catch(fail);
+      void handleDemoStart(req, res, deps, url.searchParams).catch(fail);
       return;
     }
 
