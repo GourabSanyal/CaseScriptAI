@@ -173,5 +173,48 @@ describe('demo API routes', () => {
       assert.deepEqual(body, { ok: false, error: 'busy' });
     });
   });
+
+  it('POST /sessions/demo returns 401 when DEMO_ACCESS_KEY is set and missing', async () => {
+    const server = createServer({
+      demoAccessKey: 'contest-secret',
+      startDemoSession: async () => {
+        throw new Error('should_not_start');
+      },
+    });
+    await withServer(server, async (base) => {
+      const res = await fetch(`${base}/sessions/demo`, { method: 'POST' });
+      const body = await res.json();
+      assert.equal(res.status, 401);
+      assert.deepEqual(body, { ok: false, error: 'demo_key_required' });
+    });
+  });
+
+  it('POST /sessions/demo accepts x-demo-key when DEMO_ACCESS_KEY is set', async () => {
+    const server = createServer({
+      demoAccessKey: 'contest-secret',
+      startDemoSession: async () => ({ id: sessionId, status: 'queued' }),
+    });
+    await withServer(server, async (base) => {
+      const res = await fetch(`${base}/sessions/demo`, {
+        method: 'POST',
+        headers: { 'x-demo-key': 'contest-secret' },
+      });
+      assert.equal(res.status, 202);
+      assert.deepEqual(await res.json(), { id: sessionId, status: 'queued' });
+    });
+  });
+
+  it('POST /sessions/demo accepts ?demoKey= when DEMO_ACCESS_KEY is set', async () => {
+    const server = createServer({
+      demoAccessKey: 'contest-secret',
+      startDemoSession: async () => ({ id: sessionId, status: 'queued' }),
+    });
+    await withServer(server, async (base) => {
+      const res = await fetch(`${base}/sessions/demo?demoKey=contest-secret`, {
+        method: 'POST',
+      });
+      assert.equal(res.status, 202);
+    });
+  });
 });
 
