@@ -19,6 +19,7 @@ const baseConfig = (over: Partial<AppConfig> = {}): AppConfig => ({
   llmTimeoutMs: undefined,
   llmProvider: 'groq',
   llmModel: undefined,
+  demoAccessKey: undefined,
   ...over,
 });
 
