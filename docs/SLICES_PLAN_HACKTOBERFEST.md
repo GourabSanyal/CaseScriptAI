@@ -202,21 +202,30 @@
 
 | Sub | Description | Status | Tests | Impl |
 |---|---|---|---|---|
-| H6.1 | `render.yaml` blueprint (web service + Postgres) — Render native build, no Dockerfile | TODO | | |
-| H6.2 | Run migrations on deploy (`preDeployCommand` / start script) | TODO | | |
-| H6.3 | Env vars documented for Render dashboard | TODO | | |
-| H6.4 | Smoke checklist: health → generate → PDF → row in Postgres | TODO | | |
+| H6.1 | `render.yaml` blueprint (web service + Postgres) — Render native build, no Dockerfile | DONE | `h6-deploy-baseline.test.ts` | `render.yaml` |
+| H6.2 | Run migrations on deploy (`preDeployCommand` / start script) | DONE | `h6-deploy-baseline.test.ts` | `render.yaml` `preDeployCommand` |
+| H6.3 | Env vars documented for Render dashboard | DONE | `h6-deploy-baseline.test.ts` | `apps/hacktoberfest-api/README.md`, `.env.example` |
+| H6.4 | Smoke checklist: health → generate → PDF → row in Postgres | DONE | README checklist; live smoke PASSED | `apps/hacktoberfest-api/README.md` |
 | H6.5 | Moved to H5L.2 | — | | |
 | H6.6 | Moved to H5L.3 | — | | |
 | H6.7 | Moved to H5L.1 | — | | |
-| H6.11 | Clerk keys on Render env (`CLERK_SECRET_KEY`) + EAS env (`EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`) | TODO | | |
-| H6.8 | GitHub Actions: API tests + typecheck, mobile `test` + `typecheck` on PRs to this branch | TODO | | |
-| H6.9 | Optional `DEMO_ACCESS_KEY` env → generate requires header/query key when set | TODO | | |
-| H6.10 | Scope doc note: session UUID is a capability URL; open read is acceptable only for synthetic data | TODO | | |
+| H6.11 | Clerk keys on Render env (`CLERK_SECRET_KEY`) + EAS env (`EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`) | DONE | README assertions | API README + mobile `.env.example` |
+| H6.8 | GitHub Actions: API tests + typecheck, mobile `test` + `typecheck` on PRs to this branch | DONE | `h6-deploy-baseline.test.ts` | `.github/workflows/hacktoberfest.yml` |
+| H6.9 | Optional `DEMO_ACCESS_KEY` env → generate requires header/query key when set | DONE | `demo-access-key.test.ts`, `demo-api.test.ts` | `src/http/demo-access-key.ts`, `create-server.ts` |
+| H6.10 | Scope doc note: session UUID is a capability URL; open read is acceptable only for synthetic data | DONE | — | `docs/HACKTOBERFEST_WEEKEND_SCOPE.md` |
 
-**Done when:** public Render URL completes one generate after cold start; `yarn hacktoberfest:check` and CI green.
+**Test plan (H6):** ✅ green (`DATABASE_URL=` + `LIVE_PROVIDER_SMOKE=0` → 98/98). Live Render smoke already PASSED (wake → sample → PDF).
 
-**You needed first:** Render web service + Postgres + env vars (scope doc §7 C).
+1. `render.yaml` defines one web service + Postgres; `preDeployCommand` runs migrate; start uses workspace `hacktoberfest-api`.
+2. `.env.example` + README list Render env (`DATABASE_URL`, `GROQ_API_KEY`, `LLM_PROVIDER`, `PUBLIC_BASE_URL`, `CLERK_SECRET_KEY`, optional `DEMO_ACCESS_KEY`); no secrets committed.
+3. README smoke checklist: wake/`/health` → Use sample session → PDF → optional Postgres row.
+4. When `DEMO_ACCESS_KEY` unset → `POST /sessions/demo` unchanged; when set → missing/wrong key → `401 demo_key_required`; correct `x-demo-key` or `?demoKey=` → proceeds.
+5. CI workflow on this branch: `yarn hacktoberfest:check` (+ migrate with Postgres service) and mobile `typecheck` + `test`; `LIVE_PROVIDER_SMOKE=0`.
+6. Scope doc notes session UUID = capability URL (synthetic data only).
+
+**Done when:** public Render URL completes one generate after cold start (✅); `yarn hacktoberfest:check` green; artifacts above in repo. ✅
+
+**You needed first:** Render web service + Postgres + env vars (scope doc §7 C) — ✅ live.
 
 ---
 
