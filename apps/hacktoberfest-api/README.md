@@ -75,9 +75,63 @@ LIVE_PROVIDER_SMOKE=1 yarn workspace hacktoberfest-api test
 PDF download (after a session is `ready`): `GET /sessions/:id/pdf`  
 Artifacts are written under `data/pdfs/` (gitignored).
 
-Env (gitignored `.env` or shell — never commit secrets): `DATABASE_URL`, `CLERK_SECRET_KEY`, `GROQ_API_KEY`, `LLM_PROVIDER` (`groq` default | `google`), optional `LLM_MODEL`, `LLM_TIMEOUT_MS`, and `GOOGLE_AI_API_KEY` only if `LLM_PROVIDER=google`.
+Env (gitignored `.env` or shell — never commit secrets): `DATABASE_URL`, `CLERK_SECRET_KEY`, `GROQ_API_KEY`, `LLM_PROVIDER` (`groq` default | `google`), optional `LLM_MODEL`, `LLM_TIMEOUT_MS`, and `GOOGLE_AI_API_KEY` only if `LLM_PROVIDER=google`. Optional `DEMO_ACCESS_KEY` (H6.9): when set, `POST /sessions/demo` requires `x-demo-key` or `?demoKey=` — leave unset for the public contest demo.
 
 **Live LLM switch:** set `LLM_PROVIDER=groq` and `LLM_MODEL=openai/gpt-oss-20b` on the Render Web Service (same `GROQ_API_KEY` as Whisper). Flip to `google` + `GEMINI_MODEL=gemini-3.8-flash` only if you want Gemini again.
+
+## Render deploy
+
+Blueprint: repo-root [`render.yaml`](../../render.yaml) (web + Postgres, native Node build — no Dockerfile). Existing manual Web Service is fine; the blueprint documents the intended shape.
+
+**Root deploy settings (monorepo):**
+
+| Setting | Value |
+|---|---|
+| Root directory | repo root (`.`) |
+| Build | `corepack enable && yarn workspaces focus hacktoberfest-api` |
+| Pre-deploy | `yarn workspace hacktoberfest-api migrate` |
+| Start | `yarn workspace hacktoberfest-api start` |
+| Health | `GET /health` |
+
+Equivalent one-liner start (if you skip pre-deploy):  
+`yarn workspace hacktoberfest-api migrate && yarn workspace hacktoberfest-api start`
+
+### Render Web Service env (dashboard — never commit secrets)
+
+| Key | Required | Notes |
+|---|---|---|
+| `DATABASE_URL` | yes | Render Postgres **Internal** URL |
+| `GROQ_API_KEY` | yes | Whisper STT (+ chat when `LLM_PROVIDER=groq`) |
+| `CLERK_SECRET_KEY` | yes for `/me` | Server-only; never in the mobile app |
+| `PUBLIC_BASE_URL` | yes | Public HTTPS URL of this service (PDF links) |
+| `NODE_ENV` | yes | `production` |
+| `LLM_PROVIDER` | recommended | `groq` (default) |
+| `LLM_MODEL` | optional | e.g. `openai/gpt-oss-20b` |
+| `LLM_TIMEOUT_MS` | optional | e.g. `120000` |
+| `IP_HASH_SALT` | recommended | Change from default in production |
+| `DEMO_ACCESS_KEY` | optional | Locks generate when set (H6.9) |
+| `GOOGLE_AI_API_KEY` | only if google LLM | + `GEMINI_MODEL` as needed |
+
+### Mobile against live Render (H6.11)
+
+In `apps/CaseScriptAI/.env` (restart Metro after change; no prebuild for URL):
+
+```bash
+EXPO_PUBLIC_DEMO_API_URL=<same HTTPS as PUBLIC_BASE_URL>
+EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_…
+```
+
+Publishable key may be `EXPO_PUBLIC_*`. `CLERK_SECRET_KEY` stays on Render only.
+
+## Smoke checklist
+
+Operator path after deploy / cold start (live smoke already PASSED on Render):
+
+1. Open the public service URL (or wait ~1 min for free-tier wake).
+2. `GET /health` → `{ "ok": true }` (demo page also hits `/health` while waking).
+3. Demo UI → **Use sample session** → wait for Ready (rate limit: 3/IP/hour, 50/day).
+4. **Download PDF** opens a non-empty PDF.
+5. Optional: in Render Postgres / shell, confirm a `demo_sessions` row with `status = ready`.
 
 ### H5A therapist Google (local E2E checklist)
 
