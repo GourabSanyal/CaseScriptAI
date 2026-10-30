@@ -103,6 +103,8 @@ flowchart LR
 
 **Rule:** Render hosts the **app + DB + PDF**. Whisper and Gemma run on **provider APIs** (open weights). Nothing loads model weights into the 512 MB free instance.
 
+**Session URLs (H6.10):** `GET /sessions/:id` and `GET /sessions/:id/pdf` are capability URLs (unguessable UUID). Open read without login is acceptable **only** because this weekend demo uses **synthetic fixture data**, not real PHI. Do not reuse this pattern for real clinical content.
+
 ---
 
 ## 5. Open-weight choices (locked for this submission)
@@ -151,9 +153,9 @@ Agents cannot create your accounts or paste secrets into Render for you. Do thes
 
 8. [ ] In Render Dashboard: create a **PostgreSQL** instance (free). Copy **Internal** `DATABASE_URL` for the web service; use **External** only for local laptop access.  
 9. [ ] Create a **Web Service** from this GitHub repo + branch `hacktoberfest/render-session-note`.  
-10. [ ] Set env vars on the web service: `DATABASE_URL`, `GROQ_API_KEY`, `GOOGLE_AI_API_KEY`, `NODE_ENV=production`, any `PUBLIC_BASE_URL`.  
-11. [ ] Confirm free instance type; accept spin-down (cold start ~1 min). Do **not** add a Background Worker (paid).  
-12. [ ] After first deploy: hit health check URL; run one generate; confirm a row in Postgres (Render shell / external SQL client).
+10. [x] Set env vars on the web service: `DATABASE_URL` (Internal), `GROQ_API_KEY`, `CLERK_SECRET_KEY`, `PUBLIC_BASE_URL`, `NODE_ENV=production`; LLM via `LLM_PROVIDER=groq` (+ optional `LLM_MODEL`). `GOOGLE_AI_API_KEY` only if using Google LLM. Optional `DEMO_ACCESS_KEY` / `IP_HASH_SALT`. See API README “Render deploy”.  
+11. [x] Confirm free instance type; accept spin-down (cold start ~1 min). Do **not** add a Background Worker (paid).  
+12. [x] After first deploy: hit health check URL; run one generate; confirm a row in Postgres (Render shell / external SQL client). Smoke checklist: API README.
 
 ### D. Fixture & compliance
 
