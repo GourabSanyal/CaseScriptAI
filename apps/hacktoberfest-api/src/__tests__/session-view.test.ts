@@ -47,4 +47,26 @@ describe('toPublicSession', () => {
     assert.equal(view.pdfUrl, null);
     assert.equal(view.error, 'stt_failed');
   });
+
+  it('passes through sanitized failure codes only (boot / backend)', () => {
+    const session: DemoSession = {
+      id: '55555555-5555-5555-5555-555555555555',
+      status: 'failed',
+      transcript: 'should-not-leak',
+      noteJson: { subjective: 'nope' },
+      pdfPath: null,
+      pdfBytes: null,
+      clientIpHash: null,
+      attempt: 1,
+      error: 'interrupted_restart',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const view = toPublicSession(session, 'https://demo.example');
+    assert.equal(view.error, 'interrupted_restart');
+    assert.equal(view.pdfUrl, null);
+    assert.equal(JSON.stringify(view).includes('should-not-leak'), false);
+    assert.equal(JSON.stringify(view).includes('nope'), false);
+  });
 });
+
