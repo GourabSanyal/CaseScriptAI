@@ -42,6 +42,7 @@
         font-weight: 600;
         padding: 12px 22px;
         cursor: pointer;
+        transition: opacity 0.2s ease;
       }
       button:disabled { opacity: 0.55; cursor: wait; }
       .status {
@@ -59,6 +60,12 @@
       }
       a.download[hidden] { display: none !important; }
       .disclaimer { margin-top: 28px; font-size: 0.85rem; }
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation: none !important;
+          transition: none !important;
+        }
+      }
     </style>
   </head>
   <body>
@@ -77,52 +84,85 @@
       </p>
     </main>
     <script>
+      /* Mirrors apps/hacktoberfest-api/src/demo-ui/poll-schedule.ts + friendly-demo-errors.ts */
+      const POLL_MAX_WAIT_MS = 180000;
+      const WAKE_TIMEOUT_MS = 90000;
+      const WAKE_RETRY_GAP_MS = 2000;
+      const NETWORK_FAIL_LIMIT = 3;
+
       const generateBtn = document.getElementById("generate");
       const statusEl = document.getElementById("status");
       const downloadEl = document.getElementById("download");
       let pollTimer = null;
       let serverReady = false;
+      let pollCancelled = false;
+      let reduceMotion = false;
+      try {
+        reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      } catch (_) {}
 
       const setStatus = (text) => {
         statusEl.textContent = text;
       };
 
       const stopPoll = () => {
+        pollCancelled = true;
         if (pollTimer) {
-          clearInterval(pollTimer);
+          clearTimeout(pollTimer);
           pollTimer = null;
         }
       };
 
       const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+      const nextPollDelayMs = (completedPolls) => {
+        if (completedPolls < 5) return 1000;
+        if (completedPolls < 15) return 2000;
+        return 5000;
+      };
+
       const friendlyFailure = (code) => {
-        if (
-          code === "llm_unavailable" ||
-          code === "llm_http_503" ||
-          code === "llm_timeout"
-        ) {
+        const c = code || "failed";
+        if (c === "rate_limited") return "Too many demos — wait and tap Retry.";
+        if (c === "busy") {
+          return "Server is busy generating another note. Tap Retry in a moment.";
+        }
+        if (c === "demo_unavailable" || c === "sessions_unavailable") {
+          return "Demo isn't ready yet. Wait for the server, then tap Retry.";
+        }
+        if (c === "demo_key_required") {
+          return "This demo is locked. Ask the host for access.";
+        }
+        if (c === "interrupted_restart") {
+          return "Server restarted mid-run. Tap Retry to start again.";
+        }
+        if (c === "llm_unavailable" || c === "llm_http_503" || c === "llm_timeout") {
           return "AI is busy or slow right now. Tap Retry — high demand is usually temporary.";
         }
-        if (code === "llm_rate_limited" || code === "llm_http_429") {
+        if (c === "llm_rate_limited" || c === "llm_http_429") {
           return "AI rate limit hit. Wait a moment, then tap Retry.";
         }
-        if (code === "stt_timeout") {
-          return "Transcription timed out. Tap Retry.";
+        if (c === "stt_timeout") return "Transcription timed out. Tap Retry.";
+        if (c === "network" || c === "wake_timeout") {
+          return "Can't reach server. Check your connection or try again.";
         }
-        return "Failed (" + code + "). Tap Retry to try again.";
+        if (c === "poll_timeout") {
+          return "Timed out waiting for the note. Tap Retry.";
+        }
+        return "Failed (" + c + "). Tap Retry to try again.";
       };
 
       const markRetryable = () => {
         generateBtn.disabled = false;
-        generateBtn.textContent = "Retry sample session";
+        generateBtn.textContent = serverReady ? "Retry sample session" : "Retry wake";
       };
 
       const wakeServer = async () => {
         const started = Date.now();
+        serverReady = false;
         generateBtn.disabled = true;
         setStatus("Waking server (~1 min)…");
-        while (Date.now() - started < 90000) {
+        while (Date.now() - started < WAKE_TIMEOUT_MS) {
           try {
             const res = await fetch("/health");
             if (res.ok) {
@@ -132,10 +172,13 @@
               setStatus("Ready.");
               return;
             }
-          } catch (_) {}
-          await sleep(2000);
+          } catch (_) {
+            /* cold start / offline — keep trying until wake timeout */
+          }
+          await sleep(WAKE_RETRY_GAP_MS);
         }
-        setStatus("Server wake timed out. Refresh the page.");
+        setStatus(friendlyFailure("wake_timeout"));
+        markRetryable();
       };
 
       const stepLabel = (status) => {
@@ -149,20 +192,45 @@
 
       const pollSession = (id) => {
         stopPoll();
-        pollTimer = setInterval(async () => {
+        pollCancelled = false;
+        const started = Date.now();
+        let completedPolls = 0;
+        let networkFails = 0;
+
+        const scheduleNext = () => {
+          if (pollCancelled) return;
+          const delay = reduceMotion
+            ? Math.max(nextPollDelayMs(completedPolls), 1000)
+            : nextPollDelayMs(completedPolls);
+          completedPolls += 1;
+          pollTimer = setTimeout(() => {
+            void tick();
+          }, delay);
+        };
+
+        const tick = async () => {
+          if (pollCancelled) return;
+          if (document.hidden) {
+            scheduleNext();
+            return;
+          }
+          if (Date.now() - started >= POLL_MAX_WAIT_MS) {
+            setStatus(friendlyFailure("poll_timeout"));
+            markRetryable();
+            return;
+          }
           try {
             const res = await fetch("/sessions/" + id);
             const data = await res.json();
+            networkFails = 0;
             if (!res.ok) {
-              setStatus("Error: " + (data.error || "status_failed"));
+              setStatus(friendlyFailure(data.error || "status_failed"));
               markRetryable();
-              stopPoll();
               return;
             }
             if (data.status === "failed") {
               setStatus(friendlyFailure(data.error || "failed"));
               markRetryable();
-              stopPoll();
               return;
             }
             setStatus(stepLabel(data.status));
@@ -171,15 +239,27 @@
               downloadEl.href = data.pdfUrl;
               generateBtn.disabled = false;
               generateBtn.textContent = "Use sample session";
-              stopPoll();
+              return;
             }
-          } catch {
-            setStatus("Error: network — tap Retry.");
-            markRetryable();
-            stopPoll();
+            scheduleNext();
+          } catch (_) {
+            networkFails += 1;
+            if (networkFails >= NETWORK_FAIL_LIMIT) {
+              setStatus(friendlyFailure("network"));
+              markRetryable();
+              return;
+            }
+            setStatus("Connection issue — retrying…");
+            scheduleNext();
           }
-        }, 1000);
+        };
+
+        void tick();
       };
+
+      document.addEventListener("visibilitychange", () => {
+        /* tick() skips work while document.hidden; resume on next scheduled delay */
+      });
 
       generateBtn.addEventListener("click", async () => {
         if (!serverReady) {
@@ -191,20 +271,21 @@
         setStatus("Starting…");
         try {
           const res = await fetch("/sessions/demo", { method: "POST" });
-          const data = await res.json();
+          let data = {};
+          try {
+            data = await res.json();
+          } catch (_) {
+            data = {};
+          }
           if (!res.ok) {
-            setStatus(
-              data.error === "rate_limited"
-                ? "Too many demos — wait and tap Retry."
-                : "Error: " + (data.error || "start_failed"),
-            );
+            setStatus(friendlyFailure(data.error || "start_failed"));
             markRetryable();
             return;
           }
           setStatus(stepLabel(data.status));
           pollSession(data.id);
-        } catch {
-          setStatus("Error: network — tap Retry.");
+        } catch (_) {
+          setStatus(friendlyFailure("network"));
           markRetryable();
         }
       });
