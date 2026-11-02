@@ -76,7 +76,7 @@ describe('demo API routes', () => {
     });
   });
 
-  it('GET / serves the demo HTML', async () => {
+  it('GET / serves the demo HTML with wake, backoff, and error UX', async () => {
     const server = createServer();
     await withServer(server, async (base) => {
       const res = await fetch(`${base}/`);
@@ -86,7 +86,18 @@ describe('demo API routes', () => {
       assert.match(html, /Use sample session/);
       assert.match(html, /Waking server/);
       assert.match(html, /\/health/);
+      assert.match(html, /WAKE_TIMEOUT_MS = 90000/);
+      assert.match(html, /POLL_MAX_WAIT_MS = 180000/);
+      assert.match(html, /nextPollDelayMs/);
+      assert.match(html, /visibilitychange/);
+      assert.match(html, /document\.hidden/);
+      assert.match(html, /prefers-reduced-motion/);
+      assert.match(html, /Connection issue — retrying/);
+      assert.match(html, /Can't reach server/);
+      assert.match(html, /Timed out waiting for the note/);
+      assert.match(html, /Too many demos/);
       assert.match(html, /llm_unavailable/);
+      assert.match(html, /interrupted_restart/);
       assert.match(html, /Retry/);
     });
   });
