@@ -236,10 +236,18 @@
 | H6U.1 | Step progress UI (Transcribing → Writing note → Building PDF → Ready) instead of raw status | DONE | HTML assertion in `demo-api.test.ts` | `public/index.html` |
 | H6U.2 | Cold-start notice: "Waking server (~1 min)" when first request is slow | DONE | `wake-demo-api.test.ts`, HTML assertion in `demo-api.test.ts` | `wake-demo-api.ts`, `use-wake-demo-api.ts`, `welcome.tsx`, `public/index.html` |
 | H6U.3 | Retry button on `failed` (reuses idempotent pipeline steps) | DONE | HTML assertion (`Retry`) in `demo-api.test.ts` | `public/index.html` (+ LLM 503 retries in `gemma-llm.ts`) |
-| H6U.4 | Poll backoff (1s → 2s → 5s cap), max wait, pause when tab hidden; respect `prefers-reduced-motion` | TODO | | |
+| H6U.4 | Poll backoff (1s → 2s → 5s cap), max wait, pause when tab hidden; respect `prefers-reduced-motion` | DONE | `poll-schedule.test.ts`, `friendly-demo-errors.test.ts`, HTML in `demo-api.test.ts`, `wake-demo-api.test.ts` | `src/demo-ui/*`, `public/index.html`, mobile `wake-demo-api.ts` |
 | H6U.5 | Note preview on page before PDF download (synthetic data only) | TODO | | |
 
-**Done when:** happy path + failure + retry demoable on the Render URL; `GET /` HTML assertions updated.
+**Test plan (H6U.4):** ✅ green (API 103/103 with `DATABASE_URL=` + `LIVE_PROVIDER_SMOKE=0`; mobile wake suite 4/4).
+
+1. `nextPollDelayMs`: first 5 polls → 1000ms; next 10 → 2000ms; then 5000ms; `POLL_MAX_WAIT_MS` = 3 min.
+2. Demo HTML: uses backoff + max wait copy; `visibilitychange` pauses while hidden; `prefers-reduced-motion` CSS present; wake timeout / network / backend error strings are user-facing (no PHI).
+3. `friendlyDemoError` maps `busy`, `rate_limited`, `llm_*`, `stt_*`, `interrupted_restart`, network to plain language + Retry guidance.
+4. `wakeDemoApi`: retries non-OK health + thrown network errors; fails with connection copy after timeout; cold-start flag when elapsed ≥ 3s.
+5. Public session DTO still exposes only sanitized `error` codes (no transcript).
+
+**Done when:** happy path + failure + retry demoable on the Render URL; `GET /` HTML assertions updated. ✅ (H6U.5 note preview still TODO)
 
 ---
 
