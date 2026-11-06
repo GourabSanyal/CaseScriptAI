@@ -99,6 +99,11 @@ describe('demo API routes', () => {
       assert.match(html, /llm_unavailable/);
       assert.match(html, /interrupted_restart/);
       assert.match(html, /Retry/);
+      assert.match(html, /id="note"/);
+      assert.match(html, /Note preview/);
+      assert.match(html, /note-subjective/);
+      assert.match(html, /\/note/);
+      assert.match(html, /Synthetic demo note/);
     });
   });
 
