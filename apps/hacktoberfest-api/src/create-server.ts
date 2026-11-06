@@ -12,6 +12,7 @@ import {
   extractDemoAccessKey,
 } from './http/demo-access-key.js';
 import { handleGetMe } from './http/me-route.js';
+import { handleGetNote } from './http/note-route.js';
 import {
   checkDemoRateLimit,
   type RateLimitStore,
@@ -60,6 +61,7 @@ function sendPdf(res: ServerResponse, bytes: Buffer, sessionId: string): void {
 const SESSION_ID =
   '([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})';
 const SESSION_PDF_PATH = new RegExp(`^/sessions/${SESSION_ID}/pdf$`, 'i');
+const SESSION_NOTE_PATH = new RegExp(`^/sessions/${SESSION_ID}/note$`, 'i');
 const SESSION_PATH = new RegExp(`^/sessions/${SESSION_ID}$`, 'i');
 
 async function handleSessionPdf(
@@ -186,6 +188,15 @@ export function createServer(deps: ServerDeps = {}): http.Server {
 
     if (method === 'POST' && url.pathname === '/sessions/demo') {
       void handleDemoStart(req, res, deps, url.searchParams).catch(fail);
+      return;
+    }
+
+    const noteMatch = url.pathname.match(SESSION_NOTE_PATH);
+    if (method === 'GET' && noteMatch) {
+      void handleGetNote(res, noteMatch[1], {
+        getSessionById: deps.getSessionById,
+        sendJson,
+      }).catch(fail);
       return;
     }
 
