@@ -59,6 +59,11 @@
         font-weight: 600;
       }
       a.download[hidden] { display: none !important; }
+      #note { margin-top: 20px; }
+      #note[hidden] { display: none !important; }
+      #note h2 { font-size: 1.1rem; margin: 0 0 8px; color: var(--sage); }
+      #note h3 { font-size: 0.95rem; margin: 12px 0 4px; }
+      #note p { margin: 0 0 8px; color: var(--ink); }
       .disclaimer { margin-top: 28px; font-size: 0.85rem; }
       @media (prefers-reduced-motion: reduce) {
         *, *::before, *::after {
@@ -77,6 +82,18 @@
       </p>
       <button id="generate" type="button" disabled>Use sample session</button>
       <div class="status" id="status" aria-live="polite">Waking server (~1 min)…</div>
+      <section id="note" hidden>
+        <h2>Note preview</h2>
+        <p id="note-status" class="disclaimer">Synthetic demo note — not real PHI.</p>
+        <h3>Subjective</h3>
+        <p id="note-subjective"></p>
+        <h3>Objective</h3>
+        <p id="note-objective"></p>
+        <h3>Assessment</h3>
+        <p id="note-assessment"></p>
+        <h3>Plan</h3>
+        <p id="note-plan"></p>
+      </section>
       <a class="download" id="download" hidden href="#">Download PDF</a>
       <p class="disclaimer">
         Audio is a fictional scripted conversation for Hacktoberfest. Not for
@@ -93,6 +110,14 @@
       const generateBtn = document.getElementById("generate");
       const statusEl = document.getElementById("status");
       const downloadEl = document.getElementById("download");
+      const noteEl = document.getElementById("note");
+      const noteStatusEl = document.getElementById("note-status");
+      const noteFields = {
+        subjective: document.getElementById("note-subjective"),
+        objective: document.getElementById("note-objective"),
+        assessment: document.getElementById("note-assessment"),
+        plan: document.getElementById("note-plan"),
+      };
       let pollTimer = null;
       let serverReady = false;
       let pollCancelled = false;
@@ -150,6 +175,33 @@
           return "Timed out waiting for the note. Tap Retry.";
         }
         return "Failed (" + c + "). Tap Retry to try again.";
+      };
+
+      const hideNote = () => {
+        noteEl.hidden = true;
+        noteStatusEl.textContent = "Synthetic demo note — not real PHI.";
+        for (const el of Object.values(noteFields)) el.textContent = "";
+      };
+
+      const showNote = async (id) => {
+        noteEl.hidden = false;
+        try {
+          const res = await fetch("/sessions/" + id + "/note");
+          if (!res.ok) {
+            noteStatusEl.textContent =
+              "Note preview unavailable. You can still download the PDF.";
+            return;
+          }
+          const note = await res.json();
+          noteStatusEl.textContent = "Synthetic demo note — not real PHI.";
+          for (const key of Object.keys(noteFields)) {
+            noteFields[key].textContent =
+              typeof note[key] === "string" ? note[key] : "";
+          }
+        } catch (_) {
+          noteStatusEl.textContent =
+            "Note preview unavailable. You can still download the PDF.";
+        }
       };
 
       const markRetryable = () => {
@@ -235,6 +287,7 @@
             }
             setStatus(stepLabel(data.status));
             if (data.status === "ready" && data.pdfUrl) {
+              await showNote(id);
               downloadEl.hidden = false;
               downloadEl.href = data.pdfUrl;
               generateBtn.disabled = false;
@@ -268,6 +321,7 @@
         }
         generateBtn.disabled = true;
         downloadEl.hidden = true;
+        hideNote();
         setStatus("Starting…");
         try {
           const res = await fetch("/sessions/demo", { method: "POST" });
