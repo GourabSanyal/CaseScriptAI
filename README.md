@@ -53,9 +53,44 @@ yarn workspace casescriptai lint
 yarn workspace casescriptai test
 ```
 
+## Hacktoberfest weekend demo
+
+**Who it’s for:** a therapist friend who wants session notes without typing them up after a call.
+
+**Weekend story:** a short **synthetic** sample recording (not real PHI) is transcribed with open-weight Whisper, turned into a structured clinical note, stored in **Render Postgres**, and returned as a **PDF** — plus an on-page note preview.
+
+```
+Browser “Use sample session”
+  → Render Web Service (TypeScript, in-process pipeline)
+      → Whisper STT (hosted API) → note LLM (env-selected) → validate → PDF
+      → Postgres (transcript, note JSON, PDF bytes)
+  → Note preview + Download PDF
+```
+
+| | |
+|--|--|
+| Branch | `hacktoberfest/render-session-note` |
+| Scope | [`docs/HACKTOBERFEST_WEEKEND_SCOPE.md`](docs/HACKTOBERFEST_WEEKEND_SCOPE.md) |
+| Local API | [`apps/hacktoberfest-api/README.md`](apps/hacktoberfest-api/README.md) |
+| Capture GIF | [`docs/HACKTOBERFEST_DEMO_CAPTURE.md`](docs/HACKTOBERFEST_DEMO_CAPTURE.md) |
+| DEV post draft | [`docs/HACKTOBERFEST_DEV_POST.md`](docs/HACKTOBERFEST_DEV_POST.md) |
+
+**How to run locally**
+
+```bash
+# after yarn install + copy apps/hacktoberfest-api/.env.example → .env
+docker compose up -d
+yarn hacktoberfest:migrate
+yarn hacktoberfest:dev    # http://localhost:3001/
+```
+
+**Fixture disclaimer:** audio under `apps/hacktoberfest-api/fixtures/` is fictional demo data — not for clinical use.
+
+**Live demo:** set `PUBLIC_BASE_URL` on Render to the public HTTPS URL of the Web Service; judges open that URL (cold start ~1 min on free tier).
+
 ## Quick start (Hacktoberfest API)
 
-Monorepo install is above. Full Docker / migrate / env steps:
+Monorepo install is above. Full Docker / migrate / env / Render steps:
 
 → [`apps/hacktoberfest-api/README.md`](apps/hacktoberfest-api/README.md)
 
