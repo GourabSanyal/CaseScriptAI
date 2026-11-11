@@ -15,6 +15,9 @@ describe('demo-auth-service', () => {
     if (!result.success) return;
     expect(result.data.role).toBe('therapist');
     expect(result.data.displayName).toContain('Ada');
+    expect(result.data.token).toMatch(/^demo-therapist-/);
+    expect(result.data.token.includes('@')).toBe(false);
+    expect(result.data.token.includes('ada@clinic.com')).toBe(false);
   });
 
   it('rejects short therapist passwords', () => {
