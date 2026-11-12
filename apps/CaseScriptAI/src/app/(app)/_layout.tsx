@@ -73,6 +73,15 @@ function TherapistTabs() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="demo-note"
+        options={{
+          title: 'Demo',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="description" size={size} color={color} />
+          ),
+        }}
+      />
       <Tabs.Screen name="processing" options={{ href: null }} />
       <Tabs.Screen name="preview" options={{ href: null }} />
       <Tabs.Screen name="export" options={{ href: null }} />
