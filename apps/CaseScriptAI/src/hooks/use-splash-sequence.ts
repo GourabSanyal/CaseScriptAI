@@ -9,6 +9,8 @@ import {
   withTiming,
 } from 'react-native-reanimated';
 
+import { useMotionBudget } from '@/hooks/use-motion-budget';
+
 const LOGO_DURATION_MS = 1200;
 const TEXT_DURATION_MS = 800;
 const TITLE_DELAY_MS = 600;
@@ -18,17 +20,22 @@ const DISMISS_DURATION_MS = 400;
 const EASE = Easing.bezier(0.22, 1, 0.36, 1);
 
 export function useSplashSequence(readyToDismiss: boolean, onFinish: () => void) {
-  const logoOpacity = useSharedValue(0);
-  const logoScale = useSharedValue(0.95);
-  const titleOpacity = useSharedValue(0);
-  const titleTranslateY = useSharedValue(20);
-  const taglineOpacity = useSharedValue(0);
-  const taglineTranslateY = useSharedValue(20);
-  const loaderOpacity = useSharedValue(0);
+  const budget = useMotionBudget();
+  const logoOpacity = useSharedValue(budget === 'none' ? 1 : 0);
+  const logoScale = useSharedValue(budget === 'none' ? 1 : 0.95);
+  const titleOpacity = useSharedValue(budget === 'none' ? 1 : 0);
+  const titleTranslateY = useSharedValue(budget === 'none' ? 0 : 20);
+  const taglineOpacity = useSharedValue(budget === 'none' ? 1 : 0);
+  const taglineTranslateY = useSharedValue(budget === 'none' ? 0 : 20);
+  const loaderOpacity = useSharedValue(budget === 'none' ? 1 : 0);
   const overlayOpacity = useSharedValue(1);
-  const [animationsDone, setAnimationsDone] = useState(false);
+  const [animationsDone, setAnimationsDone] = useState(budget === 'none');
 
   useEffect(() => {
+    if (budget === 'none') {
+      setAnimationsDone(true);
+      return;
+    }
     logoOpacity.value = withTiming(1, { duration: LOGO_DURATION_MS, easing: EASE });
     logoScale.value = withTiming(1, { duration: LOGO_DURATION_MS, easing: EASE });
 
@@ -59,6 +66,7 @@ export function useSplashSequence(readyToDismiss: boolean, onFinish: () => void)
       }),
     );
   }, [
+    budget,
     loaderOpacity,
     logoOpacity,
     logoScale,

@@ -2,6 +2,8 @@ import { Image } from 'expo-image';
 import { Dimensions, StyleSheet, View } from 'react-native';
 import Animated, { Easing, Keyframe } from 'react-native-reanimated';
 
+import { useMotionBudget } from '@/hooks/use-motion-budget';
+
 const INITIAL_SCALE_FACTOR = Dimensions.get('screen').height / 90;
 const DURATION = 600;
 
@@ -42,6 +44,18 @@ const glowKeyframe = new Keyframe({
 });
 
 export function AnimatedIcon() {
+  const budget = useMotionBudget();
+  if (budget === 'none') {
+    return (
+      <View style={styles.iconContainer}>
+        <View style={styles.background} />
+        <View style={styles.imageContainer}>
+          <Image style={styles.image} source={require('@/assets/images/expo-logo.png')} />
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.iconContainer}>
       <Animated.View entering={glowKeyframe.duration(60 * 1000 * 4)} style={styles.glow}>
