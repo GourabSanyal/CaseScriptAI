@@ -1,4 +1,5 @@
 import { Image } from 'expo-image';
+import { Redirect } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import React from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet } from 'react-native';
@@ -13,6 +14,10 @@ import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function TabTwoScreen() {
+  if (!__DEV__) {
+    return <Redirect href="/" />;
+  }
+
   const safeAreaInsets = useSafeAreaInsets();
   const insets = {
     ...safeAreaInsets,

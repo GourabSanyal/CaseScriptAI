@@ -1,3 +1,4 @@
+import { Redirect } from "expo-router";
 import React from "react";
 import { ScrollView, StyleSheet, Text } from "react-native";
 import { useAudio } from "@/hooks/audio/use-audio";
@@ -8,6 +9,9 @@ import { PipelineSection } from "@/components/poc/sections/pipeline-section";
 import { OutputsSection } from "@/components/poc/sections/outputs-section";
 
 export const PoCTestScreen = (): React.JSX.Element => {
+  if (!__DEV__) {
+    return <Redirect href="/" />;
+  }
   const {
     handleAudioImport,
     playAudio,
