@@ -21,12 +21,18 @@ export const signInTherapistDemo = (
   if (password.length < 6) {
     return { success: false, error: 'Password must be at least 6 characters' };
   }
+  const random =
+    typeof globalThis.crypto?.randomUUID === 'function'
+      ? globalThis.crypto.randomUUID().replace(/-/g, '').slice(0, 12)
+      : `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+
   return {
     success: true,
     data: {
       role: 'therapist',
       displayName: displayNameFromEmail(email),
-      token: `demo-therapist-${email}`,
+      // H8.1 — never embed email in the persisted demo token
+      token: `demo-therapist-${random}`,
       createdAt: Date.now(),
     },
   };

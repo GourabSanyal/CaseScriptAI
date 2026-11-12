@@ -1,9 +1,41 @@
 import { MMKV } from 'react-native-mmkv';
 
+import { getCachedMmkvEncryptionKey } from '@/services/storage/mmkv-encryption';
+
 import type { StateStorage } from 'zustand/middleware';
 
 export const storage = new MMKV({ id: 'poc-storage' });
-export const appStorage = new MMKV({ id: 'casescriptai-storage' });
+
+let appStorageInstance: MMKV | null = null;
+
+/**
+ * Encrypted when `loadOrCreateMmkvEncryptionKey` has run (boot).
+ * Call `resetAppStorageForTests` in Jest between suites if needed.
+ */
+export const getAppStorage = (): MMKV => {
+  if (!appStorageInstance) {
+    const encryptionKey = getCachedMmkvEncryptionKey();
+    appStorageInstance = new MMKV({
+      id: 'casescriptai-storage',
+      ...(encryptionKey ? { encryptionKey } : {}),
+    });
+  }
+  return appStorageInstance;
+};
+
+/** Reset singleton after setting a new encryption key (boot / tests). */
+export const resetAppStorageInstance = (): void => {
+  appStorageInstance = null;
+};
+
+/** Back-compat: same API as a direct MMKV instance. */
+export const appStorage: MMKV = new Proxy({} as MMKV, {
+  get(_target, prop, receiver) {
+    const instance = getAppStorage();
+    const value = Reflect.get(instance, prop, receiver);
+    return typeof value === 'function' ? value.bind(instance) : value;
+  },
+});
 
 export const zustandMMKVStorage: StateStorage = {
   setItem: (name, value) => {
@@ -20,10 +52,10 @@ export const zustandMMKVStorage: StateStorage = {
 
 export const appZustandMMKVStorage: StateStorage = {
   setItem: (name, value) => {
-    appStorage.set(name, value);
+    getAppStorage().set(name, value);
   },
-  getItem: (name) => appStorage.getString(name) ?? null,
+  getItem: (name) => getAppStorage().getString(name) ?? null,
   removeItem: (name) => {
-    appStorage.delete(name);
+    getAppStorage().delete(name);
   },
 };

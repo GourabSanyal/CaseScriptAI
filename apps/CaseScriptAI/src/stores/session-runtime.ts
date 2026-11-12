@@ -3,6 +3,8 @@ import { requireOptionalNativeModule } from 'expo-modules-core';
 
 import { setCryptoKeyProvider } from '@/services/audio/crypto-service';
 import { createKeyStore, createMemorySecureStore } from '@/services/storage/key-store';
+import { loadOrCreateMmkvEncryptionKey } from '@/services/storage/mmkv-encryption';
+import { resetAppStorageInstance } from '@/services/storage/mmkv';
 import {
   createMemorySessionRepository,
   createSqliteSessionRepository,
@@ -58,6 +60,10 @@ const secureStoreFromExpo = async (): Promise<{
 export const initAppStorage = async (): Promise<Result<void>> => {
   try {
     const secure = await secureStoreFromExpo();
+    // H8.1 — encrypt app MMKV before auth/download stores keep writing.
+    await loadOrCreateMmkvEncryptionKey(secure);
+    resetAppStorageInstance();
+
     const keys = createKeyStore(secure);
     setCryptoKeyProvider(() => keys.getOrCreateAesKey());
 
