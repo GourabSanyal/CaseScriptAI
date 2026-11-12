@@ -210,20 +210,17 @@ export const useSpeechToTextInference = () => {
 
         const model = modelResult.data;
 
-        console.log("[SpeechToText] Loading audio file:", audioPath);
-
         let audioBuffer: Float32Array;
         try {
           const audioFile = new File(audioPath);
           if (!audioFile.exists) {
-            throw new Error(`Audio file not found at ${audioPath}`);
+            throw new Error('Audio file not found');
           }
 
           const bytes = await audioFile.bytes();
           audioBuffer = parseWavData(bytes);
-          console.log("[SpeechToText] WAV parsed successfully, samples:", audioBuffer.length);
         } catch (decodeErr) {
-          console.error("[SpeechToText] WAV parsing error:", decodeErr);
+          console.error('[SpeechToText] wav_parse_failed');
           setIsTranscribing(false);
           const errorMessage =
             decodeErr instanceof Error ? decodeErr.message : "Unknown error";
@@ -232,8 +229,6 @@ export const useSpeechToTextInference = () => {
             error: `Failed to parse WAV file: ${errorMessage}`,
           };
         }
-
-        console.log("[Pipeline] 🔊 Whisper starting transcription...");
 
         const transcriptionResult = await model.transcribe(audioBuffer, {
           language: "en",
@@ -245,19 +240,13 @@ export const useSpeechToTextInference = () => {
 
         const transcriptionText = transcriptionResult.text;
 
-        console.log("[Pipeline] ✅ Whisper transcription complete");
-        console.log(
-          "[Pipeline] Transcript:",
-          transcriptionText.substring(0, 100) +
-            (transcriptionText.length > 100 ? "..." : ""),
-        );
         setTranscript(transcriptionText);
         setIsTranscribing(false);
         return { success: true, data: transcriptionText };
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "Transcription failed";
-        console.error("[Pipeline] ❌ Whisper transcription error:", message);
+        console.error('[Pipeline] whisper_failed');
         setError(message);
         setIsTranscribing(false);
         return { success: false, error: message };
