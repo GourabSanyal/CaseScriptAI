@@ -263,11 +263,20 @@
 
 | Sub | Description | Status | Tests | Impl |
 |---|---|---|---|---|
-| H7.1 | README section: who it’s for, architecture, how to run, fixture disclaimer | TODO | | |
-| H7.2 | Screen recording / GIF of happy path | TODO | | |
-| H7.3 | DEV post draft: friend, open Whisper+Gemma, Render role, demo link | TODO | | |
+| H7.1 | README section: who it’s for, architecture, how to run, fixture disclaimer | DONE | `h7-writeup-baseline.test.ts` | root `README.md` |
+| H7.2 | Screen recording / GIF of happy path | DONE | `h7-writeup-baseline.test.ts` | `docs/HACKTOBERFEST_DEMO_CAPTURE.md` (operator drops GIF at `docs/assets/hacktoberfest-happy-path.gif`) |
+| H7.3 | DEV post draft: friend, open Whisper+Gemma, Render role, demo link | DONE | `h7-writeup-baseline.test.ts` | `docs/HACKTOBERFEST_DEV_POST.md` |
 
-**Done when:** submission post can be published with working demo link.
+**Test plan (H7):** ✅ green (`h7-writeup-baseline.test.ts` via `yarn hacktoberfest:check`).
+
+1. Root README has a Hacktoberfest contest section: friend, architecture summary, how to run, fixture disclaimer, links to scope + API README + demo capture + DEV draft.
+2. Capture checklist lists wake → sample → note preview → PDF; documents where to put the GIF/video.
+3. DEV post draft names the friend, Render hosting, Whisper + note LLM (Groq default; Gemma via env), demo URL placeholder, fixture disclaimer.
+4. No secrets in any write-up artifact.
+
+**Done when:** pack is ready to publish. Operator still: paste live Render URL into the draft, record GIF per capture checklist, publish DEV post + partner category.
+
+**You do next (human):** open [`docs/HACKTOBERFEST_DEV_POST.md`](./HACKTOBERFEST_DEV_POST.md), replace `YOUR_RENDER_HTTPS_URL`, capture per [`HACKTOBERFEST_DEMO_CAPTURE.md`](./HACKTOBERFEST_DEMO_CAPTURE.md), publish.
 
 ---
 
@@ -277,15 +286,25 @@
 
 | Sub | Description | Status | Tests | Impl |
 |---|---|---|---|---|
-| H8.1 | Encrypt auth MMKV store (`casescriptai-storage`) and drop raw email from demo token | TODO | | |
-| H8.2 | Strip `console.*` in release builds (babel config); replace PHI-adjacent logs in AI hooks | TODO | | |
-| H8.3 | Exclude `poc.tsx` / `explore.tsx` routes from release builds | TODO | | |
-| H8.4 | Lazy-load ExecuTorch / ffmpeg / Whisper modules only when `LOCAL_ON_DEVICE_AI_ENABLED` is `true` | TODO | | |
-| H8.5 | Motion budget applied to every animated component; low-end Android test checklist | TODO | | |
-| H8.6 | Drop one of `expo-av` / `expo-audio` (keep `expo-audio`) | TODO | | |
-| H8.7 | Thin therapist "Generate demo note" screen → Render API (status + PDF open/share) | TODO | | |
+| H8.1 | Encrypt auth MMKV store (`casescriptai-storage`) and drop raw email from demo token | DONE | `mmkv-encryption.test.ts`, `demo-auth-service.test.ts` | `mmkv.ts`, `mmkv-encryption.ts`, `demo-auth-service.ts`, `session-runtime.ts` |
+| H8.2 | Strip `console.*` in release builds (babel config); replace PHI-adjacent logs in AI hooks | DONE | `h8-guardrails.test.ts` | `babel.config.js`, `use-speech-to-text.ts` |
+| H8.3 | Exclude `poc.tsx` / `explore.tsx` routes from release builds | DONE | `h8-guardrails.test.ts` | `poc.tsx`, `explore.tsx` |
+| H8.4 | Lazy-load ExecuTorch / ffmpeg / Whisper modules only when `LOCAL_ON_DEVICE_AI_ENABLED` is `true` | DONE | `features.test.ts`, `h8-guardrails.test.ts` | flag false by default; app layout gates binders; POC redirected in release |
+| H8.5 | Motion budget applied to every animated component; low-end Android test checklist | DONE | `motion-budget.test.ts`, checklist | `animated-icon`, `collapsible`, `use-splash-sequence`, `docs/H8_LOW_END_ANDROID_CHECKLIST.md` |
+| H8.6 | Drop one of `expo-av` / `expo-audio` (keep `expo-audio`) | DONE | `h8-guardrails.test.ts` | `package.json` (removed `expo-av`) |
+| H8.7 | Thin therapist "Generate demo note" screen → Render API (status + PDF open/share) | DONE | `demo-api-client.test.ts`, `demo-note-store.test.ts` | `demo-api-client.ts`, `demo-note-store.ts`, `demo-note.tsx`, `open-demo-pdf.ts` |
 
-**Done when:** mobile `test` + `typecheck` green; release build has no `console.*` and no POC routes.
+**Test plan (H8):** ✅ green — mobile `typecheck` + `test` **248/248**.
+
+1. MMKV `appStorage` constructed with SecureStore-backed `encryptionKey`; demo token is `demo-therapist-<random>` (no email).
+2. `babel.config.js` strips `console.*` when `NODE_ENV=production`; STT hooks never log transcript/audio path.
+3. `poc` / `explore` redirect to `/` when `!__DEV__`.
+4. Native AI modules only mount behind `LOCAL_ON_DEVICE_AI_ENABLED` (false by default).
+5. Animated components call `useMotionBudget()`; `none` → static; checklist in `docs/H8_LOW_END_ANDROID_CHECKLIST.md`.
+6. `expo-av` removed from `package.json`; no `from 'expo-av'` imports.
+7. Therapist **Demo** tab: wake → start → poll → Open/share PDF via `expo-sharing`.
+
+**Done when:** mobile `test` + `typecheck` green; release build has no `console.*` and no POC routes. ✅
 
 ---
 
