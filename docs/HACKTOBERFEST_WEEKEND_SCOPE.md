@@ -164,9 +164,9 @@ Agents cannot create your accounts or paste secrets into Render for you. Do thes
 
 ### E. Submission package
 
-15. [ ] Record a 30–60s screen capture of the happy path.  
-16. [ ] Publish DEV post with template tags; link Render URL + repo + this scope doc.  
-17. [ ] Enter partner category **Best Use of Render** (and Gemma only if Gemma is clearly in the demo path).
+15. [ ] Record a 30–60s screen capture of the happy path — checklist: [`HACKTOBERFEST_DEMO_CAPTURE.md`](./HACKTOBERFEST_DEMO_CAPTURE.md).  
+16. [ ] Publish DEV post (draft: [`HACKTOBERFEST_DEV_POST.md`](./HACKTOBERFEST_DEV_POST.md)); link Render URL + repo + this scope doc.  
+17. [ ] Enter partner category **Best Use of Render** (and Gemma only if Gemma is clearly in the live demo path; default live LLM is Groq).
 
 ### F. Hand-off to the agent (each coding session)
 

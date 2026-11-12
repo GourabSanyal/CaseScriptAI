@@ -130,8 +130,11 @@ Operator path after deploy / cold start (live smoke already PASSED on Render):
 1. Open the public service URL (or wait ~1 min for free-tier wake).
 2. `GET /health` → `{ "ok": true }` (demo page also hits `/health` while waking).
 3. Demo UI → **Use sample session** → wait for Ready (rate limit: 3/IP/hour, 50/day).
-4. **Download PDF** opens a non-empty PDF.
-5. Optional: in Render Postgres / shell, confirm a `demo_sessions` row with `status = ready`.
+4. **Note preview** shows Subjective / Objective / Assessment / Plan (synthetic data).
+5. **Download PDF** opens a non-empty PDF.
+6. Optional: in Render Postgres / shell, confirm a `demo_sessions` row with `status = ready`.
+
+Contest write-up: root [`README.md`](../../README.md) (Hacktoberfest section), capture checklist [`docs/HACKTOBERFEST_DEMO_CAPTURE.md`](../../docs/HACKTOBERFEST_DEMO_CAPTURE.md), DEV draft [`docs/HACKTOBERFEST_DEV_POST.md`](../../docs/HACKTOBERFEST_DEV_POST.md).
 
 ### H5A therapist Google (local E2E checklist)
 
