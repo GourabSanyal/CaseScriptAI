@@ -312,8 +312,16 @@
 
 | Sub | Description | Status | Tests | Impl |
 |---|---|---|---|---|
-| H9.1 | Upload own short audio (size/duration cap, WAV/MP3 check, rate limit from H5S.1 applies) | TODO | | |
+| H9.1 | Upload own short audio (size/duration cap, WAV/MP3 check, rate limit from H5S.1 applies) | DONE | `validate-demo-audio.test.ts`, `parse-multipart-audio.test.ts`, `demo-api.test.ts` | `audio/validate-demo-audio.ts`, `audio/parse-multipart-audio.ts`, `http/demo-start-route.ts`, `public/index.html` |
 | H9.2 | Recent sessions list (last 5) on demo page | TODO | | |
+
+**Test plan (H9.1):** ✅ green (`DATABASE_URL=` + `LIVE_PROVIDER_SMOKE=0`).
+1. Reject non-WAV/MP3 magic bytes → `audio_invalid_type`.
+2. Reject over size cap (8 MB) → `audio_too_large`.
+3. Reject over duration cap (~180s; WAV from header, MP3 size≈128kbps estimate) → `audio_too_long`.
+4. Accept valid short WAV/MP3 → ok; `POST /sessions/demo` with multipart `audio` starts pipeline on that file.
+5. Empty body / no file still uses fixture; H5S rate limit + demo access key still apply.
+6. No PHI paths/filenames in logs.
 
 ---
 
