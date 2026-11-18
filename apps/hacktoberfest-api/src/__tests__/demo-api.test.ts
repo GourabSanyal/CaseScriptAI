@@ -85,6 +85,8 @@ describe('demo API routes', () => {
       assert.match(res.headers.get('content-type') ?? '', /text\/html/);
       assert.match(html, /Use sample session/);
       assert.match(html, /Waking server/);
+      assert.match(html, /id="audio"/);
+      assert.match(html, /accept="audio\/wav,audio\/mpeg/);
       assert.match(html, /\/health/);
       assert.match(html, /WAKE_TIMEOUT_MS = 90000/);
       assert.match(html, /POLL_MAX_WAIT_MS = 180000/);
@@ -230,6 +232,73 @@ describe('demo API routes', () => {
         method: 'POST',
       });
       assert.equal(res.status, 202);
+    });
+  });
+
+  it('POST /sessions/demo with multipart audio passes a temp path to the starter', async () => {
+    let sawPath: string | undefined;
+    const wav = (() => {
+      const frames = 22_050;
+      const dataBytes = frames * 2;
+      const buffer = Buffer.alloc(44 + dataBytes);
+      buffer.write('RIFF', 0);
+      buffer.writeUInt32LE(36 + dataBytes, 4);
+      buffer.write('WAVE', 8);
+      buffer.write('fmt ', 12);
+      buffer.writeUInt32LE(16, 16);
+      buffer.writeUInt16LE(1, 20);
+      buffer.writeUInt16LE(1, 22);
+      buffer.writeUInt32LE(22_050, 24);
+      buffer.writeUInt32LE(22_050 * 2, 28);
+      buffer.writeUInt16LE(2, 32);
+      buffer.writeUInt16LE(16, 34);
+      buffer.write('data', 36);
+      buffer.writeUInt32LE(dataBytes, 40);
+      return buffer;
+    })();
+
+    const server = createServer({
+      startDemoSession: async (ctx) => {
+        sawPath = ctx?.audioPath;
+        return { id: sessionId, status: 'queued' };
+      },
+    });
+
+    await withServer(server, async (base) => {
+      const form = new FormData();
+      form.append(
+        'audio',
+        new Blob([wav], { type: 'audio/wav' }),
+        'clip.wav',
+      );
+      const res = await fetch(`${base}/sessions/demo`, {
+        method: 'POST',
+        body: form,
+      });
+      assert.equal(res.status, 202);
+      assert.ok(sawPath);
+      assert.match(sawPath ?? '', /upload\.wav$/);
+    });
+  });
+
+  it('POST /sessions/demo rejects invalid multipart audio type', async () => {
+    const server = createServer({
+      startDemoSession: async () => ({ id: sessionId, status: 'queued' }),
+    });
+    await withServer(server, async (base) => {
+      const form = new FormData();
+      form.append(
+        'audio',
+        new Blob([Buffer.from('not-audio')], { type: 'application/octet-stream' }),
+        'clip.bin',
+      );
+      const res = await fetch(`${base}/sessions/demo`, {
+        method: 'POST',
+        body: form,
+      });
+      const body = await res.json();
+      assert.equal(res.status, 400);
+      assert.deepEqual(body, { ok: false, error: 'audio_invalid_type' });
     });
   });
 });

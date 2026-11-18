@@ -45,6 +45,15 @@
         transition: opacity 0.2s ease;
       }
       button:disabled { opacity: 0.55; cursor: wait; }
+      .upload {
+        margin: 0 0 16px;
+        padding: 12px 14px;
+        border-radius: 16px;
+        background: var(--panel);
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+      .upload input { display: block; margin-top: 8px; max-width: 100%; }
       .status {
         margin-top: 20px;
         padding: 14px 16px;
@@ -80,6 +89,10 @@
         Generate a structured session note PDF from the synthetic sample
         recording. Demo data only — not real PHI.
       </p>
+      <div class="upload">
+        Optional: upload your own short WAV/MP3 (max ~3 min / 8 MB). Leave empty to use the synthetic sample.
+        <input id="audio" type="file" accept="audio/wav,audio/mpeg,.wav,.mp3" />
+      </div>
       <button id="generate" type="button" disabled>Use sample session</button>
       <div class="status" id="status" aria-live="polite">Waking server (~1 min)…</div>
       <section id="note" hidden>
@@ -108,6 +121,7 @@
       const NETWORK_FAIL_LIMIT = 3;
 
       const generateBtn = document.getElementById("generate");
+      const audioInput = document.getElementById("audio");
       const statusEl = document.getElementById("status");
       const downloadEl = document.getElementById("download");
       const noteEl = document.getElementById("note");
@@ -168,6 +182,18 @@
           return "AI rate limit hit. Wait a moment, then tap Retry.";
         }
         if (c === "stt_timeout") return "Transcription timed out. Tap Retry.";
+        if (c === "audio_invalid_type") {
+          return "Use a WAV or MP3 file. Tap Retry with a different file.";
+        }
+        if (c === "audio_too_large") {
+          return "Audio is too large (max 8 MB). Tap Retry with a shorter clip.";
+        }
+        if (c === "audio_too_long") {
+          return "Audio is too long (max ~3 min). Tap Retry with a shorter clip.";
+        }
+        if (c === "audio_missing") {
+          return "Upload failed — pick a WAV/MP3 or leave empty for the sample.";
+        }
         if (c === "network" || c === "wake_timeout") {
           return "Can't reach server. Check your connection or try again.";
         }
@@ -324,7 +350,14 @@
         hideNote();
         setStatus("Starting…");
         try {
-          const res = await fetch("/sessions/demo", { method: "POST" });
+          const file = audioInput && audioInput.files && audioInput.files[0];
+          const init = { method: "POST" };
+          if (file) {
+            const form = new FormData();
+            form.append("audio", file, file.name || "upload.wav");
+            init.body = form;
+          }
+          const res = await fetch("/sessions/demo", init);
           let data = {};
           try {
             data = await res.json();
