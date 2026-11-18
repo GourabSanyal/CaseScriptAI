@@ -6,20 +6,20 @@ import type { VerifyClerkToken } from './auth/verify-clerk-token.js';
 import type { DemoSession } from './db/session-repository.js';
 import type { AppUser, UpsertUserInput } from './db/user-repository.js';
 import { packageRoot } from './db/env.js';
-import { extractClientIp, hashClientIp } from './http/client-ip.js';
-import {
-  checkDemoAccessKey,
-  extractDemoAccessKey,
-} from './http/demo-access-key.js';
+import { handleDemoStart } from './http/demo-start-route.js';
 import { handleGetMe } from './http/me-route.js';
 import { handleGetNote } from './http/note-route.js';
-import {
-  checkDemoRateLimit,
-  type RateLimitStore,
-} from './http/rate-limit.js';
+import type { RateLimitStore } from './http/rate-limit.js';
 import { withSecurityHeaders } from './http/security-headers.js';
 import { toPublicSession } from './http/session-view.js';
 import type { DemoSessionStarter } from './pipeline/demo-session-starter.js';
+
+const SESSION_PATH =
+  /^\/sessions\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+const SESSION_PDF_PATH =
+  /^\/sessions\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/pdf$/i;
+const SESSION_NOTE_PATH =
+  /^\/sessions\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/note$/i;
 
 export type ServerDeps = {
   getSessionById?: (id: string) => Promise<DemoSession | null>;
@@ -31,6 +31,7 @@ export type ServerDeps = {
   ipHashSalt?: string;
   rateLimitStore?: RateLimitStore;
   tryAcquirePipeline?: () => boolean;
+  releasePipeline?: () => void;
   demoAccessKey?: string;
 };
 
@@ -58,12 +59,6 @@ function sendPdf(res: ServerResponse, bytes: Buffer, sessionId: string): void {
   res.end(bytes);
 }
 
-const SESSION_ID =
-  '([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})';
-const SESSION_PDF_PATH = new RegExp(`^/sessions/${SESSION_ID}/pdf$`, 'i');
-const SESSION_NOTE_PATH = new RegExp(`^/sessions/${SESSION_ID}/note$`, 'i');
-const SESSION_PATH = new RegExp(`^/sessions/${SESSION_ID}$`, 'i');
-
 async function handleSessionPdf(
   res: ServerResponse,
   sessionId: string,
@@ -76,6 +71,10 @@ async function handleSessionPdf(
   const session = await deps.getSessionById(sessionId);
   if (!session) {
     sendJson(res, 404, { ok: false, error: 'session_not_found' });
+    return;
+  }
+  if (session.status !== 'ready') {
+    sendJson(res, 404, { ok: false, error: 'pdf_not_ready' });
     return;
   }
   const bytes = await deps.readPdfBytes(session);
@@ -102,46 +101,6 @@ async function handleGetSession(
   }
   const base = deps.publicBaseUrl ?? 'http://localhost';
   sendJson(res, 200, toPublicSession(session, base));
-}
-
-async function handleDemoStart(
-  req: IncomingMessage,
-  res: ServerResponse,
-  deps: ServerDeps,
-  searchParams: URLSearchParams,
-): Promise<void> {
-  if (!deps.startDemoSession) {
-    sendJson(res, 503, { ok: false, error: 'demo_unavailable' });
-    return;
-  }
-
-  const access = checkDemoAccessKey(
-    extractDemoAccessKey(req, searchParams),
-    deps.demoAccessKey,
-  );
-  if (access === 'demo_key_required') {
-    sendJson(res, 401, { ok: false, error: 'demo_key_required' });
-    return;
-  }
-
-  const salt = deps.ipHashSalt ?? 'dev-ip-salt';
-  const ipHash = hashClientIp(extractClientIp(req), salt);
-
-  if (deps.rateLimitStore) {
-    const limit = await checkDemoRateLimit(deps.rateLimitStore, ipHash);
-    if (limit === 'rate_limited') {
-      sendJson(res, 429, { ok: false, error: 'rate_limited' });
-      return;
-    }
-  }
-
-  if (deps.tryAcquirePipeline && !deps.tryAcquirePipeline()) {
-    sendJson(res, 503, { ok: false, error: 'busy' });
-    return;
-  }
-
-  const started = await deps.startDemoSession({ clientIpHash: ipHash });
-  sendJson(res, 202, started);
 }
 
 async function handleDemoUi(res: ServerResponse): Promise<void> {
@@ -187,7 +146,12 @@ export function createServer(deps: ServerDeps = {}): http.Server {
     }
 
     if (method === 'POST' && url.pathname === '/sessions/demo') {
-      void handleDemoStart(req, res, deps, url.searchParams).catch(fail);
+      void handleDemoStart(
+        req,
+        res,
+        { ...deps, sendJson },
+        url.searchParams,
+      ).catch(fail);
       return;
     }
 

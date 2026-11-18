@@ -40,6 +40,7 @@ const buildServer = async () => {
       countStartsGlobal: repo.countStartsGlobal,
     },
     tryAcquirePipeline: () => gate.tryAcquire(),
+    releasePipeline: () => gate.release(),
     getSessionById: (id: string) => repo.getById(id),
     readPdfBytes: (session: Parameters<typeof readSessionPdf>[0]) =>
       readSessionPdf(session),

@@ -1,3 +1,4 @@
+import { unlink } from 'node:fs/promises';
 import type { SessionRepository } from '../db/session-repository.js';
 import type { LlmProvider } from '../providers/llm-provider.js';
 import type { SttProvider } from '../providers/stt-provider.js';
@@ -7,6 +8,8 @@ import { runDemoPipeline } from './run-demo-pipeline.js';
 
 export type DemoStartContext = {
   clientIpHash?: string | null;
+  /** Optional upload path; defaults to fixture. Deleted after pipeline when set. */
+  audioPath?: string;
 };
 
 export type DemoSessionStarter = (
@@ -30,17 +33,24 @@ export const createDemoSessionStarter = (
       clientIpHash: ctx.clientIpHash ?? null,
     });
 
+    const audioPath =
+      ctx.audioPath ?? deps.audioPath ?? FIXTURE_AUDIO_PATH;
+    const deleteAfter = Boolean(ctx.audioPath);
+
     void runDemoPipeline({
       repo: deps.repo,
       stt: deps.stt,
       llm: deps.llm,
       sessionId: session.id,
-      audioPath: deps.audioPath ?? FIXTURE_AUDIO_PATH,
+      audioPath,
     })
       .catch(() => {
         console.error('demo_pipeline_failed');
       })
       .finally(() => {
+        if (deleteAfter) {
+          void unlink(audioPath).catch(() => undefined);
+        }
         deps.gate?.release();
       });
 
