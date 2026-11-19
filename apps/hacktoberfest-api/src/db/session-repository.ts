@@ -167,6 +167,17 @@ export const createSessionRepository = (pool: DbPool) => {
     return Number(result.rows[0]?.count ?? 0);
   };
 
+  const listRecent = async (limit = 5): Promise<DemoSession[]> => {
+    const safeLimit = Math.min(Math.max(1, Math.floor(limit)), 5);
+    const result = await pool.query<SessionRow>(
+      `SELECT ${SELECT_COLS} FROM demo_sessions
+       ORDER BY created_at DESC
+       LIMIT $1`,
+      [safeLimit],
+    );
+    return result.rows.map(mapRow);
+  };
+
   return {
     createSession,
     getById,
@@ -174,6 +185,7 @@ export const createSessionRepository = (pool: DbPool) => {
     setPdfBytes,
     countStartsByIpHash,
     countStartsGlobal,
+    listRecent,
   };
 };
 

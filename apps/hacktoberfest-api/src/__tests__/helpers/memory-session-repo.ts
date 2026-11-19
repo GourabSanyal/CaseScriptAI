@@ -59,5 +59,6 @@ export const createMemoryRepo = (initial: DemoSession): SessionRepository => {
     },
     countStartsByIpHash: async () => 0,
     countStartsGlobal: async () => 0,
+    listRecent: async () => [{ ...session }],
   };
 };
