@@ -68,6 +68,20 @@
         font-weight: 600;
       }
       a.download[hidden] { display: none !important; }
+      #recent { margin-top: 24px; }
+      #recent[hidden] { display: none !important; }
+      #recent h2 { font-size: 1.1rem; margin: 0 0 8px; color: var(--sage); }
+      #recent ul { list-style: none; padding: 0; margin: 0; }
+      #recent li {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 12px;
+        align-items: baseline;
+        padding: 10px 0;
+        border-top: 1px solid #e4e0da;
+        font-size: 0.9rem;
+      }
+      #recent .sid { font-family: ui-monospace, monospace; font-size: 0.8rem; color: var(--muted); }
       #note { margin-top: 20px; }
       #note[hidden] { display: none !important; }
       #note h2 { font-size: 1.1rem; margin: 0 0 8px; color: var(--sage); }
@@ -108,6 +122,10 @@
         <p id="note-plan"></p>
       </section>
       <a class="download" id="download" hidden href="#">Download PDF</a>
+      <section id="recent" hidden>
+        <h2>Recent sessions</h2>
+        <ul id="recent-list"></ul>
+      </section>
       <p class="disclaimer">
         Audio is a fictional scripted conversation for Hacktoberfest. Not for
         clinical use.
@@ -126,6 +144,8 @@
       const downloadEl = document.getElementById("download");
       const noteEl = document.getElementById("note");
       const noteStatusEl = document.getElementById("note-status");
+      const recentEl = document.getElementById("recent");
+      const recentListEl = document.getElementById("recent-list");
       const noteFields = {
         subjective: document.getElementById("note-subjective"),
         objective: document.getElementById("note-objective"),
@@ -209,6 +229,54 @@
         for (const el of Object.values(noteFields)) el.textContent = "";
       };
 
+      const stepLabel = (status) => {
+        if (status === "queued") return "Queued…";
+        if (status === "stt_running") return "Transcribing…";
+        if (status === "llm_running") return "Writing note…";
+        if (status === "pdf_running") return "Building PDF…";
+        if (status === "ready") return "Ready.";
+        if (status === "failed") return "Failed";
+        return "Status: " + status;
+      };
+
+      const loadRecentSessions = async () => {
+        try {
+          const res = await fetch("/sessions/recent");
+          if (!res.ok) {
+            recentEl.hidden = true;
+            return;
+          }
+          const data = await res.json();
+          const sessions = Array.isArray(data.sessions) ? data.sessions : [];
+          recentListEl.innerHTML = "";
+          if (!sessions.length) {
+            recentEl.hidden = true;
+            return;
+          }
+          for (const s of sessions.slice(0, 5)) {
+            const li = document.createElement("li");
+            const sid = document.createElement("span");
+            sid.className = "sid";
+            sid.textContent = String(s.id || "").slice(0, 8) + "…";
+            const st = document.createElement("span");
+            st.textContent = stepLabel(s.status || "unknown");
+            li.appendChild(sid);
+            li.appendChild(st);
+            if (s.status === "ready" && s.pdfUrl) {
+              const a = document.createElement("a");
+              a.className = "download";
+              a.href = s.pdfUrl;
+              a.textContent = "PDF";
+              li.appendChild(a);
+            }
+            recentListEl.appendChild(li);
+          }
+          recentEl.hidden = false;
+        } catch (_) {
+          recentEl.hidden = true;
+        }
+      };
+
       const showNote = async (id) => {
         noteEl.hidden = false;
         try {
@@ -248,6 +316,7 @@
               generateBtn.disabled = false;
               generateBtn.textContent = "Use sample session";
               setStatus("Ready.");
+              void loadRecentSessions();
               return;
             }
           } catch (_) {
@@ -257,15 +326,6 @@
         }
         setStatus(friendlyFailure("wake_timeout"));
         markRetryable();
-      };
-
-      const stepLabel = (status) => {
-        if (status === "queued") return "Queued…";
-        if (status === "stt_running") return "Transcribing…";
-        if (status === "llm_running") return "Writing note…";
-        if (status === "pdf_running") return "Building PDF…";
-        if (status === "ready") return "Ready.";
-        return "Status: " + status;
       };
 
       const pollSession = (id) => {
@@ -318,6 +378,7 @@
               downloadEl.href = data.pdfUrl;
               generateBtn.disabled = false;
               generateBtn.textContent = "Use sample session";
+              void loadRecentSessions();
               return;
             }
             scheduleNext();

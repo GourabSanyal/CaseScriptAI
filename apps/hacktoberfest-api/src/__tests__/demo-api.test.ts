@@ -87,6 +87,9 @@ describe('demo API routes', () => {
       assert.match(html, /Waking server/);
       assert.match(html, /id="audio"/);
       assert.match(html, /accept="audio\/wav,audio\/mpeg/);
+      assert.match(html, /id="recent"/);
+      assert.match(html, /Recent sessions/);
+      assert.match(html, /\/sessions\/recent/);
       assert.match(html, /\/health/);
       assert.match(html, /WAKE_TIMEOUT_MS = 90000/);
       assert.match(html, /POLL_MAX_WAIT_MS = 180000/);
