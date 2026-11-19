@@ -313,7 +313,7 @@
 | Sub | Description | Status | Tests | Impl |
 |---|---|---|---|---|
 | H9.1 | Upload own short audio (size/duration cap, WAV/MP3 check, rate limit from H5S.1 applies) | DONE | `validate-demo-audio.test.ts`, `parse-multipart-audio.test.ts`, `demo-api.test.ts` | `audio/validate-demo-audio.ts`, `audio/parse-multipart-audio.ts`, `http/demo-start-route.ts`, `public/index.html` |
-| H9.2 | Recent sessions list (last 5) on demo page | TODO | | |
+| H9.2 | Recent sessions list (last 5) on demo page | DONE | `recent-sessions-route.test.ts`, HTML in `demo-api.test.ts` | `session-repository.ts` `listRecent`, `http/recent-sessions-route.ts`, `public/index.html` |
 
 **Test plan (H9.1):** ✅ green (`DATABASE_URL=` + `LIVE_PROVIDER_SMOKE=0`).
 1. Reject non-WAV/MP3 magic bytes → `audio_invalid_type`.
@@ -322,6 +322,12 @@
 4. Accept valid short WAV/MP3 → ok; `POST /sessions/demo` with multipart `audio` starts pipeline on that file.
 5. Empty body / no file still uses fixture; H5S rate limit + demo access key still apply.
 6. No PHI paths/filenames in logs.
+
+**Test plan (H9.2):** ✅ green (`DATABASE_URL=` + `LIVE_PROVIDER_SMOKE=0`).
+1. `listRecent(limit)` returns newest-first rows, capped at 5.
+2. `GET /sessions/recent` → `{ sessions: PublicSession[] }` with no transcript/note_json.
+3. Demo HTML loads recent list on wake and after a generate completes; shows status + PDF link when ready.
+4. Missing list dep → `503 sessions_unavailable`.
 
 ---
 
