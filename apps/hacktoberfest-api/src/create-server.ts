@@ -10,6 +10,7 @@ import { handleDemoStart } from './http/demo-start-route.js';
 import { handleGetMe } from './http/me-route.js';
 import { handleGetNote } from './http/note-route.js';
 import type { RateLimitStore } from './http/rate-limit.js';
+import { handleGetRecentSessions } from './http/recent-sessions-route.js';
 import { withSecurityHeaders } from './http/security-headers.js';
 import { toPublicSession } from './http/session-view.js';
 import type { DemoSessionStarter } from './pipeline/demo-session-starter.js';
@@ -23,6 +24,7 @@ const SESSION_NOTE_PATH =
 
 export type ServerDeps = {
   getSessionById?: (id: string) => Promise<DemoSession | null>;
+  listRecentSessions?: (limit: number) => Promise<DemoSession[]>;
   readPdfBytes?: (session: DemoSession) => Promise<Buffer | null>;
   startDemoSession?: DemoSessionStarter;
   publicBaseUrl?: string;
@@ -152,6 +154,15 @@ export function createServer(deps: ServerDeps = {}): http.Server {
         { ...deps, sendJson },
         url.searchParams,
       ).catch(fail);
+      return;
+    }
+
+    if (method === 'GET' && url.pathname === '/sessions/recent') {
+      void handleGetRecentSessions(res, {
+        listRecentSessions: deps.listRecentSessions,
+        publicBaseUrl: deps.publicBaseUrl,
+        sendJson,
+      }).catch(fail);
       return;
     }
 

@@ -42,6 +42,7 @@ const buildServer = async () => {
     tryAcquirePipeline: () => gate.tryAcquire(),
     releasePipeline: () => gate.release(),
     getSessionById: (id: string) => repo.getById(id),
+    listRecentSessions: (limit: number) => repo.listRecent(limit),
     readPdfBytes: (session: Parameters<typeof readSessionPdf>[0]) =>
       readSessionPdf(session),
     ...(config.clerkSecretKey
